@@ -83,9 +83,9 @@ export function AppShell({
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5">
           <div>
             <p className="text-xs font-medium text-slate-500">
-              Inicio / Fase 0
+              ADENTU / CRM Comercial
             </p>
-            <h2 className="text-base font-semibold">Base tecnica del CRM</h2>
+            <h2 className="text-base font-semibold">Gestion comercial</h2>
           </div>
           <form
             action={async () => {

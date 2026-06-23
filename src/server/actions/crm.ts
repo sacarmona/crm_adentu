@@ -1,6 +1,6 @@
 "use server";
 
-import { AuditAction } from "@prisma/client";
+import { AuditAction, UserRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -11,6 +11,7 @@ import {
   companySchema,
   contactSchema,
   opportunitySchema,
+  opportunityStageSchema,
 } from "@/schemas/crm";
 import {
   calculateCompanyCompleteness,
@@ -231,4 +232,57 @@ export async function deleteOpportunity(id: string) {
   });
   revalidatePath("/opportunities");
   redirect("/opportunities");
+}
+
+export async function changeOpportunityStage(input: {
+  opportunityId: string;
+  status: string;
+}) {
+  const session = await auth();
+
+  if (
+    !session?.user ||
+    (session.user.role !== UserRole.ADMIN &&
+      session.user.role !== UserRole.COMERCIAL)
+  ) {
+    throw new Error("No tienes permisos para modificar el pipeline.");
+  }
+
+  const data = opportunityStageSchema.parse(input);
+  const before = await prisma.opportunity.findFirst({
+    where: { id: data.opportunityId, deletedAt: null },
+    select: { id: true, name: true, status: true },
+  });
+
+  if (!before) {
+    throw new Error("La oportunidad ya no esta disponible.");
+  }
+
+  if (before.status === data.status) {
+    return { status: before.status };
+  }
+
+  await prisma.$transaction([
+    prisma.opportunity.update({
+      where: { id: before.id },
+      data: { status: data.status },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.STAGE_CHANGE,
+        entityType: "Opportunity",
+        entityId: before.id,
+        actorId: session.user.id,
+        before: { name: before.name, status: before.status },
+        after: { name: before.name, status: data.status },
+        metadata: { source: "pipeline" },
+      },
+    }),
+  ]);
+
+  revalidatePath("/pipeline");
+  revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${before.id}`);
+
+  return { status: data.status };
 }

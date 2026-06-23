@@ -62,6 +62,17 @@ Fase 4 completada:
 - Indicadores visuales de completitud en listados y ficha de oportunidad.
 - Pruebas unitarias Vitest para reglas comerciales y scoring.
 
+Fase 5 completada:
+
+- Pipeline Kanban con las seis etapas comerciales.
+- Movimiento de oportunidades con mouse, tacto o teclado.
+- Actualizacion optimista con reversion ante errores.
+- Totales, montos ponderados y cantidad de oportunidades por etapa.
+- Filtros por responsable y servicio.
+- Cambio de etapa autorizado para roles `ADMIN` y `COMERCIAL`.
+- Vista de solo lectura para rol `LECTURA`.
+- Auditoria transaccional de cada cambio de etapa.
+
 ## Estructura inicial
 
 ```txt
@@ -156,4 +167,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 5: pipeline comercial Kanban con cambio de etapa, totales por columna y controles de acceso por rol.
+Iniciar Fase 6: registro de interacciones, tareas, proximas acciones y seguimiento comercial.

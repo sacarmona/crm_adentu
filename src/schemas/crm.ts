@@ -71,7 +71,11 @@ export const opportunitySchema = z.object({
   notes: optionalText,
 });
 
+export const opportunityStageSchema = z.object({
+  opportunityId: z.string().uuid(),
+  status: z.nativeEnum(OpportunityStatus),
+});
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type OpportunityInput = z.infer<typeof opportunitySchema>;
-
