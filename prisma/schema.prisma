@@ -6,10 +6,152 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Architecture note: the schema is intentionally single-tenant for ADENTU.
+/// If the CRM is offered to another company later, add tenantId consistently
+/// to business-owned records before implementing shared deployments.
+
 enum UserRole {
   ADMIN
   COMERCIAL
   LECTURA
+}
+
+enum CompanyStatus {
+  UNQUALIFIED
+  PROSPECTING
+  HISTORIC_CLIENT
+  ACTIVE_CLIENT
+  LOST
+  DISCARDED
+}
+
+enum ContactStatus {
+  UNQUALIFIED
+  QUALIFIED_POSITIVE
+  WITH_OPPORTUNITY
+  CLIENT
+  LOST
+  QUALIFIED_NEGATIVE
+}
+
+enum LeadSource {
+  INBOUND_EMAIL
+  INBOUND_PHONE_WHATSAPP
+  INBOUND_OTHER
+  OUTBOUND_CONSULTATIVE
+  OUTBOUND_RELATIONAL
+  OUTBOUND_FAIRS
+  OUTBOUND_OTHER
+}
+
+enum OpportunityStatus {
+  EXPLORATION
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  STALLED
+  LOST
+}
+
+enum Certainty {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Currency {
+  CLP
+  UF
+  USD
+  EUR
+}
+
+enum InteractionType {
+  EMAIL
+  WHATSAPP
+  PHONE
+  LINKEDIN
+  NEW_FOCUS_CLIENT_MEETING
+  ONLINE_MEETING
+  IN_PERSON_MEETING
+  PROPOSAL_SENT
+  FOLLOW_UP
+  CLIENT_RESPONSE
+  OTHER
+}
+
+enum TaskStatus {
+  PENDING
+  EXECUTED
+  CLOSED
+}
+
+enum AiInsightType {
+  INTERACTION_ANALYSIS
+  NEXT_ACTION_SUGGESTION
+  FOLLOW_UP_EMAIL
+  COMPANY_HISTORY_SUMMARY
+  DORMANT_OPPORTUNITY_DETECTION
+  INCOMPLETE_COMPANY_DETECTION
+  CONTACT_WITHOUT_FOLLOW_UP_DETECTION
+}
+
+enum AiInsightStatus {
+  DRAFT
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
+enum CommercialSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum ImportBatchStatus {
+  DRAFT
+  VALIDATING
+  READY
+  IMPORTED
+  FAILED
+  CANCELLED
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  WARNING
+  ERROR
+  IMPORTED
+  SKIPPED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  STAGE_CHANGE
+  SOFT_DELETE
+  IMPORT
+  AI_SUGGESTION_APPROVAL
+}
+
+enum AttachmentEntityType {
+  COMPANY
+  CONTACT
+  OPPORTUNITY
+  INTERACTION
+  TASK
+  PLAYBOOK
+}
+
+enum PlaybookItemType {
+  KEY_QUESTION
+  QUALIFICATION_CRITERIA
+  COMMON_OBJECTION
+  SUGGESTED_NEXT_STEP
+  PROPOSAL_CHECKLIST
+  SUGGESTED_DOCUMENT
 }
 
 model User {
@@ -21,5 +163,454 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  responsibleCompanies     Company[]             @relation("CompanyResponsible")
+  responsibleContacts      Contact[]             @relation("ContactResponsible")
+  responsibleOpportunities Opportunity[]         @relation("OpportunityResponsible")
+  executedInteractions     Interaction[]         @relation("InteractionExecutor")
+  assignedTasks            Task[]                @relation("TaskAssignee")
+  createdTasks             Task[]                @relation("TaskCreator")
+  importBatches            ImportBatch[]         @relation("ImportBatchCreator")
+  auditLogs                AuditLog[]            @relation("AuditActor")
+  approvedAiInsights       AiInsight[]           @relation("AiInsightApprover")
+  createdPlaybooks         Playbook[]            @relation("PlaybookCreator")
+  commercialMilestones     CommercialMilestone[] @relation("MilestoneOwner")
+
   @@index([email])
+  @@index([role])
+}
+
+model Company {
+  id              String        @id @default(uuid())
+  name            String
+  normalizedName  String
+  industry        String?
+  region          String?
+  status          CompanyStatus @default(UNQUALIFIED)
+  size            String?
+  responsibleId   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lastInteraction DateTime?
+  activeDeals     Int           @default(0)
+  totalWon        Decimal       @default(0) @db.Decimal(18, 2)
+  contactCount    Int           @default(0)
+  completeness    Int           @default(0)
+  notes           String?
+  deletedAt       DateTime?
+
+  responsible              User?                 @relation("CompanyResponsible", fields: [responsibleId], references: [id])
+  contacts                 Contact[]
+  opportunities            Opportunity[]
+  interactions             Interaction[]
+  tasks                    Task[]
+  ownedMarketAssets        MarketAsset[]         @relation("MarketAssetOwnerCompany")
+  constructionMarketAssets MarketAsset[]         @relation("MarketAssetConstructionCompany")
+  omMarketAssets           MarketAsset[]         @relation("MarketAssetOmCompany")
+  commercialMilestones     CommercialMilestone[]
+  attachments              Attachment[]
+
+  @@index([name])
+  @@index([normalizedName])
+  @@index([status])
+  @@index([industry])
+  @@index([region])
+  @@index([responsibleId])
+  @@index([lastInteraction])
+}
+
+model Contact {
+  id              String        @id @default(uuid())
+  name            String
+  companyId       String?
+  roleArea        String?
+  status          ContactStatus @default(UNQUALIFIED)
+  email           String?
+  phone           String?
+  leadSource      LeadSource?
+  responsibleId   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lastInteraction DateTime?
+  activeDeals     Int           @default(0)
+  completeness    Int           @default(0)
+  notes           String?
+  deletedAt       DateTime?
+
+  company               Company?       @relation(fields: [companyId], references: [id])
+  responsible           User?          @relation("ContactResponsible", fields: [responsibleId], references: [id])
+  primaryOpportunities  Opportunity[]  @relation("OpportunityPrimaryContact")
+  interactions          Interaction[]
+  tasks                 Task[]
+  attachments           Attachment[]
+
+  @@index([companyId])
+  @@index([email])
+  @@index([status])
+  @@index([leadSource])
+  @@index([responsibleId])
+  @@index([lastInteraction])
+}
+
+model Opportunity {
+  id                 String            @id @default(uuid())
+  name               String
+  primaryContactId   String?
+  companyId          String?
+  serviceId          String?
+  status             OpportunityStatus @default(EXPLORATION)
+  certainty          Certainty?
+  probability        Decimal           @default(0) @db.Decimal(5, 4)
+  ageDays            Int               @default(0)
+  businessUnit       String?
+  currency           Currency          @default(CLP)
+  price              Decimal           @default(0) @db.Decimal(18, 2)
+  exchangeRate       Decimal           @default(1) @db.Decimal(18, 6)
+  priceClp           Decimal           @default(0) @db.Decimal(18, 2)
+  quantity           Int               @default(1)
+  monthlyAmount      Decimal           @default(0) @db.Decimal(18, 2)
+  months             Int               @default(1)
+  totalAmount        Decimal           @default(0) @db.Decimal(18, 2)
+  weightedAmount     Decimal           @default(0) @db.Decimal(18, 2)
+  estimatedCloseDate DateTime?
+  estimatedStartDate DateTime?
+  nextActionDate     DateTime?
+  responsibleId      String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  lastInteraction    DateTime?
+  completeness       Int               @default(0)
+  notes              String?
+  deletedAt          DateTime?
+
+  primaryContact Contact?      @relation("OpportunityPrimaryContact", fields: [primaryContactId], references: [id])
+  company        Company?      @relation(fields: [companyId], references: [id])
+  service        Service?      @relation(fields: [serviceId], references: [id])
+  responsible    User?         @relation("OpportunityResponsible", fields: [responsibleId], references: [id])
+  interactions   Interaction[]
+  tasks          Task[]
+  aiInsights     AiInsight[]
+  attachments    Attachment[]
+
+  @@index([status])
+  @@index([companyId])
+  @@index([primaryContactId])
+  @@index([serviceId])
+  @@index([responsibleId])
+  @@index([estimatedCloseDate])
+  @@index([nextActionDate])
+  @@index([lastInteraction])
+}
+
+model Interaction {
+  id                   String          @id @default(uuid())
+  date                 DateTime        @default(now())
+  contactId            String?
+  opportunityId        String?
+  companyId            String?
+  executedById         String?
+  type                 InteractionType
+  content              String
+  nextAction           String?
+  nextActionDate       DateTime?
+  nextActionDueDate    DateTime?
+  nextActionStatus     TaskStatus?
+  serviceId            String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  deletedAt            DateTime?
+
+  contact       Contact?      @relation(fields: [contactId], references: [id])
+  opportunity   Opportunity?  @relation(fields: [opportunityId], references: [id])
+  company       Company?      @relation(fields: [companyId], references: [id])
+  executedBy    User?         @relation("InteractionExecutor", fields: [executedById], references: [id])
+  service       Service?      @relation(fields: [serviceId], references: [id])
+  tasks         Task[]
+  aiInsights    AiInsight[]
+  attachments   Attachment[]
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([opportunityId])
+  @@index([date])
+  @@index([executedById])
+  @@index([serviceId])
+}
+
+model Task {
+  id            String     @id @default(uuid())
+  title         String
+  description   String?
+  status        TaskStatus @default(PENDING)
+  dueDate       DateTime?
+  executedAt    DateTime?
+  result        String?
+  companyId     String?
+  contactId     String?
+  opportunityId String?
+  interactionId String?
+  serviceId     String?
+  assignedToId  String?
+  createdById   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  company     Company?      @relation(fields: [companyId], references: [id])
+  contact     Contact?      @relation(fields: [contactId], references: [id])
+  opportunity Opportunity?  @relation(fields: [opportunityId], references: [id])
+  interaction Interaction?  @relation(fields: [interactionId], references: [id])
+  service     Service?      @relation(fields: [serviceId], references: [id])
+  assignedTo  User?         @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdBy   User?         @relation("TaskCreator", fields: [createdById], references: [id])
+
+  @@index([dueDate])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([companyId])
+  @@index([opportunityId])
+}
+
+model MarketAsset {
+  id                    String   @id @default(uuid())
+  ownerName             String?
+  unitName              String
+  serviceId             String?
+  quantity              Int      @default(1)
+  constructionCompany   String?
+  operationMaintenance  String?
+  otherRole             String?
+  comment               String?
+  ownerCompanyId        String?
+  constructionCompanyId String?
+  omCompanyId           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  deletedAt             DateTime?
+
+  service             Service? @relation(fields: [serviceId], references: [id])
+  ownerCompany        Company? @relation("MarketAssetOwnerCompany", fields: [ownerCompanyId], references: [id])
+  constructionCompanyRef Company? @relation("MarketAssetConstructionCompany", fields: [constructionCompanyId], references: [id])
+  omCompany           Company? @relation("MarketAssetOmCompany", fields: [omCompanyId], references: [id])
+
+  @@index([serviceId])
+  @@index([ownerName])
+  @@index([constructionCompany])
+  @@index([operationMaintenance])
+}
+
+model CommercialMilestone {
+  id          String   @id @default(uuid())
+  date        DateTime
+  companyId   String?
+  project     String
+  industry    String?
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  company Company? @relation(fields: [companyId], references: [id])
+  owner   User?    @relation("MilestoneOwner", fields: [ownerId], references: [id])
+
+  @@index([date])
+  @@index([companyId])
+  @@index([industry])
+}
+
+model Service {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  opportunities  Opportunity[]
+  interactions   Interaction[]
+  tasks          Task[]
+  marketAssets   MarketAsset[]
+  playbooks      Playbook[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model DictionaryValue {
+  id          String    @id @default(uuid())
+  type        String
+  key         String
+  label       String
+  description String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([type, key])
+  @@index([type])
+  @@index([isActive])
+}
+
+model Playbook {
+  id          String    @id @default(uuid())
+  name        String
+  serviceId   String?
+  description String?
+  createdById String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  service   Service?       @relation(fields: [serviceId], references: [id])
+  createdBy User?          @relation("PlaybookCreator", fields: [createdById], references: [id])
+  items     PlaybookItem[]
+  attachments Attachment[]
+
+  @@index([serviceId])
+  @@index([isActive])
+}
+
+model PlaybookItem {
+  id          String           @id @default(uuid())
+  playbookId  String
+  type        PlaybookItemType
+  title       String
+  content     String
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  playbook Playbook @relation(fields: [playbookId], references: [id])
+
+  @@index([playbookId])
+  @@index([type])
+}
+
+model AiInsight {
+  id                           String              @id @default(uuid())
+  type                         AiInsightType
+  status                       AiInsightStatus     @default(PROPOSED)
+  interactionId                String?
+  companyId                    String?
+  contactId                    String?
+  opportunityId                String?
+  summary                      String?
+  customerInterests            Json?
+  objections                   Json?
+  commitments                  Json?
+  risks                        Json?
+  suggestedNextSteps           Json?
+  mentionedServices            Json?
+  sentiment                    CommercialSentiment?
+  suggestedAdvanceProbability  Decimal?            @db.Decimal(5, 4)
+  suggestedChanges             Json?
+  approvedById                 String?
+  approvedAt                   DateTime?
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime            @updatedAt
+  deletedAt                    DateTime?
+
+  interaction Interaction? @relation(fields: [interactionId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  approvedBy  User?        @relation("AiInsightApprover", fields: [approvedById], references: [id])
+
+  @@index([type])
+  @@index([status])
+  @@index([interactionId])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([opportunityId])
+}
+
+model ImportBatch {
+  id          String            @id @default(uuid())
+  fileName    String
+  source      String            @default("excel")
+  status      ImportBatchStatus @default(DRAFT)
+  createdById String?
+  summary     Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  importedAt  DateTime?
+
+  createdBy User?       @relation("ImportBatchCreator", fields: [createdById], references: [id])
+  rows      ImportRow[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ImportRow {
+  id            String          @id @default(uuid())
+  importBatchId String
+  sheetName     String
+  rowNumber     Int
+  targetModel   String
+  status        ImportRowStatus @default(PENDING)
+  rawData       Json
+  normalizedData Json?
+  issues        Json?
+  createdEntityId String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  importBatch ImportBatch @relation(fields: [importBatchId], references: [id])
+
+  @@index([importBatchId])
+  @@index([sheetName])
+  @@index([targetModel])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  action      AuditAction
+  entityType  String
+  entityId    String
+  actorId     String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model Attachment {
+  id          String               @id @default(uuid())
+  fileName    String
+  mimeType    String?
+  url         String
+  sizeBytes   Int?
+  entityType  AttachmentEntityType
+  entityId    String
+  companyId   String?
+  contactId   String?
+  opportunityId String?
+  interactionId String?
+  playbookId  String?
+  createdAt   DateTime             @default(now())
+  deletedAt   DateTime?
+
+  company     Company?     @relation(fields: [companyId], references: [id])
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  interaction Interaction? @relation(fields: [interactionId], references: [id])
+  playbook    Playbook?    @relation(fields: [playbookId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([opportunityId])
 }

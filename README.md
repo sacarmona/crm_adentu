@@ -17,7 +17,7 @@ Aplicacion web CRM para ADENTU Ingenieria SpA. El objetivo es reemplazar la plan
 
 ## Estado actual
 
-Fase 0 iniciada:
+Fase 0 completada:
 
 - Proyecto Next.js creado.
 - Dependencias principales instaladas.
@@ -25,6 +25,15 @@ Fase 0 iniciada:
 - Prisma configurado para PostgreSQL.
 - Estructura modular inicial creada.
 - Variables de entorno documentadas en `.env.example`.
+
+Fase 1 en desarrollo:
+
+- Schema Prisma CRM ampliado con entidades comerciales principales.
+- Migracion SQL inicial generada desde el schema Prisma.
+- Enums de estados, roles, monedas, interacciones, importacion, IA y auditoria.
+- Soft delete en modelos de negocio.
+- Indices para busqueda, filtros y relaciones frecuentes.
+- Seed ficticio sin datos reales sensibles.
 
 ## Estructura inicial
 
@@ -78,9 +87,23 @@ pnpm typecheck    Verifica TypeScript
 pnpm db:generate  Genera Prisma Client
 pnpm db:push      Sincroniza schema con la base
 pnpm db:migrate   Crea migraciones Prisma
+pnpm db:seed      Carga datos ficticios de ejemplo
 pnpm db:studio    Abre Prisma Studio
 ```
 
-## Proxima fase
+## Recomendaciones tecnicas adoptadas
 
-Fase 1: completar el modelo de datos CRM con empresas, contactos, oportunidades, interacciones, tareas, mercado, playbooks, importacion, IA y auditoria.
+- Auth: Auth.js / NextAuth v5 con Prisma Adapter en Fase 2.
+- IA: Vercel AI SDK con respuestas validadas por Zod antes de guardar en `AiInsight`.
+- Jobs async: Inngest o QStash para IA, importacion grande y notificaciones.
+- Importador Excel: `exceljs` o `xlsx`, con procesamiento por lotes si los archivos crecen.
+- Adjuntos: Vercel Blob o Cloudflare R2; no filesystem local en serverless.
+- Env vars: validar con Zod o `@t3-oss/env-nextjs`.
+- Testing: Vitest para calculos comerciales y Playwright opcional para pipeline.
+- Data fetching: TanStack Query para cache, filtros persistentes y revalidacion.
+- Seguridad IA: rate limiting por usuario antes de exponer acciones con costo.
+- Multi-tenant: no requerido hoy; el schema deja anotada la expansion futura a `tenantId`.
+
+## Proxima fase de implementacion
+
+Completar Fase 1 con migracion inicial y validacion sobre una base PostgreSQL local o remota. Luego iniciar Fase 2: autenticacion, roles y layout protegido.
