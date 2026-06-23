@@ -1,4 +1,5 @@
 import { ArrowRight, CheckCircle2, Database, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
@@ -32,9 +33,11 @@ export default function DashboardPage() {
               Prisma y roles Admin, Comercial y Lectura.
             </p>
           </div>
-          <Button>
-            Continuar al CRUD
-            <ArrowRight className="h-4 w-4" />
+          <Button asChild>
+            <Link href="/companies">
+              Continuar al CRUD
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </Button>
         </div>
       </section>
@@ -92,4 +95,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

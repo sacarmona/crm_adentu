@@ -44,6 +44,16 @@ Fase 2 en desarrollo:
 - Dashboard movido a una ruta protegida.
 - Shell interno muestra usuario, correo, rol y cierre de sesion.
 
+Fase 3 en desarrollo:
+
+- CRUD funcional para empresas, contactos y oportunidades.
+- Listados protegidos con busqueda y filtro por estado.
+- Formularios server-side validados con Zod.
+- Fichas detalle con relaciones principales.
+- Edicion y eliminacion logica con `deletedAt`.
+- Audit log basico para creacion, edicion, cambio de etapa y soft delete.
+- Calculos comerciales de oportunidad centralizados en servicio reutilizable.
+
 ## Estructura inicial
 
 ```txt
@@ -137,4 +147,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Completar Fase 1 con migracion inicial y validacion sobre una base PostgreSQL local o remota. Luego iniciar Fase 2: autenticacion, roles y layout protegido.
+Continuar Fase 3 con tablas avanzadas TanStack Table, filtros persistentes y deteccion visual de datos incompletos. Luego iniciar Fase 4: calculos comerciales y scoring con tests Vitest.

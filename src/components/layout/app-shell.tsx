@@ -12,6 +12,8 @@ import {
   Settings,
   Target,
 } from "lucide-react";
+import Link from "next/link";
+
 import { signOut } from "@/auth";
 
 type AppShellUser = {
@@ -21,18 +23,18 @@ type AppShellUser = {
 };
 
 const navigation = [
-  { label: "Dashboard", icon: LayoutDashboard },
-  { label: "Empresas", icon: Building2 },
-  { label: "Contactos", icon: Contact },
-  { label: "Oportunidades", icon: Handshake },
-  { label: "Pipeline", icon: Target },
-  { label: "Interacciones", icon: MessageSquareText },
-  { label: "Tareas", icon: ClipboardList },
-  { label: "Mercado", icon: BarChart3 },
-  { label: "Inteligencia Comercial", icon: Bot },
-  { label: "Playbooks", icon: BookOpenCheck },
-  { label: "Importar", icon: FileUp },
-  { label: "Configuracion", icon: Settings },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Empresas", href: "/companies", icon: Building2 },
+  { label: "Contactos", href: "/contacts", icon: Contact },
+  { label: "Oportunidades", href: "/opportunities", icon: Handshake },
+  { label: "Pipeline", href: "/pipeline", icon: Target },
+  { label: "Interacciones", href: "/interactions", icon: MessageSquareText },
+  { label: "Tareas", href: "/tasks", icon: ClipboardList },
+  { label: "Mercado", href: "/market", icon: BarChart3 },
+  { label: "Inteligencia Comercial", href: "/intelligence", icon: Bot },
+  { label: "Playbooks", href: "/playbooks", icon: BookOpenCheck },
+  { label: "Importar", href: "/import", icon: FileUp },
+  { label: "Configuracion", href: "/settings", icon: Settings },
 ];
 
 export function AppShell({
@@ -66,14 +68,14 @@ export function AppShell({
         </div>
         <nav className="space-y-1 px-3 py-4">
           {navigation.map((item) => (
-            <a
+            <Link
               className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
-              href="#"
+              href={item.href}
               key={item.label}
             >
               <item.icon className="h-4 w-4" aria-hidden="true" />
               <span>{item.label}</span>
-            </a>
+            </Link>
           ))}
         </nav>
       </aside>
