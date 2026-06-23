@@ -3,8 +3,11 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { analyzeInteraction } from "@/server/actions/intelligence";
+import { isAiConfigured } from "@/server/services/openai";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +46,7 @@ export default async function InteractionsPage({
     take: 100,
   });
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const canAnalyze = canEdit && isAiConfigured();
 
   return (
     <div className="space-y-5">
@@ -125,6 +129,16 @@ export default async function InteractionsPage({
                 {interaction.nextAction} ·{" "}
                 {formatDateTime(interaction.nextActionDate)}
               </div>
+            ) : null}
+            {canAnalyze ? (
+              <form
+                action={analyzeInteraction.bind(null, interaction.id)}
+                className="mt-3"
+              >
+                <Button size="sm" type="submit" variant="outline">
+                  Analizar con IA
+                </Button>
+              </form>
             ) : null}
           </article>
         ))}

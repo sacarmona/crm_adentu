@@ -136,6 +136,21 @@ Fase 10 completada:
 - Auditoria de altas, cambios y activaciones.
 - Pruebas unitarias para slugs y agrupacion de diccionarios.
 
+Fase 11 completada:
+
+- Integracion server-side con OpenAI Responses API.
+- Structured Outputs validados con Zod antes de persistir.
+- Analisis de interacciones con resumen, intereses, objeciones, compromisos y riesgos.
+- Sugerencias de siguientes pasos, probabilidad y etapa comercial.
+- Bandeja de revision con estados propuesto, aprobado y rechazado.
+- Aprobacion humana obligatoria antes de aplicar cambios.
+- Aplicacion controlada de probabilidad y creacion de tareas sugeridas.
+- Limite persistente de 10 analisis por usuario y hora.
+- Auditoria de generacion, aprobacion y rechazo.
+- Desactivacion limpia cuando `OPENAI_API_KEY` no esta configurada.
+- Modelo configurable mediante `OPENAI_MODEL`.
+- Pruebas unitarias del contrato estructurado, prompts y probabilidades.
+
 ## Estructura inicial
 
 ```txt
@@ -230,4 +245,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 11: inteligencia comercial asistida por IA con sugerencias revisables y aprobacion humana.
+Iniciar Fase 12: playbooks comerciales por servicio con preguntas, objeciones, criterios y checklist de propuesta.
