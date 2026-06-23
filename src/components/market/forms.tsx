@@ -11,11 +11,18 @@ import { Button } from "@/components/ui/button";
 
 type Option = { id: string; name: string };
 type CompanyOption = Pick<Company, "id" | "name">;
-type ServiceOption = Pick<Service, "id" | "name">;
+type ServiceOption = Pick<Service, "id" | "name" | "isActive">;
 type UserOption = Pick<User, "id" | "name">;
 
 function options(items: Option[]) {
   return items.map((item) => ({ value: item.id, label: item.name }));
+}
+
+function serviceOptions(items: ServiceOption[]) {
+  return items.map((item) => ({
+    value: item.id,
+    label: `${item.name}${item.isActive ? "" : " (inactivo)"}`,
+  }));
 }
 
 export function MarketAssetForm({
@@ -44,7 +51,7 @@ export function MarketAssetForm({
         defaultValue={asset?.serviceId}
         label="Servicio potencial"
         name="serviceId"
-        options={options(services)}
+        options={serviceOptions(services)}
       />
       <TextField
         defaultValue={asset?.quantity ?? 1}
@@ -196,7 +203,7 @@ export function MarketOpportunityForm({
         defaultValue={defaults.serviceId}
         label="Servicio"
         name="serviceId"
-        options={options(services)}
+        options={serviceOptions(services)}
       />
       <SelectField
         defaultValue={defaults.responsibleId}

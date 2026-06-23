@@ -151,6 +151,36 @@ export const marketOpportunitySchema = z.object({
   notes: optionalText,
 });
 
+export const serviceSchema = z.object({
+  name: z.string().trim().min(2, "El nombre es obligatorio."),
+  description: optionalText,
+  sortOrder: z.coerce.number().int().min(0),
+  isActive: z
+    .string()
+    .optional()
+    .transform((value) => value === "on" || value === "true"),
+});
+
+export const dictionaryValueSchema = z.object({
+  type: z
+    .string()
+    .trim()
+    .min(2)
+    .regex(/^[a-z0-9_]+$/, "Usa minusculas, numeros y guion bajo."),
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .regex(/^[A-Z0-9_]+$/, "Usa mayusculas, numeros y guion bajo."),
+  label: z.string().trim().min(1, "La etiqueta es obligatoria."),
+  description: optionalText,
+  sortOrder: z.coerce.number().int().min(0),
+  isActive: z
+    .string()
+    .optional()
+    .transform((value) => value === "on" || value === "true"),
+});
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type OpportunityInput = z.infer<typeof opportunitySchema>;
@@ -158,3 +188,5 @@ export type InteractionInput = z.infer<typeof interactionSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
 export type MarketAssetInput = z.infer<typeof marketAssetSchema>;
 export type CommercialMilestoneInput = z.infer<typeof commercialMilestoneSchema>;
+export type ServiceInput = z.infer<typeof serviceSchema>;
+export type DictionaryValueInput = z.infer<typeof dictionaryValueSchema>;

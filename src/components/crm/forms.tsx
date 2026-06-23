@@ -18,7 +18,7 @@ import { SelectField, TextArea, TextField } from "@/components/crm/form-controls
 type UserOption = Pick<User, "id" | "name">;
 type CompanyOption = Pick<Company, "id" | "name">;
 type ContactOption = Pick<Contact, "id" | "name">;
-type ServiceOption = Pick<Service, "id" | "name">;
+type ServiceOption = Pick<Service, "id" | "name" | "isActive">;
 
 function enumOptions<T extends Record<string, string>>(values: T) {
   return Object.values(values).map((value) => ({ value, label: value }));
@@ -37,7 +37,10 @@ function contactOptions(contacts: ContactOption[]) {
 }
 
 function serviceOptions(services: ServiceOption[]) {
-  return services.map((service) => ({ value: service.id, label: service.name }));
+  return services.map((service) => ({
+    value: service.id,
+    label: `${service.name}${service.isActive ? "" : " (inactivo)"}`,
+  }));
 }
 
 function dateValue(value?: Date | null) {
@@ -177,4 +180,3 @@ export function OpportunityForm({
     </form>
   );
 }
-

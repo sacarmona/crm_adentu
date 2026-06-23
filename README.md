@@ -123,6 +123,19 @@ Fase 9 completada:
 - Permisos de lectura y escritura segun rol.
 - Pruebas unitarias para nombres de oportunidad y cobertura de relaciones.
 
+Fase 10 completada:
+
+- Administracion de servicios con nombre, descripcion, orden y vigencia.
+- Slugs estables y unicos generados automaticamente.
+- Conteo de referencias antes de desactivar servicios.
+- Conservacion de servicios inactivos en registros historicos.
+- Administracion de diccionarios por tipo, clave, etiqueta y orden.
+- Claves historicas inmutables durante la edicion.
+- Activacion y desactivacion no destructiva de valores.
+- Acceso de escritura restringido al rol `ADMIN`.
+- Auditoria de altas, cambios y activaciones.
+- Pruebas unitarias para slugs y agrupacion de diccionarios.
+
 ## Estructura inicial
 
 ```txt
@@ -217,4 +230,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 10: configuracion de servicios y diccionarios comerciales administrables.
+Iniciar Fase 11: inteligencia comercial asistida por IA con sugerencias revisables y aprobacion humana.

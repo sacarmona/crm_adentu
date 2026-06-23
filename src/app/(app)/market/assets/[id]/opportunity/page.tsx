@@ -30,7 +30,7 @@ export default async function MarketOpportunityPage({
     }),
     prisma.service.findMany({
       where: { deletedAt: null, isActive: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
     prisma.user.findMany({

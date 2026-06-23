@@ -9,12 +9,14 @@ export function TextField({
   defaultValue,
   type = "text",
   required = false,
+  readOnly = false,
 }: {
   label: string;
   name: string;
   defaultValue?: string | number | null;
   type?: string;
   required?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <label className="block">
@@ -23,6 +25,7 @@ export function TextField({
         className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-950"
         defaultValue={defaultValue ?? ""}
         name={name}
+        readOnly={readOnly}
         required={required}
         step={type === "number" ? "any" : undefined}
         type={type}
@@ -86,4 +89,3 @@ export function SelectField({
     </label>
   );
 }
-

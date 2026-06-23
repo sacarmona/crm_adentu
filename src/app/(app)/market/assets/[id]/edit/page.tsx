@@ -17,21 +17,25 @@ export default async function EditMarketAssetPage({
   const session = await auth();
   if (session?.user.role === UserRole.LECTURA) redirect("/market");
   const { id } = await params;
-  const [asset, companies, services] = await Promise.all([
-    prisma.marketAsset.findFirst({ where: { id, deletedAt: null } }),
+  const asset = await prisma.marketAsset.findFirst({
+    where: { id, deletedAt: null },
+  });
+  if (!asset) notFound();
+  const [companies, services] = await Promise.all([
     prisma.company.findMany({
       where: { deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     prisma.service.findMany({
-      where: { deletedAt: null, isActive: true },
-      select: { id: true, name: true },
+      where: {
+        deletedAt: null,
+        OR: [{ isActive: true }, ...(asset.serviceId ? [{ id: asset.serviceId }] : [])],
+      },
+      select: { id: true, name: true, isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
   ]);
-
-  if (!asset) notFound();
 
   return (
     <div className="space-y-5">

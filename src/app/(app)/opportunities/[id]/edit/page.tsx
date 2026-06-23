@@ -9,15 +9,22 @@ export const dynamic = "force-dynamic";
 
 export default async function EditOpportunityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [opportunity, companies, contacts, services, users] = await Promise.all([
-    prisma.opportunity.findFirst({ where: { id, deletedAt: null } }),
+  const opportunity = await prisma.opportunity.findFirst({
+    where: { id, deletedAt: null },
+  });
+  if (!opportunity) notFound();
+  const [companies, contacts, services, users] = await Promise.all([
     prisma.company.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),
     prisma.contact.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),
-    prisma.service.findMany({ where: { deletedAt: null, isActive: true }, orderBy: { sortOrder: "asc" } }),
+    prisma.service.findMany({
+      where: {
+        deletedAt: null,
+        OR: [{ isActive: true }, ...(opportunity.serviceId ? [{ id: opportunity.serviceId }] : [])],
+      },
+      orderBy: { sortOrder: "asc" },
+    }),
     prisma.user.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),
   ]);
-
-  if (!opportunity) notFound();
 
   return (
     <div className="space-y-5">
