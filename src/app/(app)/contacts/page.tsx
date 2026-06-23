@@ -1,6 +1,7 @@
 import { ContactStatus } from "@prisma/client";
 import Link from "next/link";
 
+import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -60,6 +61,7 @@ export default async function ContactsPage({
               <th className="px-4 py-3">Empresa</th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Completitud</th>
               <th className="px-4 py-3">Ultima interaccion</th>
             </tr>
           </thead>
@@ -70,11 +72,12 @@ export default async function ContactsPage({
                 <td className="px-4 py-3">{contact.company?.name ?? "-"}</td>
                 <td className="px-4 py-3">{contact.status}</td>
                 <td className="px-4 py-3">{contact.email ?? "-"}</td>
+                <td className="px-4 py-3"><CompletenessIndicator score={contact.completeness} /></td>
                 <td className="px-4 py-3">{formatDate(contact.lastInteraction)}</td>
               </tr>
             ))}
             {contacts.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={5}>No hay contactos para los filtros seleccionados.</td></tr>
+              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={6}>No hay contactos para los filtros seleccionados.</td></tr>
             ) : null}
           </tbody>
         </table>

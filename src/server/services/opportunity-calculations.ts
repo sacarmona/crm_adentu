@@ -5,10 +5,13 @@ export function calculateOpportunityAmounts(input: {
   months: number;
   probability: number;
 }) {
-  const priceClp = input.price * input.exchangeRate;
-  const monthlyAmount = priceClp * input.quantity;
-  const totalAmount = monthlyAmount * input.months;
-  const weightedAmount = totalAmount * input.probability;
+  const roundMoney = (value: number) =>
+    Math.round((value + Number.EPSILON) * 100) / 100;
+
+  const priceClp = roundMoney(input.price * input.exchangeRate);
+  const monthlyAmount = roundMoney(priceClp * input.quantity);
+  const totalAmount = roundMoney(monthlyAmount * input.months);
+  const weightedAmount = roundMoney(totalAmount * input.probability);
 
   return {
     priceClp,
@@ -17,4 +20,3 @@ export function calculateOpportunityAmounts(input: {
     weightedAmount,
   };
 }
-

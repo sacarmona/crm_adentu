@@ -1,6 +1,7 @@
 import { OpportunityStatus } from "@prisma/client";
 import Link from "next/link";
 
+import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -60,6 +61,7 @@ export default async function OpportunitiesPage({
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Prob.</th>
               <th className="px-4 py-3">Monto total</th>
+              <th className="px-4 py-3">Completitud</th>
               <th className="px-4 py-3">Cierre</th>
             </tr>
           </thead>
@@ -71,11 +73,12 @@ export default async function OpportunitiesPage({
                 <td className="px-4 py-3">{opportunity.status}</td>
                 <td className="px-4 py-3">{formatPercent(opportunity.probability.toString())}</td>
                 <td className="px-4 py-3">{formatCurrency(opportunity.totalAmount.toString())}</td>
+                <td className="px-4 py-3"><CompletenessIndicator score={opportunity.completeness} /></td>
                 <td className="px-4 py-3">{formatDate(opportunity.estimatedCloseDate)}</td>
               </tr>
             ))}
             {opportunities.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={6}>No hay oportunidades para los filtros seleccionados.</td></tr>
+              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={7}>No hay oportunidades para los filtros seleccionados.</td></tr>
             ) : null}
           </tbody>
         </table>

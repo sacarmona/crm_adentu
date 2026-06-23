@@ -1,6 +1,7 @@
 import { CompanyStatus } from "@prisma/client";
 import Link from "next/link";
 
+import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -73,6 +74,7 @@ export default async function CompaniesPage({
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Industria</th>
               <th className="px-4 py-3">Responsable</th>
+              <th className="px-4 py-3">Completitud</th>
               <th className="px-4 py-3">Ultima interaccion</th>
             </tr>
           </thead>
@@ -87,12 +89,15 @@ export default async function CompaniesPage({
                 <td className="px-4 py-3">{company.status}</td>
                 <td className="px-4 py-3">{company.industry ?? "-"}</td>
                 <td className="px-4 py-3">{company.responsible?.name ?? "-"}</td>
+                <td className="px-4 py-3">
+                  <CompletenessIndicator score={company.completeness} />
+                </td>
                 <td className="px-4 py-3">{formatDate(company.lastInteraction)}</td>
               </tr>
             ))}
             {companies.length === 0 ? (
               <tr>
-                <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
                   No hay empresas para los filtros seleccionados.
                 </td>
               </tr>

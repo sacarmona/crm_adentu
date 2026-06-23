@@ -12,6 +12,11 @@ import {
   contactSchema,
   opportunitySchema,
 } from "@/schemas/crm";
+import {
+  calculateCompanyCompleteness,
+  calculateContactCompleteness,
+  calculateOpportunityCompleteness,
+} from "@/server/services/completeness-scoring";
 import { calculateOpportunityAmounts } from "@/server/services/opportunity-calculations";
 
 async function getActorId() {
@@ -49,6 +54,7 @@ export async function createCompany(formData: FormData) {
       ...data,
       normalizedName: normalizeName(data.name),
       responsibleId: data.responsibleId,
+      completeness: calculateCompanyCompleteness(data),
     },
   });
 
@@ -72,6 +78,7 @@ export async function updateCompany(id: string, formData: FormData) {
       ...data,
       normalizedName: normalizeName(data.name),
       responsibleId: data.responsibleId,
+      completeness: calculateCompanyCompleteness(data),
     },
   });
 
@@ -100,7 +107,12 @@ export async function deleteCompany(id: string) {
 
 export async function createContact(formData: FormData) {
   const data = contactSchema.parse(parseForm(formData));
-  const contact = await prisma.contact.create({ data });
+  const contact = await prisma.contact.create({
+    data: {
+      ...data,
+      completeness: calculateContactCompleteness(data),
+    },
+  });
 
   await writeAudit({
     action: "CREATE",
@@ -116,7 +128,13 @@ export async function createContact(formData: FormData) {
 export async function updateContact(id: string, formData: FormData) {
   const data = contactSchema.parse(parseForm(formData));
   const before = await prisma.contact.findUnique({ where: { id } });
-  const contact = await prisma.contact.update({ where: { id }, data });
+  const contact = await prisma.contact.update({
+    where: { id },
+    data: {
+      ...data,
+      completeness: calculateContactCompleteness(data),
+    },
+  });
 
   await writeAudit({
     action: "UPDATE",
@@ -154,6 +172,7 @@ export async function createOpportunity(formData: FormData) {
       monthlyAmount: amounts.monthlyAmount,
       totalAmount: amounts.totalAmount,
       weightedAmount: amounts.weightedAmount,
+      completeness: calculateOpportunityCompleteness(data),
     },
   });
 
@@ -183,6 +202,7 @@ export async function updateOpportunity(id: string, formData: FormData) {
       monthlyAmount: amounts.monthlyAmount,
       totalAmount: amounts.totalAmount,
       weightedAmount: amounts.weightedAmount,
+      completeness: calculateOpportunityCompleteness(data),
     },
   });
 

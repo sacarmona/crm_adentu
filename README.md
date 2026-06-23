@@ -26,7 +26,7 @@ Fase 0 completada:
 - Estructura modular inicial creada.
 - Variables de entorno documentadas en `.env.example`.
 
-Fase 1 en desarrollo:
+Fase 1 completada:
 
 - Schema Prisma CRM ampliado con entidades comerciales principales.
 - Migracion SQL inicial generada desde el schema Prisma.
@@ -35,7 +35,7 @@ Fase 1 en desarrollo:
 - Indices para busqueda, filtros y relaciones frecuentes.
 - Seed ficticio sin datos reales sensibles.
 
-Fase 2 en desarrollo:
+Fase 2 completada:
 
 - Auth.js / NextAuth v5 integrado con Prisma Adapter.
 - Login con credenciales demo y contrasenas hasheadas con bcrypt.
@@ -44,7 +44,7 @@ Fase 2 en desarrollo:
 - Dashboard movido a una ruta protegida.
 - Shell interno muestra usuario, correo, rol y cierre de sesion.
 
-Fase 3 en desarrollo:
+Fase 3 completada:
 
 - CRUD funcional para empresas, contactos y oportunidades.
 - Listados protegidos con busqueda y filtro por estado.
@@ -53,6 +53,14 @@ Fase 3 en desarrollo:
 - Edicion y eliminacion logica con `deletedAt`.
 - Audit log basico para creacion, edicion, cambio de etapa y soft delete.
 - Calculos comerciales de oportunidad centralizados en servicio reutilizable.
+
+Fase 4 completada:
+
+- Calculo automatico de precio CLP, monto mensual, total y ponderado.
+- Redondeo monetario controlado a dos decimales.
+- Scoring automatico de completitud para empresas, contactos y oportunidades.
+- Indicadores visuales de completitud en listados y ficha de oportunidad.
+- Pruebas unitarias Vitest para reglas comerciales y scoring.
 
 ## Estructura inicial
 
@@ -109,6 +117,7 @@ pnpm build        Compila la aplicacion
 pnpm start        Ejecuta la build de produccion
 pnpm lint         Ejecuta ESLint
 pnpm typecheck    Verifica TypeScript
+pnpm test         Ejecuta las pruebas unitarias
 pnpm db:generate  Genera Prisma Client
 pnpm db:push      Sincroniza schema con la base
 pnpm db:migrate   Crea migraciones Prisma
@@ -147,4 +156,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Continuar Fase 3 con tablas avanzadas TanStack Table, filtros persistentes y deteccion visual de datos incompletos. Luego iniciar Fase 4: calculos comerciales y scoring con tests Vitest.
+Iniciar Fase 5: pipeline comercial Kanban con cambio de etapa, totales por columna y controles de acceso por rol.

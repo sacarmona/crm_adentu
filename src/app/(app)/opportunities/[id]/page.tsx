@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +36,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
             <p className="mt-2 text-sm text-slate-600">{opportunity.company?.name ?? "Sin empresa"} · {opportunity.service?.name ?? "Sin servicio"} · {opportunity.status}</p>
           </div>
           <div className="flex gap-2">
+            <CompletenessIndicator score={opportunity.completeness} showLabel />
             <Button asChild variant="outline"><Link href={`/opportunities/${opportunity.id}/edit`}>Editar</Link></Button>
             <form action={deleteOpportunity.bind(null, opportunity.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
           </div>
