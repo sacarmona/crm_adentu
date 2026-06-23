@@ -110,6 +110,19 @@ Fase 8 completada:
 - Permisos de carga y confirmacion restringidos al rol `ADMIN`.
 - Pruebas unitarias para reglas de normalizacion y validacion.
 
+Fase 9 completada:
+
+- Inventario de activos y unidades relevantes del mercado.
+- Vinculacion de propietario, constructora y empresa de operacion/mantenimiento.
+- Asociacion de servicios potenciales, cantidades y contexto comercial.
+- Busqueda y filtros por texto y servicio.
+- Registro de hitos, proyectos y movimientos de mercado.
+- Fichas de activo con navegacion hacia empresas relacionadas.
+- Conversion guiada de una senal de mercado en oportunidad.
+- Calculos, scoring y auditoria del origen aplicados automaticamente.
+- Permisos de lectura y escritura segun rol.
+- Pruebas unitarias para nombres de oportunidad y cobertura de relaciones.
+
 ## Estructura inicial
 
 ```txt
@@ -204,4 +217,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 9: modulo de mercado y activos con vinculacion a empresas y oportunidades comerciales.
+Iniciar Fase 10: configuracion de servicios y diccionarios comerciales administrables.

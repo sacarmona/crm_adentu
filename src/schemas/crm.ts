@@ -114,8 +114,47 @@ export const taskStatusSchema = z.object({
   result: optionalText,
 });
 
+export const marketAssetSchema = z.object({
+  unitName: z.string().trim().min(2, "El nombre de la unidad es obligatorio."),
+  ownerName: optionalText,
+  serviceId: optionalText,
+  quantity: z.coerce.number().int().positive(),
+  constructionCompany: optionalText,
+  operationMaintenance: optionalText,
+  otherRole: optionalText,
+  comment: optionalText,
+  ownerCompanyId: optionalText,
+  constructionCompanyId: optionalText,
+  omCompanyId: optionalText,
+});
+
+export const commercialMilestoneSchema = z.object({
+  date: z.string().min(1, "La fecha es obligatoria."),
+  companyId: optionalText,
+  project: z.string().trim().min(2, "El proyecto es obligatorio."),
+  industry: optionalText,
+  ownerId: optionalText,
+});
+
+export const marketOpportunitySchema = z.object({
+  assetId: z.string().uuid(),
+  name: z.string().trim().min(2),
+  companyId: optionalText,
+  serviceId: optionalText,
+  responsibleId: optionalText,
+  probability: z.coerce.number().min(0).max(1),
+  price: z.coerce.number().min(0),
+  exchangeRate: z.coerce.number().positive(),
+  quantity: z.coerce.number().int().positive(),
+  months: z.coerce.number().int().positive(),
+  estimatedCloseDate: optionalText,
+  notes: optionalText,
+});
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type OpportunityInput = z.infer<typeof opportunitySchema>;
 export type InteractionInput = z.infer<typeof interactionSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
+export type MarketAssetInput = z.infer<typeof marketAssetSchema>;
+export type CommercialMilestoneInput = z.infer<typeof commercialMilestoneSchema>;
