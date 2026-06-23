@@ -1,9 +1,11 @@
+import { UserRole } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deleteOpportunity } from "@/server/actions/crm";
 
@@ -11,20 +13,24 @@ export const dynamic = "force-dynamic";
 
 export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const opportunity = await prisma.opportunity.findFirst({
-    where: { id, deletedAt: null },
-    include: {
-      company: true,
-      primaryContact: true,
-      service: true,
-      responsible: true,
-      interactions: { where: { deletedAt: null }, orderBy: { date: "desc" }, take: 10 },
-      tasks: { where: { deletedAt: null }, orderBy: { dueDate: "asc" }, take: 10 },
-      aiInsights: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 5 },
-    },
-  });
+  const [session, opportunity] = await Promise.all([
+    auth(),
+    prisma.opportunity.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        company: true,
+        primaryContact: true,
+        service: true,
+        responsible: true,
+        interactions: { where: { deletedAt: null }, orderBy: { date: "desc" }, take: 10 },
+        tasks: { where: { deletedAt: null }, orderBy: { dueDate: "asc" }, take: 10 },
+        aiInsights: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 5 },
+      },
+    }),
+  ]);
 
   if (!opportunity) notFound();
+  const canEdit = session?.user.role !== UserRole.LECTURA;
 
   return (
     <div className="space-y-5">
@@ -37,6 +43,12 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           </div>
           <div className="flex gap-2">
             <CompletenessIndicator score={opportunity.completeness} showLabel />
+            {canEdit ? (
+              <>
+                <Button asChild variant="outline"><Link href={`/interactions/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId ?? ""}&contactId=${opportunity.primaryContactId ?? ""}`}>Interaccion</Link></Button>
+                <Button asChild variant="outline"><Link href={`/tasks/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId ?? ""}&contactId=${opportunity.primaryContactId ?? ""}`}>Tarea</Link></Button>
+              </>
+            ) : null}
             <Button asChild variant="outline"><Link href={`/opportunities/${opportunity.id}/edit`}>Editar</Link></Button>
             <form action={deleteOpportunity.bind(null, opportunity.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
           </div>
@@ -64,6 +76,32 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
             {opportunity.aiInsights.map((insight) => (
               <li key={insight.id}>{insight.summary ?? insight.type}</li>
             ))}
+          </ul>
+        </div>
+      </section>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-md border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold">Interacciones recientes</h2>
+          <ul className="mt-4 space-y-3 text-sm">
+            {opportunity.interactions.map((interaction) => (
+              <li key={interaction.id}>
+                <span className="font-medium">{formatDateTime(interaction.date)}</span>
+                <span className="text-slate-600"> · {interaction.type} · {interaction.content}</span>
+              </li>
+            ))}
+            {opportunity.interactions.length === 0 ? <li className="text-slate-500">Sin interacciones.</li> : null}
+          </ul>
+        </div>
+        <div className="rounded-md border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold">Tareas</h2>
+          <ul className="mt-4 space-y-3 text-sm">
+            {opportunity.tasks.map((task) => (
+              <li className="flex justify-between gap-4" key={task.id}>
+                <span>{task.title} · {task.status}</span>
+                <span className="shrink-0 text-slate-500">{formatDateTime(task.dueDate)}</span>
+              </li>
+            ))}
+            {opportunity.tasks.length === 0 ? <li className="text-slate-500">Sin tareas.</li> : null}
           </ul>
         </div>
       </section>

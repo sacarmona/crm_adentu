@@ -3,8 +3,10 @@ import {
   CompanyStatus,
   ContactStatus,
   Currency,
+  InteractionType,
   LeadSource,
   OpportunityStatus,
+  TaskStatus,
 } from "@prisma/client";
 import { z } from "zod";
 
@@ -76,6 +78,44 @@ export const opportunityStageSchema = z.object({
   status: z.nativeEnum(OpportunityStatus),
 });
 
+export const interactionSchema = z
+  .object({
+    date: z.string().min(1, "La fecha es obligatoria."),
+    type: z.nativeEnum(InteractionType),
+    content: z.string().trim().min(3, "Registra el contenido de la interaccion."),
+    companyId: optionalText,
+    contactId: optionalText,
+    opportunityId: optionalText,
+    serviceId: optionalText,
+    nextAction: optionalText,
+    nextActionDate: optionalText,
+  })
+  .refine(
+    (data) => data.companyId || data.contactId || data.opportunityId,
+    "La interaccion debe asociarse a una empresa, contacto u oportunidad.",
+  );
+
+export const taskSchema = z.object({
+  title: z.string().trim().min(3, "El titulo es obligatorio."),
+  description: optionalText,
+  status: z.nativeEnum(TaskStatus),
+  dueDate: optionalText,
+  result: optionalText,
+  companyId: optionalText,
+  contactId: optionalText,
+  opportunityId: optionalText,
+  serviceId: optionalText,
+  assignedToId: optionalText,
+});
+
+export const taskStatusSchema = z.object({
+  taskId: z.string().uuid(),
+  status: z.nativeEnum(TaskStatus),
+  result: optionalText,
+});
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type OpportunityInput = z.infer<typeof opportunitySchema>;
+export type InteractionInput = z.infer<typeof interactionSchema>;
+export type TaskInput = z.infer<typeof taskSchema>;

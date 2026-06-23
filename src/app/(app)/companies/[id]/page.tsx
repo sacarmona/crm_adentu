@@ -1,8 +1,10 @@
+import { UserRole } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deleteCompany } from "@/server/actions/crm";
 
@@ -14,19 +16,28 @@ export default async function CompanyDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const company = await prisma.company.findFirst({
-    where: { id, deletedAt: null },
-    include: {
-      contacts: { where: { deletedAt: null }, take: 10 },
-      opportunities: { where: { deletedAt: null }, include: { service: true }, take: 10 },
-      interactions: { where: { deletedAt: null }, orderBy: { date: "desc" }, take: 10 },
-      responsible: true,
-    },
-  });
+  const [session, company] = await Promise.all([
+    auth(),
+    prisma.company.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        contacts: { where: { deletedAt: null }, take: 10 },
+        opportunities: { where: { deletedAt: null }, include: { service: true }, take: 10 },
+        interactions: { where: { deletedAt: null }, orderBy: { date: "desc" }, take: 10 },
+        tasks: {
+          where: { deletedAt: null, status: "PENDING" },
+          orderBy: { dueDate: "asc" },
+          take: 10,
+        },
+        responsible: true,
+      },
+    }),
+  ]);
 
   if (!company) {
     notFound();
   }
+  const canEdit = session?.user.role !== UserRole.LECTURA;
 
   return (
     <div className="space-y-5">
@@ -40,6 +51,16 @@ export default async function CompanyDetailPage({
             </p>
           </div>
           <div className="flex gap-2">
+            {canEdit ? (
+              <>
+                <Button asChild variant="outline">
+                  <Link href={`/interactions/new?companyId=${company.id}`}>Interaccion</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={`/tasks/new?companyId=${company.id}`}>Tarea</Link>
+                </Button>
+              </>
+            ) : null}
             <Button asChild variant="outline">
               <Link href={`/companies/${company.id}/edit`}>Editar</Link>
             </Button>
@@ -104,6 +125,18 @@ export default async function CompanyDetailPage({
               <span className="text-slate-600"> · {interaction.type} · {interaction.content}</span>
             </li>
           ))}
+        </ul>
+      </section>
+      <section className="rounded-md border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold">Tareas pendientes</h2>
+        <ul className="mt-4 space-y-3 text-sm">
+          {company.tasks.map((task) => (
+            <li className="flex justify-between gap-4" key={task.id}>
+              <span>{task.title}</span>
+              <span className="shrink-0 text-slate-500">{formatDateTime(task.dueDate)}</span>
+            </li>
+          ))}
+          {company.tasks.length === 0 ? <li className="text-slate-500">Sin tareas pendientes.</li> : null}
         </ul>
       </section>
     </div>

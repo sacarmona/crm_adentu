@@ -10,6 +10,20 @@ export function formatDate(value?: Date | string | null) {
   }).format(new Date(value));
 }
 
+export function formatDateTime(value?: Date | string | null) {
+  if (!value) {
+    return "Sin fecha";
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export function formatCurrency(value: number | string, currency = "CLP") {
   const amount = Number(value);
 
@@ -28,4 +42,3 @@ export function formatPercent(value: number | string) {
     maximumFractionDigits: 0,
   }).format(Number.isFinite(amount) ? amount : 0);
 }
-

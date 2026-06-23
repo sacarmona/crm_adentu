@@ -73,6 +73,19 @@ Fase 5 completada:
 - Vista de solo lectura para rol `LECTURA`.
 - Auditoria transaccional de cada cambio de etapa.
 
+Fase 6 completada:
+
+- Registro cronologico de interacciones comerciales.
+- Asociacion con empresa, contacto, oportunidad, servicio y ejecutor.
+- Creacion automatica de tareas desde la proxima accion.
+- Actualizacion de ultima interaccion sin reemplazar fechas mas recientes.
+- Agenda de tareas con filtros por estado, responsable y tareas propias.
+- Deteccion visual de tareas vencidas.
+- Cambios rapidos entre pendiente, ejecutada y cerrada.
+- Sincronizacion del estado con la proxima accion de origen.
+- Acciones contextuales desde fichas comerciales y permisos por rol.
+- Pruebas unitarias para fechas, ejecucion y vencimientos.
+
 ## Estructura inicial
 
 ```txt
@@ -167,4 +180,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 6: registro de interacciones, tareas, proximas acciones y seguimiento comercial.
+Iniciar Fase 7: dashboard comercial con indicadores, actividad, pipeline y alertas de seguimiento.
