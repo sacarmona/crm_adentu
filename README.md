@@ -97,6 +97,19 @@ Fase 7 completada:
 - Accesos directos a pipeline, tareas, oportunidades e interacciones.
 - Pruebas unitarias para agregados, vencimientos y deteccion de inactividad.
 
+Fase 8 completada:
+
+- Carga de archivos Excel `.xlsx` con limite de tamano y filas.
+- Reconocimiento de hojas Empresas/EMPR, Contactos/CONT y Oportunidades/OPOR.
+- Normalizacion de encabezados, textos, enums, porcentajes, numeros y fechas.
+- Validacion fila a fila con errores y advertencias visibles.
+- Deteccion de duplicados y referencias no encontradas.
+- Previsualizacion antes de incorporar datos al CRM.
+- Importacion transaccional ordenada por dependencias.
+- Historial de lotes y trazabilidad de filas importadas u omitidas.
+- Permisos de carga y confirmacion restringidos al rol `ADMIN`.
+- Pruebas unitarias para reglas de normalizacion y validacion.
+
 ## Estructura inicial
 
 ```txt
@@ -191,4 +204,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 8: importador de datos Excel con validacion, previsualizacion y trazabilidad por lote.
+Iniciar Fase 9: modulo de mercado y activos con vinculacion a empresas y oportunidades comerciales.
