@@ -155,14 +155,19 @@ enum PlaybookItemType {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  role      UserRole  @default(COMERCIAL)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          UserRole  @default(COMERCIAL)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
+  accounts                 Account[]
+  sessions                 Session[]
   responsibleCompanies     Company[]             @relation("CompanyResponsible")
   responsibleContacts      Contact[]             @relation("ContactResponsible")
   responsibleOpportunities Opportunity[]         @relation("OpportunityResponsible")
@@ -177,6 +182,45 @@ model User {
 
   @@index([email])
   @@index([role])
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Company {
@@ -236,12 +280,12 @@ model Contact {
   notes           String?
   deletedAt       DateTime?
 
-  company               Company?       @relation(fields: [companyId], references: [id])
-  responsible           User?          @relation("ContactResponsible", fields: [responsibleId], references: [id])
-  primaryOpportunities  Opportunity[]  @relation("OpportunityPrimaryContact")
-  interactions          Interaction[]
-  tasks                 Task[]
-  attachments           Attachment[]
+  company              Company?      @relation(fields: [companyId], references: [id])
+  responsible          User?         @relation("ContactResponsible", fields: [responsibleId], references: [id])
+  primaryOpportunities Opportunity[] @relation("OpportunityPrimaryContact")
+  interactions         Interaction[]
+  tasks                Task[]
+  attachments          Attachment[]
 
   @@index([companyId])
   @@index([email])
@@ -302,31 +346,31 @@ model Opportunity {
 }
 
 model Interaction {
-  id                   String          @id @default(uuid())
-  date                 DateTime        @default(now())
-  contactId            String?
-  opportunityId        String?
-  companyId            String?
-  executedById         String?
-  type                 InteractionType
-  content              String
-  nextAction           String?
-  nextActionDate       DateTime?
-  nextActionDueDate    DateTime?
-  nextActionStatus     TaskStatus?
-  serviceId            String?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  deletedAt            DateTime?
+  id                String          @id @default(uuid())
+  date              DateTime        @default(now())
+  contactId         String?
+  opportunityId     String?
+  companyId         String?
+  executedById      String?
+  type              InteractionType
+  content           String
+  nextAction        String?
+  nextActionDate    DateTime?
+  nextActionDueDate DateTime?
+  nextActionStatus  TaskStatus?
+  serviceId         String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
 
-  contact       Contact?      @relation(fields: [contactId], references: [id])
-  opportunity   Opportunity?  @relation(fields: [opportunityId], references: [id])
-  company       Company?      @relation(fields: [companyId], references: [id])
-  executedBy    User?         @relation("InteractionExecutor", fields: [executedById], references: [id])
-  service       Service?      @relation(fields: [serviceId], references: [id])
-  tasks         Task[]
-  aiInsights    AiInsight[]
-  attachments   Attachment[]
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  company     Company?     @relation(fields: [companyId], references: [id])
+  executedBy  User?        @relation("InteractionExecutor", fields: [executedById], references: [id])
+  service     Service?     @relation(fields: [serviceId], references: [id])
+  tasks       Task[]
+  aiInsights  AiInsight[]
+  attachments Attachment[]
 
   @@index([companyId])
   @@index([contactId])
@@ -355,13 +399,13 @@ model Task {
   updatedAt     DateTime   @updatedAt
   deletedAt     DateTime?
 
-  company     Company?      @relation(fields: [companyId], references: [id])
-  contact     Contact?      @relation(fields: [contactId], references: [id])
-  opportunity Opportunity?  @relation(fields: [opportunityId], references: [id])
-  interaction Interaction?  @relation(fields: [interactionId], references: [id])
-  service     Service?      @relation(fields: [serviceId], references: [id])
-  assignedTo  User?         @relation("TaskAssignee", fields: [assignedToId], references: [id])
-  createdBy   User?         @relation("TaskCreator", fields: [createdById], references: [id])
+  company     Company?     @relation(fields: [companyId], references: [id])
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  interaction Interaction? @relation(fields: [interactionId], references: [id])
+  service     Service?     @relation(fields: [serviceId], references: [id])
+  assignedTo  User?        @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdBy   User?        @relation("TaskCreator", fields: [createdById], references: [id])
 
   @@index([dueDate])
   @@index([status])
@@ -371,11 +415,11 @@ model Task {
 }
 
 model MarketAsset {
-  id                    String   @id @default(uuid())
+  id                    String    @id @default(uuid())
   ownerName             String?
   unitName              String
   serviceId             String?
-  quantity              Int      @default(1)
+  quantity              Int       @default(1)
   constructionCompany   String?
   operationMaintenance  String?
   otherRole             String?
@@ -383,14 +427,14 @@ model MarketAsset {
   ownerCompanyId        String?
   constructionCompanyId String?
   omCompanyId           String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
   deletedAt             DateTime?
 
-  service             Service? @relation(fields: [serviceId], references: [id])
-  ownerCompany        Company? @relation("MarketAssetOwnerCompany", fields: [ownerCompanyId], references: [id])
+  service                Service? @relation(fields: [serviceId], references: [id])
+  ownerCompany           Company? @relation("MarketAssetOwnerCompany", fields: [ownerCompanyId], references: [id])
   constructionCompanyRef Company? @relation("MarketAssetConstructionCompany", fields: [constructionCompanyId], references: [id])
-  omCompany           Company? @relation("MarketAssetOmCompany", fields: [omCompanyId], references: [id])
+  omCompany              Company? @relation("MarketAssetOmCompany", fields: [omCompanyId], references: [id])
 
   @@index([serviceId])
   @@index([ownerName])
@@ -399,15 +443,15 @@ model MarketAsset {
 }
 
 model CommercialMilestone {
-  id          String   @id @default(uuid())
-  date        DateTime
-  companyId   String?
-  project     String
-  industry    String?
-  ownerId     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id        String    @id @default(uuid())
+  date      DateTime
+  companyId String?
+  project   String
+  industry  String?
+  ownerId   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   company Company? @relation(fields: [companyId], references: [id])
   owner   User?    @relation("MilestoneOwner", fields: [ownerId], references: [id])
@@ -428,11 +472,11 @@ model Service {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  opportunities  Opportunity[]
-  interactions   Interaction[]
-  tasks          Task[]
-  marketAssets   MarketAsset[]
-  playbooks      Playbook[]
+  opportunities Opportunity[]
+  interactions  Interaction[]
+  tasks         Task[]
+  marketAssets  MarketAsset[]
+  playbooks     Playbook[]
 
   @@index([slug])
   @@index([isActive])
@@ -466,9 +510,9 @@ model Playbook {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  service   Service?       @relation(fields: [serviceId], references: [id])
-  createdBy User?          @relation("PlaybookCreator", fields: [createdById], references: [id])
-  items     PlaybookItem[]
+  service     Service?       @relation(fields: [serviceId], references: [id])
+  createdBy   User?          @relation("PlaybookCreator", fields: [createdById], references: [id])
+  items       PlaybookItem[]
   attachments Attachment[]
 
   @@index([serviceId])
@@ -476,15 +520,15 @@ model Playbook {
 }
 
 model PlaybookItem {
-  id          String           @id @default(uuid())
-  playbookId  String
-  type        PlaybookItemType
-  title       String
-  content     String
-  sortOrder   Int              @default(0)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  deletedAt   DateTime?
+  id         String           @id @default(uuid())
+  playbookId String
+  type       PlaybookItemType
+  title      String
+  content    String
+  sortOrder  Int              @default(0)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  deletedAt  DateTime?
 
   playbook Playbook @relation(fields: [playbookId], references: [id])
 
@@ -493,28 +537,28 @@ model PlaybookItem {
 }
 
 model AiInsight {
-  id                           String              @id @default(uuid())
-  type                         AiInsightType
-  status                       AiInsightStatus     @default(PROPOSED)
-  interactionId                String?
-  companyId                    String?
-  contactId                    String?
-  opportunityId                String?
-  summary                      String?
-  customerInterests            Json?
-  objections                   Json?
-  commitments                  Json?
-  risks                        Json?
-  suggestedNextSteps           Json?
-  mentionedServices            Json?
-  sentiment                    CommercialSentiment?
-  suggestedAdvanceProbability  Decimal?            @db.Decimal(5, 4)
-  suggestedChanges             Json?
-  approvedById                 String?
-  approvedAt                   DateTime?
-  createdAt                    DateTime            @default(now())
-  updatedAt                    DateTime            @updatedAt
-  deletedAt                    DateTime?
+  id                          String               @id @default(uuid())
+  type                        AiInsightType
+  status                      AiInsightStatus      @default(PROPOSED)
+  interactionId               String?
+  companyId                   String?
+  contactId                   String?
+  opportunityId               String?
+  summary                     String?
+  customerInterests           Json?
+  objections                  Json?
+  commitments                 Json?
+  risks                       Json?
+  suggestedNextSteps          Json?
+  mentionedServices           Json?
+  sentiment                   CommercialSentiment?
+  suggestedAdvanceProbability Decimal?             @db.Decimal(5, 4)
+  suggestedChanges            Json?
+  approvedById                String?
+  approvedAt                  DateTime?
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
+  deletedAt                   DateTime?
 
   interaction Interaction? @relation(fields: [interactionId], references: [id])
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
@@ -547,18 +591,18 @@ model ImportBatch {
 }
 
 model ImportRow {
-  id            String          @id @default(uuid())
-  importBatchId String
-  sheetName     String
-  rowNumber     Int
-  targetModel   String
-  status        ImportRowStatus @default(PENDING)
-  rawData       Json
-  normalizedData Json?
-  issues        Json?
+  id              String          @id @default(uuid())
+  importBatchId   String
+  sheetName       String
+  rowNumber       Int
+  targetModel     String
+  status          ImportRowStatus @default(PENDING)
+  rawData         Json
+  normalizedData  Json?
+  issues          Json?
   createdEntityId String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   importBatch ImportBatch @relation(fields: [importBatchId], references: [id])
 
@@ -569,15 +613,15 @@ model ImportRow {
 }
 
 model AuditLog {
-  id          String      @id @default(uuid())
-  action      AuditAction
-  entityType  String
-  entityId    String
-  actorId     String?
-  before      Json?
-  after       Json?
-  metadata    Json?
-  createdAt   DateTime    @default(now())
+  id         String      @id @default(uuid())
+  action     AuditAction
+  entityType String
+  entityId   String
+  actorId    String?
+  before     Json?
+  after      Json?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
 
   actor User? @relation("AuditActor", fields: [actorId], references: [id])
 
@@ -588,20 +632,20 @@ model AuditLog {
 }
 
 model Attachment {
-  id          String               @id @default(uuid())
-  fileName    String
-  mimeType    String?
-  url         String
-  sizeBytes   Int?
-  entityType  AttachmentEntityType
-  entityId    String
-  companyId   String?
-  contactId   String?
+  id            String               @id @default(uuid())
+  fileName      String
+  mimeType      String?
+  url           String
+  sizeBytes     Int?
+  entityType    AttachmentEntityType
+  entityId      String
+  companyId     String?
+  contactId     String?
   opportunityId String?
   interactionId String?
-  playbookId  String?
-  createdAt   DateTime             @default(now())
-  deletedAt   DateTime?
+  playbookId    String?
+  createdAt     DateTime             @default(now())
+  deletedAt     DateTime?
 
   company     Company?     @relation(fields: [companyId], references: [id])
   contact     Contact?     @relation(fields: [contactId], references: [id])

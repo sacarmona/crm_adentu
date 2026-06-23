@@ -35,6 +35,15 @@ Fase 1 en desarrollo:
 - Indices para busqueda, filtros y relaciones frecuentes.
 - Seed ficticio sin datos reales sensibles.
 
+Fase 2 en desarrollo:
+
+- Auth.js / NextAuth v5 integrado con Prisma Adapter.
+- Login con credenciales demo y contrasenas hasheadas con bcrypt.
+- Roles `ADMIN`, `COMERCIAL` y `LECTURA` expuestos en la sesion JWT.
+- Rutas internas protegidas por middleware.
+- Dashboard movido a una ruta protegida.
+- Shell interno muestra usuario, correo, rol y cierre de sesion.
+
 ## Estructura inicial
 
 ```txt
@@ -60,6 +69,12 @@ pnpm install
 
 ```bash
 cp .env.example .env
+```
+
+Para desarrollo local, define tambien `AUTH_SECRET`. Puedes generar uno con:
+
+```bash
+openssl rand -base64 32
 ```
 
 3. Generar cliente Prisma:
@@ -89,6 +104,22 @@ pnpm db:push      Sincroniza schema con la base
 pnpm db:migrate   Crea migraciones Prisma
 pnpm db:seed      Carga datos ficticios de ejemplo
 pnpm db:studio    Abre Prisma Studio
+```
+
+## Usuarios demo
+
+El seed crea usuarios ficticios para validar roles:
+
+```txt
+admin.demo@adentu.cl      ADMIN
+comercial.demo@adentu.cl  COMERCIAL
+lectura.demo@adentu.cl    LECTURA
+```
+
+Contrasena demo para todos:
+
+```txt
+AdentuDemo2026!
 ```
 
 ## Recomendaciones tecnicas adoptadas

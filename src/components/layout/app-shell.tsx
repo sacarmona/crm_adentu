@@ -12,6 +12,13 @@ import {
   Settings,
   Target,
 } from "lucide-react";
+import { signOut } from "@/auth";
+
+type AppShellUser = {
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+};
 
 const navigation = [
   { label: "Dashboard", icon: LayoutDashboard },
@@ -28,7 +35,13 @@ const navigation = [
   { label: "Configuracion", icon: Settings },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user?: AppShellUser;
+}) {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-slate-200 bg-white lg:block">
@@ -39,6 +52,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </p>
             <h1 className="text-lg font-semibold">CRM Comercial</h1>
           </div>
+        </div>
+        <div className="border-b border-slate-200 px-6 py-4">
+          <p className="truncate text-sm font-medium text-slate-950">
+            {user?.name ?? "Usuario CRM"}
+          </p>
+          <p className="mt-1 truncate text-xs text-slate-500">
+            {user?.email ?? "sesion activa"}
+          </p>
+          <p className="mt-2 inline-flex rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600">
+            {user?.role ?? "LECTURA"}
+          </p>
         </div>
         <nav className="space-y-1 px-3 py-4">
           {navigation.map((item) => (
@@ -61,13 +85,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </p>
             <h2 className="text-base font-semibold">Base tecnica del CRM</h2>
           </div>
-          <div className="rounded-md border border-slate-200 px-3 py-1 text-sm text-slate-600">
-            MVP en preparacion
-          </div>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+          >
+            <button className="rounded-md border border-slate-200 px-3 py-1 text-sm text-slate-600 transition-colors hover:bg-slate-50">
+              Cerrar sesion
+            </button>
+          </form>
         </header>
         <main className="p-5">{children}</main>
       </div>
     </div>
   );
 }
-

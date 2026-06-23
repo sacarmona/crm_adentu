@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -77,6 +78,9 @@ function calculateOpportunity({ price, exchangeRate, quantity, months, probabili
 }
 
 async function resetDatabase() {
+  await prisma.verificationToken.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.account.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.attachment.deleteMany();
   await prisma.importRow.deleteMany();
@@ -99,10 +103,13 @@ async function resetDatabase() {
 async function main() {
   await resetDatabase();
 
+  const demoPasswordHash = await bcrypt.hash("AdentuDemo2026!", 12);
+
   const admin = await prisma.user.create({
     data: {
       name: "Admin ADENTU",
       email: "admin.demo@adentu.cl",
+      passwordHash: demoPasswordHash,
       role: "ADMIN",
     },
   });
@@ -111,6 +118,7 @@ async function main() {
     data: {
       name: "Ejecutiva Comercial Demo",
       email: "comercial.demo@adentu.cl",
+      passwordHash: demoPasswordHash,
       role: "COMERCIAL",
     },
   });
@@ -119,6 +127,7 @@ async function main() {
     data: {
       name: "Lectura Demo",
       email: "lectura.demo@adentu.cl",
+      passwordHash: demoPasswordHash,
       role: "LECTURA",
     },
   });
@@ -461,6 +470,7 @@ async function main() {
     admin: admin.email,
     commercial: commercial.email,
     reader: reader.email,
+    password: "AdentuDemo2026!",
   });
 }
 
