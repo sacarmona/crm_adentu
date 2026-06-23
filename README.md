@@ -86,6 +86,17 @@ Fase 6 completada:
 - Acciones contextuales desde fichas comerciales y permisos por rol.
 - Pruebas unitarias para fechas, ejecucion y vencimientos.
 
+Fase 7 completada:
+
+- Dashboard comercial con filtros por responsable y cartera propia.
+- KPIs de pipeline abierto, ponderado, ganado y tareas vencidas.
+- Grafico comparativo de montos por etapa.
+- Distribucion de oportunidades por servicio.
+- Alertas de tareas vencidas y oportunidades sin seguimiento por 14 dias.
+- Timeline de actividad comercial reciente.
+- Accesos directos a pipeline, tareas, oportunidades e interacciones.
+- Pruebas unitarias para agregados, vencimientos y deteccion de inactividad.
+
 ## Estructura inicial
 
 ```txt
@@ -180,4 +191,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 7: dashboard comercial con indicadores, actividad, pipeline y alertas de seguimiento.
+Iniciar Fase 8: importador de datos Excel con validacion, previsualizacion y trazabilidad por lote.
