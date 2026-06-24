@@ -21,6 +21,7 @@
     "db:seed-dictionaries": "node scripts/seed-services-dictionaries.mjs",
     "db:import-extra": "node scripts/import-extra-data.mjs",
     "db:backfill-opportunity-services": "node scripts/backfill-opportunity-services.mjs",
+    "db:backfill-last-interaction": "node scripts/backfill-last-interaction.mjs",
     "db:studio": "prisma studio"
   },
   "dependencies": {
