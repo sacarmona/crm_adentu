@@ -7,7 +7,7 @@ import { AlertTriangle, CheckCircle2, CircleX, FileCheck2 } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { auth } from "@/auth";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import {
@@ -98,15 +98,15 @@ export default async function ImportDetailPage({
           {canConfirm ? (
             <div className="flex gap-2">
               <form action={cancelImportBatch.bind(null, batch.id)}>
-                <Button type="submit" variant="outline">
+                <SubmitButton variant="outline" pendingLabel="Cancelando...">
                   Cancelar lote
-                </Button>
+                </SubmitButton>
               </form>
               <form action={confirmImportBatch.bind(null, batch.id)}>
-                <Button type="submit">
+                <SubmitButton pendingLabel="Importando...">
                   <FileCheck2 className="h-4 w-4" aria-hidden="true" />
                   Confirmar importacion
-                </Button>
+                </SubmitButton>
               </form>
             </div>
           ) : null}
