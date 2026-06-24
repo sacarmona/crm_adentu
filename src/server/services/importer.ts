@@ -178,10 +178,13 @@ function nullableEmail(value: unknown) {
     return null;
   }
 
-  // Strip "Name <email@domain>" wrapping and stray angle brackets pasted from
-  // email signatures, keeping only the address itself.
+  // Strip "Name <email@domain>" wrapping and stray punctuation pasted from
+  // email signatures (unmatched "<", ">", trailing commas/semicolons), keeping
+  // only the address itself.
   const match = text.match(/<([^<>]+)>/);
-  const cleaned = (match ? match[1] : text).trim();
+  const cleaned = (match ? match[1] : text)
+    .replace(/[<>,;]/g, "")
+    .trim();
   return cleaned.length > 0 ? cleaned : null;
 }
 
