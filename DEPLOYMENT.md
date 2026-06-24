@@ -88,6 +88,13 @@ produccion.
 8. Revisar `Settings > Cron Jobs` y confirmar una respuesta `ok` o `partial`
    de `/api/cron/email`.
 9. Registrar una captura de LinkedIn con una URL y contenido no sensible.
+10. Generar un borrador desde un correo comercial, editarlo y aprobarlo.
+
+## Borradores de correo
+
+Los borradores se generan con el proveedor de IA activo y requieren revision
+humana. El estado `APPROVED` significa que el texto esta listo para copiar; la
+aplicacion no envia mensajes ni llama endpoints de envio de Gmail o Microsoft.
 
 ## LinkedIn
 

@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Unplug,
 } from "lucide-react";
+import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
@@ -67,7 +68,7 @@ export default async function EmailPage({
     connections.length > 0
       ? await prisma.emailMessage.findMany({
           where: { connectionId: { in: connections.map(({ id }) => id) } },
-          include: { connection: true, classification: true },
+          include: { connection: true, classification: true, draft: true },
           orderBy: { sentAt: "desc" },
           take: 100,
         })
@@ -430,6 +431,14 @@ export default async function EmailPage({
                         EmailClassificationStatus.APPROVED ? (
                           <span className="text-xs font-semibold text-emerald-700">
                             Interaccion creada
+                          </span>
+                        ) : null}
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/email/${message.id}`}>Revisar</Link>
+                        </Button>
+                        {message.draft ? (
+                          <span className="text-xs text-slate-500">
+                            Borrador: {message.draft.status}
                           </span>
                         ) : null}
                       </div>

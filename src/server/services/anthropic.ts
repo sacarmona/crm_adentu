@@ -11,9 +11,15 @@ import {
   EmailCommercialAnalysis,
   emailCommercialAnalysisSchema,
 } from "@/server/services/email-analysis";
+import {
+  buildEmailDraftPrompt,
+  EmailDraftSuggestion,
+  emailDraftSchema,
+} from "@/server/services/email-draft";
 
 const ANALYSIS_TOOL_NAME = "submit_commercial_analysis";
 const EMAIL_ANALYSIS_TOOL_NAME = "submit_email_classification";
+const EMAIL_DRAFT_TOOL_NAME = "submit_email_draft";
 
 const analysisToolSchema = {
   name: ANALYSIS_TOOL_NAME,
@@ -116,6 +122,19 @@ const emailAnalysisToolSchema = {
   },
 };
 
+const emailDraftToolSchema = {
+  name: EMAIL_DRAFT_TOOL_NAME,
+  description: "Registra un borrador editable de respuesta comercial.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      subject: { type: "string" as const },
+      body: { type: "string" as const },
+    },
+    required: ["subject", "body"],
+  },
+};
+
 export function isAnthropicConfigured() {
   return Boolean(env.ANTHROPIC_API_KEY);
 }
@@ -183,6 +202,36 @@ export async function analyzeCommercialEmailWithAnthropic(
   const result = emailCommercialAnalysisSchema.safeParse(toolUse.input);
   if (!result.success) {
     throw new Error("La clasificacion de correo no pudo validarse.");
+  }
+  return result.data;
+}
+
+export async function generateCommercialEmailDraftWithAnthropic(
+  input: Parameters<typeof buildEmailDraftPrompt>[0],
+): Promise<EmailDraftSuggestion> {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY no esta configurada.");
+  }
+  const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const response = await anthropic.messages.create({
+    model: env.ANTHROPIC_MODEL,
+    max_tokens: 1024,
+    system:
+      "Redactas borradores B2B prudentes. Nunca afirmes que el mensaje fue enviado.",
+    messages: [{ role: "user", content: buildEmailDraftPrompt(input) }],
+    tools: [emailDraftToolSchema],
+    tool_choice: { type: "tool", name: EMAIL_DRAFT_TOOL_NAME },
+  });
+  const toolUse = response.content.find(
+    (block) =>
+      block.type === "tool_use" && block.name === EMAIL_DRAFT_TOOL_NAME,
+  );
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("El borrador de correo no pudo validarse.");
+  }
+  const result = emailDraftSchema.safeParse(toolUse.input);
+  if (!result.success) {
+    throw new Error("El borrador de correo no pudo validarse.");
   }
   return result.data;
 }

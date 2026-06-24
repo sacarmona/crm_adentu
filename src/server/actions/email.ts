@@ -3,6 +3,7 @@
 import {
   AuditAction,
   EmailClassificationStatus,
+  EmailDraftStatus,
   InteractionType,
   TaskStatus,
 } from "@prisma/client";
@@ -14,6 +15,8 @@ import {
   classifyEmailMessage,
   classifyPendingEmails,
 } from "@/server/services/email-agent";
+import { generateEmailDraftWithActiveProvider } from "@/server/services/ai-provider";
+import { emailDraftFormSchema } from "@/server/services/email-draft";
 import { synchronizeEmailConnection } from "@/server/services/email-sync";
 
 export async function syncEmailConnection(connectionId: string) {
@@ -220,5 +223,186 @@ export async function ignoreEmailClassification(classificationId: string) {
       },
     }),
   ]);
+  revalidatePath("/email");
+}
+
+export async function generateEmailDraft(messageId: string) {
+  const user = await requireWriter("No tienes permisos para generar borradores.");
+  const recentDrafts = await prisma.auditLog.count({
+    where: {
+      actorId: user.id,
+      entityType: "EmailDraft",
+      action: AuditAction.CREATE,
+      createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+    },
+  });
+  if (recentDrafts >= 20) {
+    throw new Error("Alcanzaste el limite de 20 borradores por hora.");
+  }
+  const message = await prisma.emailMessage.findFirst({
+    where: {
+      id: messageId,
+      direction: "INBOUND",
+      connection: { userId: user.id },
+      classification: { isCommercial: true },
+    },
+    include: { classification: true },
+  });
+  if (!message?.classification) {
+    throw new Error("El correo debe tener una clasificacion comercial.");
+  }
+  const [contact, company, opportunity] = await Promise.all([
+    message.classification.matchedContactId
+      ? prisma.contact.findUnique({
+          where: { id: message.classification.matchedContactId },
+          select: { name: true },
+        })
+      : null,
+    message.classification.matchedCompanyId
+      ? prisma.company.findUnique({
+          where: { id: message.classification.matchedCompanyId },
+          select: { name: true },
+        })
+      : null,
+    message.classification.matchedOpportunityId
+      ? prisma.opportunity.findUnique({
+          where: { id: message.classification.matchedOpportunityId },
+          select: { name: true },
+        })
+      : null,
+  ]);
+  const suggestion = await generateEmailDraftWithActiveProvider({
+    originalSubject: message.subject,
+    originalSnippet: message.snippet,
+    senderName: message.fromName,
+    senderAddress: message.fromAddress,
+    classificationSummary: message.classification.summary,
+    intent: message.classification.intent,
+    suggestedNextAction: message.classification.suggestedNextAction,
+    contactName: contact?.name,
+    companyName: company?.name,
+    opportunityName: opportunity?.name,
+  });
+  const draft = await prisma.emailDraft.upsert({
+    where: { emailMessageId: message.id },
+    create: {
+      emailMessageId: message.id,
+      subject: suggestion.subject,
+      body: suggestion.body,
+    },
+    update: {
+      status: EmailDraftStatus.DRAFT,
+      subject: suggestion.subject,
+      body: suggestion.body,
+      reviewedById: null,
+      reviewedAt: null,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.CREATE,
+      entityType: "EmailDraft",
+      entityId: draft.id,
+      actorId: user.id,
+      after: { subject: draft.subject, status: draft.status },
+    },
+  });
+  revalidatePath(`/email/${message.id}`);
+  revalidatePath("/email");
+}
+
+export async function saveEmailDraft(formData: FormData) {
+  const user = await requireWriter("No tienes permisos para editar borradores.");
+  const data = emailDraftFormSchema.parse(Object.fromEntries(formData.entries()));
+  const draft = await prisma.emailDraft.findFirst({
+    where: {
+      id: data.draftId,
+      emailMessage: { connection: { userId: user.id } },
+    },
+  });
+  if (!draft) {
+    throw new Error("El borrador no esta disponible.");
+  }
+  await prisma.emailDraft.update({
+    where: { id: draft.id },
+    data: {
+      status: EmailDraftStatus.DRAFT,
+      subject: data.subject,
+      body: data.body,
+      reviewedById: null,
+      reviewedAt: null,
+    },
+  });
+  revalidatePath(`/email/${draft.emailMessageId}`);
+}
+
+export async function approveEmailDraft(formData: FormData) {
+  const user = await requireWriter("No tienes permisos para aprobar borradores.");
+  const data = emailDraftFormSchema.parse(Object.fromEntries(formData.entries()));
+  const draft = await prisma.emailDraft.findFirst({
+    where: {
+      id: data.draftId,
+      emailMessage: { connection: { userId: user.id } },
+    },
+  });
+  if (!draft) {
+    throw new Error("El borrador no esta disponible.");
+  }
+  await prisma.$transaction([
+    prisma.emailDraft.update({
+      where: { id: draft.id },
+      data: {
+        status: EmailDraftStatus.APPROVED,
+        subject: data.subject,
+        body: data.body,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.AI_SUGGESTION_APPROVAL,
+        entityType: "EmailDraft",
+        entityId: draft.id,
+        actorId: user.id,
+        after: { status: EmailDraftStatus.APPROVED },
+      },
+    }),
+  ]);
+  revalidatePath(`/email/${draft.emailMessageId}`);
+  revalidatePath("/email");
+}
+
+export async function discardEmailDraft(draftId: string) {
+  const user = await requireWriter("No tienes permisos para descartar borradores.");
+  const draft = await prisma.emailDraft.findFirst({
+    where: {
+      id: draftId,
+      emailMessage: { connection: { userId: user.id } },
+    },
+  });
+  if (!draft) {
+    throw new Error("El borrador no esta disponible.");
+  }
+  await prisma.$transaction([
+    prisma.emailDraft.update({
+      where: { id: draft.id },
+      data: {
+        status: EmailDraftStatus.DISCARDED,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "EmailDraft",
+        entityId: draft.id,
+        actorId: user.id,
+        after: { status: EmailDraftStatus.DISCARDED },
+      },
+    }),
+  ]);
+  revalidatePath(`/email/${draft.emailMessageId}`);
   revalidatePath("/email");
 }

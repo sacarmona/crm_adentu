@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   analyzeCommercialEmailWithAnthropic,
   analyzeCommercialInteractionWithAnthropic,
+  generateCommercialEmailDraftWithAnthropic,
   isAnthropicConfigured,
 } from "@/server/services/anthropic";
 import {
@@ -15,8 +16,13 @@ import {
   EmailCommercialAnalysis,
 } from "@/server/services/email-analysis";
 import {
+  buildEmailDraftPrompt,
+  EmailDraftSuggestion,
+} from "@/server/services/email-draft";
+import {
   analyzeCommercialEmail,
   analyzeCommercialInteraction,
+  generateCommercialEmailDraft,
   isAiConfigured,
 } from "@/server/services/openai";
 
@@ -27,6 +33,15 @@ export async function getActiveAiProvider(): Promise<AiProvider> {
     where: { id: SETTINGS_ID },
   });
   return settings?.activeProvider ?? AiProvider.OPENAI;
+}
+
+export async function generateEmailDraftWithActiveProvider(
+  input: Parameters<typeof buildEmailDraftPrompt>[0],
+): Promise<EmailDraftSuggestion> {
+  const provider = await getActiveAiProvider();
+  return provider === AiProvider.ANTHROPIC
+    ? generateCommercialEmailDraftWithAnthropic(input)
+    : generateCommercialEmailDraft(input);
 }
 
 export async function analyzeEmailWithActiveProvider(

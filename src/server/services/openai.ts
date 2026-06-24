@@ -12,9 +12,41 @@ import {
   EmailCommercialAnalysis,
   emailCommercialAnalysisSchema,
 } from "@/server/services/email-analysis";
+import {
+  buildEmailDraftPrompt,
+  EmailDraftSuggestion,
+  emailDraftSchema,
+} from "@/server/services/email-draft";
 
 export function isAiConfigured() {
   return Boolean(env.OPENAI_API_KEY);
+}
+
+export async function generateCommercialEmailDraft(
+  input: Parameters<typeof buildEmailDraftPrompt>[0],
+): Promise<EmailDraftSuggestion> {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY no esta configurada.");
+  }
+  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const response = await openai.responses.parse({
+    model: env.OPENAI_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "Redactas borradores B2B prudentes. Nunca afirmes que el mensaje fue enviado.",
+      },
+      { role: "user", content: buildEmailDraftPrompt(input) },
+    ],
+    text: {
+      format: zodTextFormat(emailDraftSchema, "commercial_email_draft"),
+    },
+  });
+  if (!response.output_parsed) {
+    throw new Error("El borrador de correo no pudo validarse.");
+  }
+  return response.output_parsed;
 }
 
 export async function analyzeCommercialEmail(

@@ -221,6 +221,16 @@ Fase 14D completada:
 - Auditoria del origen, persona y organizacion declarados.
 - Sin scraping, lectura automatica de mensajes ni acciones sobre cuentas LinkedIn.
 
+Fase 14E completada:
+
+- Generacion de borradores mediante el proveedor de IA activo.
+- Contrato estructurado compartido por OpenAI y Anthropic.
+- Contexto limitado al correo, clasificacion y coincidencias CRM existentes.
+- Editor de asunto y cuerpo antes de cualquier aprobacion.
+- Estados borrador, aprobado y descartado con auditoria.
+- Copia manual del texto aprobado para uso en el cliente de correo.
+- Sin envio automatico ni llamadas a APIs de transmision.
+
 ## Estructura inicial
 
 ```txt
@@ -315,6 +325,6 @@ AdentuDemo2026!
 
 ## Estado de implementacion
 
-Las fases 0 a 14D estan completadas. El siguiente hito es configurar las
+Las fases 0 a 14E estan completadas. El siguiente hito es configurar las
 aplicaciones OAuth en staging, conectar un buzon controlado y validar la
 clasificacion con mensajes no sensibles.

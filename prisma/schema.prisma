@@ -107,6 +107,12 @@ enum EmailCommercialIntent {
   OTHER
 }
 
+enum EmailDraftStatus {
+  DRAFT
+  APPROVED
+  DISCARDED
+}
+
 enum TaskStatus {
   PENDING
   EXECUTED
@@ -205,6 +211,7 @@ model User {
   auditLogs                    AuditLog[]            @relation("AuditActor")
   approvedAiInsights           AiInsight[]           @relation("AiInsightApprover")
   reviewedEmailClassifications EmailClassification[] @relation("EmailClassificationReviewer")
+  reviewedEmailDrafts          EmailDraft[]          @relation("EmailDraftReviewer")
   createdPlaybooks             Playbook[]            @relation("PlaybookCreator")
   commercialMilestones         CommercialMilestone[] @relation("MilestoneOwner")
   aiSettingsUpdates            AiSettings[]
@@ -257,11 +264,30 @@ model EmailMessage {
   connection     EmailConnection      @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   interaction    Interaction?         @relation(fields: [interactionId], references: [id])
   classification EmailClassification?
+  draft          EmailDraft?
 
   @@unique([connectionId, providerMessageId])
   @@index([sentAt])
   @@index([fromAddress])
   @@index([interactionId])
+}
+
+model EmailDraft {
+  id             String           @id @default(uuid())
+  emailMessageId String           @unique
+  status         EmailDraftStatus @default(DRAFT)
+  subject        String
+  body           String
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  emailMessage EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("EmailDraftReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@index([reviewedById])
 }
 
 model EmailClassification {
