@@ -19,6 +19,7 @@
     "db:create-admin": "node scripts/create-admin.mjs",
     "db:seed": "node prisma/seed.mjs",
     "db:seed-dictionaries": "node scripts/seed-services-dictionaries.mjs",
+    "db:import-extra": "node scripts/import-extra-data.mjs",
     "db:studio": "prisma studio"
   },
   "dependencies": {
