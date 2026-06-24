@@ -14,7 +14,21 @@ import {
   parseLocalDateTime,
   taskExecutionFields,
 } from "@/server/services/activity";
-import { requireWriter } from "@/server/authz";
+import { requireAdmin, requireWriter } from "@/server/authz";
+
+async function assertNoActiveDependents(
+  entityLabel: string,
+  checks: { label: string; count: number }[],
+) {
+  const blocking = checks.filter((check) => check.count > 0);
+  if (blocking.length === 0) return;
+  const detail = blocking
+    .map((check) => `${check.count} ${check.label}`)
+    .join(", ");
+  throw new Error(
+    `No se puede eliminar ${entityLabel}: tiene registros activos relacionados (${detail}). Reasignalos o eliminalos primero.`,
+  );
+}
 
 function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
@@ -204,4 +218,46 @@ export async function changeTaskStatus(formData: FormData) {
   ]);
 
   activityPaths(before).forEach((path) => revalidatePath(path));
+}
+
+export async function deleteInteraction(id: string) {
+  const user = await requireAdmin("Solo ADMIN puede eliminar interacciones.");
+  const before = await prisma.interaction.findFirst({
+    where: { id, deletedAt: null },
+  });
+  if (!before) {
+    throw new Error("La interaccion ya no esta disponible.");
+  }
+
+  const [tasks, aiInsights, attachments, emailMessages] = await Promise.all([
+    prisma.task.count({ where: { interactionId: id, deletedAt: null } }),
+    prisma.aiInsight.count({ where: { interactionId: id, deletedAt: null } }),
+    prisma.attachment.count({ where: { interactionId: id, deletedAt: null } }),
+    prisma.emailMessage.count({ where: { interactionId: id } }),
+  ]);
+  await assertNoActiveDependents("la interaccion", [
+    { label: "tareas activas", count: tasks },
+    { label: "insights de IA", count: aiInsights },
+    { label: "adjuntos", count: attachments },
+    { label: "correos vinculados", count: emailMessages },
+  ]);
+
+  await prisma.$transaction([
+    prisma.interaction.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.SOFT_DELETE,
+        entityType: "Interaction",
+        entityId: id,
+        actorId: user.id,
+        before: { type: before.type, date: before.date.toISOString() },
+      },
+    }),
+  ]);
+
+  activityPaths(before).forEach((path) => revalidatePath(path));
+  redirect("/interactions");
 }

@@ -18,7 +18,21 @@ import {
   calculateOpportunityCompleteness,
 } from "@/server/services/completeness-scoring";
 import { calculateOpportunityAmounts } from "@/server/services/opportunity-calculations";
-import { requireWriter } from "@/server/authz";
+import { requireAdmin, requireWriter } from "@/server/authz";
+
+async function assertNoActiveDependents(
+  entityLabel: string,
+  checks: { label: string; count: number }[],
+) {
+  const blocking = checks.filter((check) => check.count > 0);
+  if (blocking.length === 0) return;
+  const detail = blocking
+    .map((check) => `${check.count} ${check.label}`)
+    .join(", ");
+  throw new Error(
+    `No se puede eliminar ${entityLabel}: tiene registros activos relacionados (${detail}). Reasignalos o eliminalos primero.`,
+  );
+}
 
 async function writeAudit(input: {
   action: AuditAction;
@@ -97,7 +111,15 @@ export async function updateCompany(id: string, formData: FormData) {
 }
 
 export async function deleteCompany(id: string) {
-  const user = await requireWriter();
+  const user = await requireAdmin("Solo ADMIN puede eliminar empresas.");
+  const [contacts, opportunities] = await Promise.all([
+    prisma.contact.count({ where: { companyId: id, deletedAt: null } }),
+    prisma.opportunity.count({ where: { companyId: id, deletedAt: null } }),
+  ]);
+  await assertNoActiveDependents("la empresa", [
+    { label: "contactos activos", count: contacts },
+    { label: "oportunidades activas", count: opportunities },
+  ]);
   await prisma.company.update({
     where: { id },
     data: { deletedAt: new Date() },
@@ -156,7 +178,13 @@ export async function updateContact(id: string, formData: FormData) {
 }
 
 export async function deleteContact(id: string) {
-  const user = await requireWriter();
+  const user = await requireAdmin("Solo ADMIN puede eliminar contactos.");
+  const opportunities = await prisma.opportunity.count({
+    where: { primaryContactId: id, deletedAt: null },
+  });
+  await assertNoActiveDependents("el contacto", [
+    { label: "oportunidades activas donde es contacto principal", count: opportunities },
+  ]);
   await prisma.contact.update({
     where: { id },
     data: { deletedAt: new Date() },
@@ -231,7 +259,13 @@ export async function updateOpportunity(id: string, formData: FormData) {
 }
 
 export async function deleteOpportunity(id: string) {
-  const user = await requireWriter();
+  const user = await requireAdmin("Solo ADMIN puede eliminar oportunidades.");
+  const pendingTasks = await prisma.task.count({
+    where: { opportunityId: id, deletedAt: null, status: "PENDING" },
+  });
+  await assertNoActiveDependents("la oportunidad", [
+    { label: "tareas pendientes", count: pendingTasks },
+  ]);
   await prisma.opportunity.update({
     where: { id },
     data: { deletedAt: new Date() },

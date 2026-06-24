@@ -43,6 +43,7 @@ export default async function CompanyDetailPage({
     notFound();
   }
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const isAdmin = session?.user.role === UserRole.ADMIN;
 
   return (
     <div className="space-y-5">
@@ -67,14 +68,14 @@ export default async function CompanyDetailPage({
               </>
             ) : null}
             {canEdit ? (
-              <>
-                <Button asChild variant="outline">
-                  <Link href={`/companies/${company.id}/edit`}>Editar</Link>
-                </Button>
-                <form action={deleteCompany.bind(null, company.id)}>
-                  <Button type="submit" variant="secondary">Eliminar</Button>
-                </form>
-              </>
+              <Button asChild variant="outline">
+                <Link href={`/companies/${company.id}/edit`}>Editar</Link>
+              </Button>
+            ) : null}
+            {isAdmin ? (
+              <form action={deleteCompany.bind(null, company.id)}>
+                <Button type="submit" variant="secondary">Eliminar</Button>
+              </form>
             ) : null}
           </div>
         </div>

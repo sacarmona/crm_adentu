@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { interactionTypeLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { deleteInteraction } from "@/server/actions/activity";
 import { analyzeInteraction } from "@/server/actions/intelligence";
 import { isAiConfigured } from "@/server/services/openai";
 
@@ -69,6 +70,8 @@ export default async function InteractionsPage({
   ]);
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canAnalyze = canEdit && isAiConfigured();
+  const isAdmin = session?.user.role === UserRole.ADMIN;
+  const showActionsColumn = canAnalyze || isAdmin;
 
   return (
     <div className="space-y-5">
@@ -126,7 +129,7 @@ export default async function InteractionsPage({
               <th className="px-4 py-3">Ejecuto</th>
               <th className="px-4 py-3">Contenido</th>
               <th className="px-4 py-3">Proxima accion</th>
-              {canAnalyze ? <th className="px-4 py-3">Acciones</th> : null}
+              {showActionsColumn ? <th className="px-4 py-3">Acciones</th> : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -200,13 +203,24 @@ export default async function InteractionsPage({
                     "-"
                   )}
                 </td>
-                {canAnalyze ? (
+                {showActionsColumn ? (
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <form action={analyzeInteraction.bind(null, interaction.id)}>
-                      <Button size="sm" type="submit" variant="outline">
-                        Analizar con IA
-                      </Button>
-                    </form>
+                    <div className="flex flex-wrap gap-2">
+                      {canAnalyze ? (
+                        <form action={analyzeInteraction.bind(null, interaction.id)}>
+                          <Button size="sm" type="submit" variant="outline">
+                            Analizar con IA
+                          </Button>
+                        </form>
+                      ) : null}
+                      {isAdmin ? (
+                        <form action={deleteInteraction.bind(null, interaction.id)}>
+                          <Button size="sm" type="submit" variant="secondary">
+                            Eliminar
+                          </Button>
+                        </form>
+                      ) : null}
+                    </div>
                   </td>
                 ) : null}
               </tr>
@@ -215,7 +229,7 @@ export default async function InteractionsPage({
               <tr>
                 <td
                   className="px-4 py-8 text-center text-slate-500"
-                  colSpan={canAnalyze ? 10 : 9}
+                  colSpan={showActionsColumn ? 10 : 9}
                 >
                   No hay interacciones para los filtros seleccionados.
                 </td>

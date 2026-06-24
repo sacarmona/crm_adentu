@@ -51,6 +51,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
 
   if (!opportunity) notFound();
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const isAdmin = session?.user.role === UserRole.ADMIN;
 
   return (
     <div className="space-y-5">
@@ -70,10 +71,10 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
               </>
             ) : null}
             {canEdit ? (
-              <>
-                <Button asChild variant="outline"><Link href={`/opportunities/${opportunity.id}/edit`}>Editar</Link></Button>
-                <form action={deleteOpportunity.bind(null, opportunity.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
-              </>
+              <Button asChild variant="outline"><Link href={`/opportunities/${opportunity.id}/edit`}>Editar</Link></Button>
+            ) : null}
+            {isAdmin ? (
+              <form action={deleteOpportunity.bind(null, opportunity.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
             ) : null}
           </div>
         </div>

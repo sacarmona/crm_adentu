@@ -37,6 +37,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
 
   if (!contact) notFound();
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const isAdmin = session?.user.role === UserRole.ADMIN;
 
   return (
     <div className="space-y-5">
@@ -55,10 +56,10 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
               </>
             ) : null}
             {canEdit ? (
-              <>
-                <Button asChild variant="outline"><Link href={`/contacts/${contact.id}/edit`}>Editar</Link></Button>
-                <form action={deleteContact.bind(null, contact.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
-              </>
+              <Button asChild variant="outline"><Link href={`/contacts/${contact.id}/edit`}>Editar</Link></Button>
+            ) : null}
+            {isAdmin ? (
+              <form action={deleteContact.bind(null, contact.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
             ) : null}
           </div>
         </div>
