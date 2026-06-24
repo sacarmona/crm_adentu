@@ -242,7 +242,9 @@ export default async function SettingsPage({
             </table>
           </section>
         </>
-      ) : (
+      ) : null}
+
+      {view === "dictionaries" ? (
         <section className="grid gap-4 lg:grid-cols-[240px_1fr]">
           <aside className="space-y-1">
             {types.map((type) => (
@@ -320,7 +322,7 @@ export default async function SettingsPage({
             </table>
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }
