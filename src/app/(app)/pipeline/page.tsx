@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { PipelineBoard } from "@/components/pipeline/pipeline-board";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
+import { getFollowUpHealth } from "@/server/services/dashboard-metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function PipelinePage({
     probability: Number(opportunity.probability),
     totalAmount: Number(opportunity.totalAmount),
     weightedAmount: Number(opportunity.weightedAmount),
-    completeness: opportunity.completeness,
+    followUp: getFollowUpHealth(opportunity),
     estimatedCloseDate: opportunity.estimatedCloseDate?.toISOString() ?? null,
   }));
 

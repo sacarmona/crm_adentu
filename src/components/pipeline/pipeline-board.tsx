@@ -20,9 +20,10 @@ import { CalendarDays, GripVertical, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 
-import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
+import { followUpHealthLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { changeOpportunityStage } from "@/server/actions/crm";
+import type { FollowUpHealth } from "@/server/services/dashboard-metrics";
 import {
   pipelineStageLabels,
   pipelineStages,
@@ -39,9 +40,33 @@ export type PipelineOpportunity = {
   probability: number;
   totalAmount: number;
   weightedAmount: number;
-  completeness: number;
+  followUp: { level: FollowUpHealth; days: number };
   estimatedCloseDate: string | null;
 };
+
+function FollowUpBadge({
+  followUp,
+}: {
+  followUp: { level: FollowUpHealth; days: number };
+}) {
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-md px-2 py-1 text-xs font-semibold",
+        followUp.level === "stalled"
+          ? "bg-red-50 text-red-700"
+          : followUp.level === "watch"
+            ? "bg-amber-50 text-amber-700"
+            : followUp.level === "closed"
+              ? "bg-slate-100 text-slate-500"
+              : "bg-emerald-50 text-emerald-700",
+      )}
+    >
+      {followUpHealthLabels[followUp.level]}
+      {followUp.level === "closed" ? "" : ` · ${followUp.days}d`}
+    </span>
+  );
+}
 
 const currencyFormatter = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -112,7 +137,7 @@ function PipelineCard({
             {opportunity.companyName ?? "Sin empresa"}
           </p>
         </div>
-        <CompletenessIndicator score={opportunity.completeness} />
+        <FollowUpBadge followUp={opportunity.followUp} />
       </div>
       <div className="mt-3 border-t border-slate-100 pt-3">
         <p className="text-sm font-semibold">
