@@ -152,6 +152,100 @@ export async function createInteraction(formData: FormData) {
   redirect(`/interactions?created=${interaction.id}`);
 }
 
+export async function updateInteraction(id: string, formData: FormData) {
+  const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
+  const data = interactionSchema.parse(parseForm(formData));
+  const date = parseLocalDateTime(data.date);
+  const nextActionDate = parseLocalDateTime(data.nextActionDate);
+
+  if (!date) {
+    throw new Error("La fecha de interaccion no es valida.");
+  }
+
+  const before = await prisma.interaction.findFirst({
+    where: { id, deletedAt: null },
+  });
+  if (!before) {
+    throw new Error("La interaccion ya no esta disponible.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.interaction.update({
+      where: { id },
+      data: {
+        date,
+        type: data.type,
+        content: data.content,
+        companyId: data.companyId,
+        contactId: data.contactId,
+        opportunityId: data.opportunityId,
+        serviceId: data.serviceId,
+        nextAction: data.nextAction,
+        nextActionDate,
+        nextActionDueDate: nextActionDate,
+        nextActionStatus: data.nextAction
+          ? (before.nextActionStatus ?? TaskStatus.PENDING)
+          : null,
+      },
+    });
+
+    await Promise.all([
+      data.companyId
+        ? tx.company.updateMany({
+            where: {
+              id: data.companyId,
+              OR: [{ lastInteraction: null }, { lastInteraction: { lt: date } }],
+            },
+            data: { lastInteraction: date },
+          })
+        : Promise.resolve(),
+      data.contactId
+        ? tx.contact.updateMany({
+            where: {
+              id: data.contactId,
+              OR: [{ lastInteraction: null }, { lastInteraction: { lt: date } }],
+            },
+            data: { lastInteraction: date },
+          })
+        : Promise.resolve(),
+      data.opportunityId
+        ? tx.opportunity.updateMany({
+            where: {
+              id: data.opportunityId,
+              OR: [{ lastInteraction: null }, { lastInteraction: { lt: date } }],
+            },
+            data: { lastInteraction: date },
+          })
+        : Promise.resolve(),
+    ]);
+
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "Interaction",
+        entityId: id,
+        actorId: user.id,
+        before: {
+          companyId: before.companyId,
+          contactId: before.contactId,
+          opportunityId: before.opportunityId,
+          serviceId: before.serviceId,
+        },
+        after: {
+          companyId: data.companyId,
+          contactId: data.contactId,
+          opportunityId: data.opportunityId,
+          serviceId: data.serviceId,
+        },
+      },
+    });
+  });
+
+  activityPaths(data).forEach((path) => revalidatePath(path));
+  revalidatePath(`/interactions/${id}/edit`);
+  redirect("/interactions");
+}
+
 export async function createTask(formData: FormData) {
   const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
   const data = taskSchema.parse(parseForm(formData));

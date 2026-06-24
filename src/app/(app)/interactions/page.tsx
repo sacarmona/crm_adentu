@@ -71,7 +71,7 @@ export default async function InteractionsPage({
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canAnalyze = canEdit && isAiConfigured();
   const isAdmin = session?.user.role === UserRole.ADMIN;
-  const showActionsColumn = canAnalyze || isAdmin;
+  const showActionsColumn = canEdit || isAdmin;
 
   return (
     <div className="space-y-5">
@@ -206,6 +206,13 @@ export default async function InteractionsPage({
                 {showActionsColumn ? (
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex flex-wrap gap-2">
+                      {canEdit ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/interactions/${interaction.id}/edit`}>
+                            Editar
+                          </Link>
+                        </Button>
+                      ) : null}
                       {canAnalyze ? (
                         <form action={analyzeInteraction.bind(null, interaction.id)}>
                           <Button size="sm" type="submit" variant="outline">

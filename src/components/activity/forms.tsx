@@ -33,7 +33,7 @@ function enumOptions(
   }));
 }
 
-function localDateTimeValue(date = new Date()) {
+export function localDateTimeValue(date = new Date()) {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 }
@@ -45,6 +45,7 @@ export function InteractionForm({
   opportunities,
   services,
   defaults,
+  submitLabel = "Registrar interaccion",
 }: {
   action: (formData: FormData) => void | Promise<void>;
   companies: CompanyOption[];
@@ -52,10 +53,17 @@ export function InteractionForm({
   opportunities: OpportunityOption[];
   services: ServiceOption[];
   defaults?: {
+    date?: string;
+    type?: InteractionType;
     companyId?: string;
     contactId?: string;
     opportunityId?: string;
+    serviceId?: string;
+    content?: string;
+    nextAction?: string;
+    nextActionDate?: string;
   };
+  submitLabel?: string;
 }) {
   return (
     <form
@@ -63,13 +71,14 @@ export function InteractionForm({
       className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 md:grid-cols-2"
     >
       <TextField
-        defaultValue={localDateTimeValue()}
+        defaultValue={defaults?.date ?? localDateTimeValue()}
         label="Fecha y hora"
         name="date"
         required
         type="datetime-local"
       />
       <SelectField
+        defaultValue={defaults?.type}
         label="Tipo"
         name="type"
         options={enumOptions(InteractionType, interactionTypeLabels)}
@@ -94,19 +103,29 @@ export function InteractionForm({
         options={options(opportunities)}
       />
       <SelectField
+        defaultValue={defaults?.serviceId}
         label="Servicio"
         name="serviceId"
         options={options(services)}
       />
-      <TextArea label="Contenido de la interaccion" name="content" />
-      <TextField label="Proxima accion" name="nextAction" />
+      <TextArea
+        defaultValue={defaults?.content}
+        label="Contenido de la interaccion"
+        name="content"
+      />
       <TextField
+        defaultValue={defaults?.nextAction}
+        label="Proxima accion"
+        name="nextAction"
+      />
+      <TextField
+        defaultValue={defaults?.nextActionDate}
         label="Fecha proxima accion"
         name="nextActionDate"
         type="datetime-local"
       />
       <div className="self-end">
-        <Button type="submit">Registrar interaccion</Button>
+        <Button type="submit">{submitLabel}</Button>
       </div>
     </form>
   );
