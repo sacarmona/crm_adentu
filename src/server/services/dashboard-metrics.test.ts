@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateDashboardMetrics,
   daysSince,
+  getFollowUpHealth,
 } from "./dashboard-metrics";
 
 const now = new Date("2026-06-23T12:00:00Z");
@@ -84,5 +85,52 @@ describe("dashboard metrics", () => {
   it("calculates elapsed whole days without negative values", () => {
     expect(daysSince(new Date("2026-06-20T12:00:00Z"), now)).toBe(3);
     expect(daysSince(new Date("2026-06-25T12:00:00Z"), now)).toBe(0);
+  });
+
+  it("classifies follow-up health into normal/watch/stalled/closed", () => {
+    expect(
+      getFollowUpHealth({
+        status: OpportunityStatus.EXPLORATION,
+        lastInteraction: new Date("2026-06-18T12:00:00Z"),
+        createdAt: now,
+        now,
+      }),
+    ).toMatchObject({ level: "normal", days: 5 });
+
+    expect(
+      getFollowUpHealth({
+        status: OpportunityStatus.NEGOTIATION,
+        lastInteraction: new Date("2026-06-01T12:00:00Z"),
+        createdAt: now,
+        now,
+      }),
+    ).toMatchObject({ level: "watch", days: 22 });
+
+    expect(
+      getFollowUpHealth({
+        status: OpportunityStatus.PROPOSAL_SENT,
+        lastInteraction: new Date("2026-03-01T12:00:00Z"),
+        createdAt: now,
+        now,
+      }),
+    ).toMatchObject({ level: "stalled" });
+
+    expect(
+      getFollowUpHealth({
+        status: OpportunityStatus.WON,
+        lastInteraction: new Date("2020-01-01T12:00:00Z"),
+        createdAt: now,
+        now,
+      }),
+    ).toMatchObject({ level: "closed" });
+
+    expect(
+      getFollowUpHealth({
+        status: OpportunityStatus.EXPLORATION,
+        lastInteraction: null,
+        createdAt: new Date("2026-06-16T12:00:00Z"),
+        now,
+      }),
+    ).toMatchObject({ level: "normal", days: 7 });
   });
 });

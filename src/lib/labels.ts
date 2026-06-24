@@ -171,3 +171,13 @@ export const emailDraftStatusLabels: Record<EmailDraftStatus, string> = {
   APPROVED: "Aprobado",
   DISCARDED: "Descartado",
 };
+
+export const followUpHealthLabels: Record<
+  "normal" | "watch" | "stalled" | "closed",
+  string
+> = {
+  normal: "Normal",
+  watch: "Seguimiento",
+  stalled: "Estancada",
+  closed: "Cerrada",
+};

@@ -2,13 +2,12 @@ import { OpportunityStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { auth } from "@/auth";
-import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
-import { opportunityStatusLabels } from "@/lib/labels";
+import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { daysSince } from "@/server/services/dashboard-metrics";
+import { getFollowUpHealth } from "@/server/services/dashboard-metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +89,7 @@ export default async function OpportunitiesPage({
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Prob.</th>
               <th className="px-4 py-3">Monto total</th>
-              <th className="px-4 py-3">Completitud</th>
+              <th className="px-4 py-3">Seguimiento</th>
               <th className="px-4 py-3">
                 <Link className="inline-flex items-center gap-1 hover:underline" href={sortHref("lastInteraction")}>
                   Ultima interaccion
@@ -101,29 +100,40 @@ export default async function OpportunitiesPage({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {opportunities.map((opportunity) => (
-              <tr key={opportunity.id}>
-                <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/opportunities/${opportunity.id}`}>{opportunity.name}</Link></td>
-                <td className="px-4 py-3">{opportunity.company?.name ?? "-"}</td>
-                <td className="px-4 py-3">{opportunityStatusLabels[opportunity.status]}</td>
-                <td className="px-4 py-3">{formatPercent(opportunity.probability.toString())}</td>
-                <td className="px-4 py-3">{formatCurrency(opportunity.totalAmount.toString())}</td>
-                <td className="px-4 py-3"><CompletenessIndicator score={opportunity.completeness} /></td>
-                <td className="px-4 py-3 whitespace-nowrap text-xs">
-                  {opportunity.lastInteraction ? (
-                    <>
-                      {formatDate(opportunity.lastInteraction)}
-                      <span className="ml-1 text-slate-500">
-                        ({daysSince(opportunity.lastInteraction)}d)
-                      </span>
-                    </>
-                  ) : (
-                    "Sin fecha"
-                  )}
-                </td>
-                <td className="px-4 py-3">{formatDate(opportunity.estimatedCloseDate)}</td>
-              </tr>
-            ))}
+            {opportunities.map((opportunity) => {
+              const health = getFollowUpHealth(opportunity);
+              return (
+                <tr key={opportunity.id}>
+                  <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/opportunities/${opportunity.id}`}>{opportunity.name}</Link></td>
+                  <td className="px-4 py-3">{opportunity.company?.name ?? "-"}</td>
+                  <td className="px-4 py-3">{opportunityStatusLabels[opportunity.status]}</td>
+                  <td className="px-4 py-3">{formatPercent(opportunity.probability.toString())}</td>
+                  <td className="px-4 py-3">{formatCurrency(opportunity.totalAmount.toString())}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                        health.level === "stalled"
+                          ? "bg-red-50 text-red-700"
+                          : health.level === "watch"
+                            ? "bg-amber-50 text-amber-700"
+                            : health.level === "closed"
+                              ? "bg-slate-100 text-slate-500"
+                              : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      {followUpHealthLabels[health.level]}
+                      {health.level === "closed" ? "" : ` · ${health.days}d`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-xs">
+                    {opportunity.lastInteraction
+                      ? formatDate(opportunity.lastInteraction)
+                      : "Sin fecha"}
+                  </td>
+                  <td className="px-4 py-3">{formatDate(opportunity.estimatedCloseDate)}</td>
+                </tr>
+              );
+            })}
             {opportunities.length === 0 ? (
               <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={8}>No hay oportunidades para los filtros seleccionados.</td></tr>
             ) : null}

@@ -75,3 +75,28 @@ export function daysSince(value: Date, now = new Date()) {
     Math.floor((now.getTime() - value.getTime()) / (24 * 60 * 60 * 1000)),
   );
 }
+
+// Follow-up health tiers for open opportunities, based on days since the
+// last interaction (or createdAt if there's none yet):
+//   0-7 days    -> "normal", no action needed
+//   8-59 days   -> "watch", same window as the Dashboard's 14-day warning
+//   60+ days    -> "stalled", needs an explicit follow-up
+export const FOLLOW_UP_NORMAL_DAYS = 7;
+export const FOLLOW_UP_STALLED_DAYS = 60;
+
+export type FollowUpHealth = "normal" | "watch" | "stalled" | "closed";
+
+export function getFollowUpHealth(input: {
+  status: OpportunityStatus;
+  lastInteraction: Date | null;
+  createdAt: Date;
+  now?: Date;
+}): { level: FollowUpHealth; days: number } {
+  if (closedStatuses.has(input.status)) {
+    return { level: "closed", days: 0 };
+  }
+  const days = daysSince(input.lastInteraction ?? input.createdAt, input.now);
+  if (days > FOLLOW_UP_STALLED_DAYS) return { level: "stalled", days };
+  if (days <= FOLLOW_UP_NORMAL_DAYS) return { level: "normal", days };
+  return { level: "watch", days };
+}
