@@ -118,7 +118,9 @@ const opportunitySchema = z.object({
 const enumAliases: Record<string, string> = {
   sincaliificar: "UNQUALIFIED",
   sincalificar: "UNQUALIFIED",
+  nocalificado: "UNQUALIFIED",
   prospeccion: "PROSPECTING",
+  enprospeccion: "PROSPECTING",
   clientehistorico: "HISTORIC_CLIENT",
   clienteactivo: "ACTIVE_CLIENT",
   descartado: "DISCARDED",
@@ -132,6 +134,7 @@ const enumAliases: Record<string, string> = {
   ganada: "WON",
   cerradaganada: "WON",
   estancada: "STALLED",
+  perdido: "LOST",
   perdida: "LOST",
   cerradaperdida: "LOST",
   alta: "HIGH",
@@ -175,8 +178,11 @@ function enumValue(value: unknown, fallback: string) {
     return fallback;
   }
 
-  const direct = text.trim().toUpperCase().replace(/[\s-]+/g, "_");
-  return enumAliases[normalizeImportKey(text)] ?? direct;
+  // Dictionary values follow "+3 - Cliente activo" / "-1 - Perdido"; strip the
+  // leading numeric code so it matches the alias keys, which are coded without it.
+  const withoutCode = text.replace(/^[+-]?\d+\s*-\s*/, "");
+  const direct = withoutCode.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return enumAliases[normalizeImportKey(withoutCode)] ?? direct;
 }
 
 function numberValue(value: unknown, fallback: number) {
