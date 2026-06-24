@@ -198,29 +198,71 @@ export async function createOpportunity(formData: FormData) {
   const user = await requireWriter();
   const data = opportunitySchema.parse(parseForm(formData));
   const amounts = calculateOpportunityAmounts(data);
-  const opportunity = await prisma.opportunity.create({
-    data: {
-      ...data,
-      estimatedCloseDate: nullableDate(data.estimatedCloseDate),
-      estimatedStartDate: nullableDate(data.estimatedStartDate),
-      nextActionDate: nullableDate(data.nextActionDate),
-      priceClp: amounts.priceClp,
-      monthlyAmount: amounts.monthlyAmount,
-      totalAmount: amounts.totalAmount,
-      weightedAmount: amounts.weightedAmount,
-      completeness: calculateOpportunityCompleteness(data),
-    },
-  });
+  const now = new Date();
 
-  await writeAudit({
-    action: "CREATE",
-    entityType: "Opportunity",
-    entityId: opportunity.id,
-    actorId: user.id,
-    after: { name: opportunity.name, status: opportunity.status },
+  const opportunity = await prisma.$transaction(async (tx) => {
+    const created = await tx.opportunity.create({
+      data: {
+        ...data,
+        estimatedCloseDate: nullableDate(data.estimatedCloseDate),
+        estimatedStartDate: nullableDate(data.estimatedStartDate),
+        nextActionDate: nullableDate(data.nextActionDate),
+        priceClp: amounts.priceClp,
+        monthlyAmount: amounts.monthlyAmount,
+        totalAmount: amounts.totalAmount,
+        weightedAmount: amounts.weightedAmount,
+        completeness: calculateOpportunityCompleteness(data),
+        lastInteraction: now,
+      },
+    });
+
+    await tx.interaction.create({
+      data: {
+        date: now,
+        type: "OTHER",
+        content: "Oportunidad creada",
+        companyId: created.companyId,
+        contactId: created.primaryContactId,
+        opportunityId: created.id,
+        serviceId: created.serviceId,
+        executedById: user.id,
+      },
+    });
+
+    if (created.companyId) {
+      await tx.company.updateMany({
+        where: {
+          id: created.companyId,
+          OR: [{ lastInteraction: null }, { lastInteraction: { lt: now } }],
+        },
+        data: { lastInteraction: now },
+      });
+    }
+    if (created.primaryContactId) {
+      await tx.contact.updateMany({
+        where: {
+          id: created.primaryContactId,
+          OR: [{ lastInteraction: null }, { lastInteraction: { lt: now } }],
+        },
+        data: { lastInteraction: now },
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        action: "CREATE",
+        entityType: "Opportunity",
+        entityId: created.id,
+        actorId: user.id,
+        after: { name: created.name, status: created.status },
+      },
+    });
+
+    return created;
   });
 
   revalidatePath("/opportunities");
+  revalidatePath("/interactions");
   redirect(`/opportunities/${opportunity.id}`);
 }
 
