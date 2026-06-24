@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { taskStatusLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { changeTaskStatus } from "@/server/actions/activity";
@@ -75,7 +76,7 @@ export default async function TasksPage({
           <option value="">Todos los estados</option>
           {Object.values(TaskStatus).map((value) => (
             <option key={value} value={value}>
-              {value}
+              {taskStatusLabels[value]}
             </option>
           ))}
         </select>
@@ -120,7 +121,7 @@ export default async function TasksPage({
                         statusStyles[task.status],
                       )}
                     >
-                      {task.status}
+                      {taskStatusLabels[task.status]}
                     </span>
                     {overdue ? (
                       <span className="rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">

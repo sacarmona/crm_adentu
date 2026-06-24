@@ -5,6 +5,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { importBatchStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { uploadImportBatch } from "@/server/actions/import";
 
@@ -129,7 +130,7 @@ export default async function ImportPage() {
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-semibold ${statusStyles[batch.status]}`}
                   >
-                    {batch.status}
+                    {importBatchStatusLabels[batch.status]}
                   </span>
                 </td>
                 <td className="px-4 py-3">{batch._count.rows}</td>

@@ -7,6 +7,12 @@ import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { PlaybookGuide } from "@/components/playbooks/playbook-guide";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@/lib/format";
+import {
+  aiInsightTypeLabels,
+  interactionTypeLabels,
+  opportunityStatusLabels,
+  taskStatusLabels,
+} from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { deleteOpportunity } from "@/server/actions/crm";
 
@@ -53,7 +59,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           <div>
             <p className="text-sm font-medium text-slate-500">Oportunidad</p>
             <h1 className="mt-1 text-2xl font-semibold">{opportunity.name}</h1>
-            <p className="mt-2 text-sm text-slate-600">{opportunity.company?.name ?? "Sin empresa"} · {opportunity.service?.name ?? "Sin servicio"} · {opportunity.status}</p>
+            <p className="mt-2 text-sm text-slate-600">{opportunity.company?.name ?? "Sin empresa"} · {opportunity.service?.name ?? "Sin servicio"} · {opportunityStatusLabels[opportunity.status]}</p>
           </div>
           <div className="flex gap-2">
             <CompletenessIndicator score={opportunity.completeness} showLabel />
@@ -92,7 +98,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           <h2 className="font-semibold">Señales IA</h2>
           <ul className="mt-4 space-y-3 text-sm">
             {opportunity.aiInsights.map((insight) => (
-              <li key={insight.id}>{insight.summary ?? insight.type}</li>
+              <li key={insight.id}>{insight.summary ?? aiInsightTypeLabels[insight.type]}</li>
             ))}
           </ul>
         </div>
@@ -128,7 +134,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
             {opportunity.interactions.map((interaction) => (
               <li key={interaction.id}>
                 <span className="font-medium">{formatDateTime(interaction.date)}</span>
-                <span className="text-slate-600"> · {interaction.type} · {interaction.content}</span>
+                <span className="text-slate-600"> · {interactionTypeLabels[interaction.type]} · {interaction.content}</span>
               </li>
             ))}
             {opportunity.interactions.length === 0 ? <li className="text-slate-500">Sin interacciones.</li> : null}
@@ -139,7 +145,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           <ul className="mt-4 space-y-3 text-sm">
             {opportunity.tasks.map((task) => (
               <li className="flex justify-between gap-4" key={task.id}>
-                <span>{task.title} · {task.status}</span>
+                <span>{task.title} · {taskStatusLabels[task.status]}</span>
                 <span className="shrink-0 text-slate-500">{formatDateTime(task.dueDate)}</span>
               </li>
             ))}

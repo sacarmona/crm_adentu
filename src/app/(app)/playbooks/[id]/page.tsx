@@ -10,6 +10,7 @@ import {
   deletePlaybook,
   deletePlaybookItem,
 } from "@/server/actions/playbooks";
+import { playbookItemLabels } from "@/server/services/playbooks";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,7 @@ export default async function PlaybookDetailPage({
               {playbook.items.map((item) => (
                 <tr key={item.id}>
                   <td className="px-4 py-3">{item.sortOrder}</td>
-                  <td className="px-4 py-3">{item.type}</td>
+                  <td className="px-4 py-3">{playbookItemLabels[item.type]}</td>
                   <td className="px-4 py-3 font-medium">{item.title}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-3">

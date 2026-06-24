@@ -5,6 +5,11 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatDateTime } from "@/lib/format";
+import {
+  contactStatusLabels,
+  interactionTypeLabels,
+  opportunityStatusLabels,
+} from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { deleteContact } from "@/server/actions/crm";
 
@@ -40,7 +45,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
           <div>
             <p className="text-sm font-medium text-slate-500">Contacto</p>
             <h1 className="mt-1 text-2xl font-semibold">{contact.name}</h1>
-            <p className="mt-2 text-sm text-slate-600">{contact.company?.name ?? "Sin empresa"} · {contact.status}</p>
+            <p className="mt-2 text-sm text-slate-600">{contact.company?.name ?? "Sin empresa"} · {contactStatusLabels[contact.status]}</p>
           </div>
           <div className="flex gap-2">
             {canEdit ? (
@@ -69,7 +74,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
           {contact.primaryOpportunities.map((opportunity) => (
             <li key={opportunity.id}>
               <Link className="font-medium hover:underline" href={`/opportunities/${opportunity.id}`}>{opportunity.name}</Link>
-              <span className="text-slate-500"> · {opportunity.status} · {opportunity.service?.name ?? "sin servicio"}</span>
+              <span className="text-slate-500"> · {opportunityStatusLabels[opportunity.status]} · {opportunity.service?.name ?? "sin servicio"}</span>
             </li>
           ))}
         </ul>
@@ -90,7 +95,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
         <h2 className="font-semibold">Interacciones</h2>
         <ul className="mt-4 space-y-3 text-sm">
           {contact.interactions.map((interaction) => (
-            <li key={interaction.id}><span className="font-medium">{formatDate(interaction.date)}</span><span className="text-slate-600"> · {interaction.type} · {interaction.content}</span></li>
+            <li key={interaction.id}><span className="font-medium">{formatDate(interaction.date)}</span><span className="text-slate-600"> · {interactionTypeLabels[interaction.type]} · {interaction.content}</span></li>
           ))}
         </ul>
       </section>

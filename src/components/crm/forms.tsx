@@ -14,14 +14,28 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
+import {
+  certaintyLabels,
+  companyStatusLabels,
+  contactStatusLabels,
+  currencyLabels,
+  leadSourceLabels,
+  opportunityStatusLabels,
+} from "@/lib/labels";
 
 type UserOption = Pick<User, "id" | "name">;
 type CompanyOption = Pick<Company, "id" | "name">;
 type ContactOption = Pick<Contact, "id" | "name">;
 type ServiceOption = Pick<Service, "id" | "name" | "isActive">;
 
-function enumOptions<T extends Record<string, string>>(values: T) {
-  return Object.values(values).map((value) => ({ value, label: value }));
+function enumOptions<T extends Record<string, string>>(
+  values: T,
+  labels?: Record<string, string>,
+) {
+  return Object.values(values).map((value) => ({
+    value,
+    label: labels?.[value] ?? value,
+  }));
 }
 
 function userOptions(users: UserOption[]) {
@@ -63,7 +77,7 @@ export function CompanyForm({
         defaultValue={company?.status}
         label="Estado"
         name="status"
-        options={enumOptions(CompanyStatus)}
+        options={enumOptions(CompanyStatus, companyStatusLabels)}
         required
       />
       <TextField defaultValue={company?.industry} label="Industria" name="industry" />
@@ -108,7 +122,7 @@ export function ContactForm({
         defaultValue={contact?.status}
         label="Estado"
         name="status"
-        options={enumOptions(ContactStatus)}
+        options={enumOptions(ContactStatus, contactStatusLabels)}
         required
       />
       <TextField defaultValue={contact?.email} label="Email" name="email" type="email" />
@@ -117,7 +131,7 @@ export function ContactForm({
         defaultValue={contact?.leadSource}
         label="Origen lead"
         name="leadSource"
-        options={enumOptions(LeadSource)}
+        options={enumOptions(LeadSource, leadSourceLabels)}
       />
       <SelectField
         defaultValue={contact?.responsibleId}
@@ -155,15 +169,15 @@ export function OpportunityForm({
         defaultValue={opportunity?.status}
         label="Estado"
         name="status"
-        options={enumOptions(OpportunityStatus)}
+        options={enumOptions(OpportunityStatus, opportunityStatusLabels)}
         required
       />
       <SelectField defaultValue={opportunity?.companyId} label="Empresa" name="companyId" options={companyOptions(companies)} />
       <SelectField defaultValue={opportunity?.primaryContactId} label="Contacto principal" name="primaryContactId" options={contactOptions(contacts)} />
       <SelectField defaultValue={opportunity?.serviceId} label="Servicio" name="serviceId" options={serviceOptions(services)} />
-      <SelectField defaultValue={opportunity?.certainty} label="Certeza" name="certainty" options={enumOptions(Certainty)} />
+      <SelectField defaultValue={opportunity?.certainty} label="Certeza" name="certainty" options={enumOptions(Certainty, certaintyLabels)} />
       <TextField defaultValue={opportunity?.probability?.toString() ?? "0"} label="Probabilidad (0 a 1)" name="probability" type="number" />
-      <SelectField defaultValue={opportunity?.currency} label="Moneda" name="currency" options={enumOptions(Currency)} required />
+      <SelectField defaultValue={opportunity?.currency} label="Moneda" name="currency" options={enumOptions(Currency, currencyLabels)} required />
       <TextField defaultValue={opportunity?.price?.toString() ?? "0"} label="Precio" name="price" type="number" />
       <TextField defaultValue={opportunity?.exchangeRate?.toString() ?? "1"} label="Tipo de cambio" name="exchangeRate" type="number" />
       <TextField defaultValue={opportunity?.quantity?.toString() ?? "1"} label="Cantidad" name="quantity" type="number" />

@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatDate } from "@/lib/format";
+import { contactStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,7 @@ export default async function ContactsPage({
         <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={status ?? ""} name="status">
           <option value="">Todos los estados</option>
           {Object.values(ContactStatus).map((value) => (
-            <option key={value} value={value}>{value}</option>
+            <option key={value} value={value}>{contactStatusLabels[value]}</option>
           ))}
         </select>
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">Filtrar</button>
@@ -72,7 +73,7 @@ export default async function ContactsPage({
               <tr key={contact.id}>
                 <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/contacts/${contact.id}`}>{contact.name}</Link></td>
                 <td className="px-4 py-3">{contact.company?.name ?? "-"}</td>
-                <td className="px-4 py-3">{contact.status}</td>
+                <td className="px-4 py-3">{contactStatusLabels[contact.status]}</td>
                 <td className="px-4 py-3">{contact.email ?? "-"}</td>
                 <td className="px-4 py-3"><CompletenessIndicator score={contact.completeness} /></td>
                 <td className="px-4 py-3">{formatDate(contact.lastInteraction)}</td>

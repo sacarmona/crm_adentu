@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatDate } from "@/lib/format";
+import { companyStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,7 @@ export default async function CompaniesPage({
           <option value="">Todos los estados</option>
           {Object.values(CompanyStatus).map((value) => (
             <option key={value} value={value}>
-              {value}
+              {companyStatusLabels[value]}
             </option>
           ))}
         </select>
@@ -88,7 +89,7 @@ export default async function CompaniesPage({
                     {company.name}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{company.status}</td>
+                <td className="px-4 py-3">{companyStatusLabels[company.status]}</td>
                 <td className="px-4 py-3">{company.industry ?? "-"}</td>
                 <td className="px-4 py-3">{company.responsible?.name ?? "-"}</td>
                 <td className="px-4 py-3">

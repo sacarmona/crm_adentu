@@ -20,6 +20,7 @@ import { EntityHeader } from "@/components/crm/entity-header";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
+import { emailCommercialIntentLabels, emailDraftStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   analyzeEmailMessage,
@@ -336,7 +337,7 @@ export default async function EmailPage({
                             {Math.round(
                               Number(message.classification.confidence) * 100,
                             )}
-                            % · {message.classification.intent}
+                            % · {emailCommercialIntentLabels[message.classification.intent]}
                           </span>
                         </div>
                         <p className="text-xs leading-5 text-slate-700">
@@ -438,7 +439,7 @@ export default async function EmailPage({
                         </Button>
                         {message.draft ? (
                           <span className="text-xs text-slate-500">
-                            Borrador: {message.draft.status}
+                            Borrador: {emailDraftStatusLabels[message.draft.status]}
                           </span>
                         ) : null}
                       </div>

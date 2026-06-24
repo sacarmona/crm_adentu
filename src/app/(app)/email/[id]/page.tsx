@@ -8,6 +8,7 @@ import { EmailDraftEditor } from "@/components/email/draft-editor";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
+import { emailCommercialIntentLabels, emailDraftStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   approveEmailDraft,
@@ -83,7 +84,7 @@ export default async function EmailMessagePage({
             {message.classification.summary}
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            {message.classification.intent} ·{" "}
+            {emailCommercialIntentLabels[message.classification.intent]} ·{" "}
             {Math.round(Number(message.classification.confidence) * 100)}%
           </p>
         </section>
@@ -107,7 +108,7 @@ export default async function EmailMessagePage({
                     : "bg-amber-50 text-amber-700"
               }`}
             >
-              {message.draft.status}
+              {emailDraftStatusLabels[message.draft.status]}
             </span>
           ) : null}
         </div>

@@ -10,6 +10,7 @@ import {
 
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
 import { Button } from "@/components/ui/button";
+import { interactionTypeLabels, taskStatusLabels } from "@/lib/labels";
 
 type Option = { id: string; name: string };
 type CompanyOption = Pick<Company, "id" | "name">;
@@ -22,8 +23,14 @@ function options(items: Option[]) {
   return items.map((item) => ({ value: item.id, label: item.name }));
 }
 
-function enumOptions(values: Record<string, string>) {
-  return Object.values(values).map((value) => ({ value, label: value }));
+function enumOptions(
+  values: Record<string, string>,
+  labels: Record<string, string>,
+) {
+  return Object.values(values).map((value) => ({
+    value,
+    label: labels[value] ?? value,
+  }));
 }
 
 function localDateTimeValue(date = new Date()) {
@@ -65,7 +72,7 @@ export function InteractionForm({
       <SelectField
         label="Tipo"
         name="type"
-        options={enumOptions(InteractionType)}
+        options={enumOptions(InteractionType, interactionTypeLabels)}
         required
       />
       <SelectField
@@ -138,7 +145,7 @@ export function TaskForm({
         defaultValue={TaskStatus.PENDING}
         label="Estado"
         name="status"
-        options={enumOptions(TaskStatus)}
+        options={enumOptions(TaskStatus, taskStatusLabels)}
         required
       />
       <TextField label="Fecha limite" name="dueDate" type="datetime-local" />

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { auditActionLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +72,7 @@ export default async function AuditPage({
           <option value="">Todas las acciones</option>
           {Object.values(AuditAction).map((value) => (
             <option key={value} value={value}>
-              {value}
+              {auditActionLabels[value]}
             </option>
           ))}
         </select>
@@ -122,7 +123,7 @@ export default async function AuditPage({
                   {formatDateTime(log.createdAt)}
                 </td>
                 <td className="px-4 py-3">{log.actor?.name ?? "Sistema"}</td>
-                <td className="px-4 py-3 font-medium">{log.action}</td>
+                <td className="px-4 py-3 font-medium">{auditActionLabels[log.action]}</td>
                 <td className="px-4 py-3">
                   <p>{log.entityType}</p>
                   <p className="mt-1 font-mono text-xs text-slate-500">

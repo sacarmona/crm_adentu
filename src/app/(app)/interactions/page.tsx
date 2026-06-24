@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { interactionTypeLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { analyzeInteraction } from "@/server/actions/intelligence";
 import { isAiConfigured } from "@/server/services/openai";
@@ -71,7 +72,7 @@ export default async function InteractionsPage({
           <option value="">Todos los tipos</option>
           {Object.values(InteractionType).map((value) => (
             <option key={value} value={value}>
-              {value}
+              {interactionTypeLabels[value]}
             </option>
           ))}
         </select>
@@ -102,7 +103,7 @@ export default async function InteractionsPage({
                   {formatDateTime(interaction.date)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap font-medium">
-                  {interaction.type}
+                  {interactionTypeLabels[interaction.type]}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   {interaction.company ? (

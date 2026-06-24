@@ -1,5 +1,7 @@
 import { OpportunityStatus } from "@prisma/client";
 
+import { opportunityStatusLabels } from "../../lib/labels";
+
 export const pipelineStages = [
   OpportunityStatus.EXPLORATION,
   OpportunityStatus.PROPOSAL_SENT,
@@ -9,14 +11,7 @@ export const pipelineStages = [
   OpportunityStatus.LOST,
 ] as const;
 
-export const pipelineStageLabels: Record<OpportunityStatus, string> = {
-  EXPLORATION: "Exploracion",
-  PROPOSAL_SENT: "Propuesta enviada",
-  NEGOTIATION: "Negociacion",
-  WON: "Ganada",
-  STALLED: "Estancada",
-  LOST: "Perdida",
-};
+export const pipelineStageLabels = opportunityStatusLabels;
 
 export type PipelineAmountItem = {
   status: OpportunityStatus;

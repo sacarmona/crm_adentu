@@ -6,6 +6,11 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { formatDateTime, formatPercent } from "@/lib/format";
+import {
+  aiInsightStatusLabels,
+  aiInsightTypeLabels,
+  opportunityStatusLabels,
+} from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   approveInsight,
@@ -50,10 +55,10 @@ export default async function InsightDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-slate-500">
-              Sugerencia de IA · {insight.status}
+              Sugerencia de IA · {aiInsightStatusLabels[insight.status]}
             </p>
             <h1 className="mt-1 text-2xl font-semibold">
-              {insight.summary ?? insight.type}
+              {insight.summary ?? aiInsightTypeLabels[insight.type]}
             </h1>
             <p className="mt-2 text-sm text-slate-600">
               Generada {formatDateTime(insight.createdAt)}
@@ -124,7 +129,11 @@ export default async function InsightDetailPage({
             <div className="flex justify-between gap-4">
               <dt className="text-slate-500">Etapa sugerida</dt>
               <dd className="font-medium">
-                {suggestedChanges?.opportunityStatus ?? "Sin cambio"}
+                {suggestedChanges?.opportunityStatus
+                  ? opportunityStatusLabels[
+                      suggestedChanges.opportunityStatus as keyof typeof opportunityStatusLabels
+                    ] ?? suggestedChanges.opportunityStatus
+                  : "Sin cambio"}
               </dd>
             </div>
           </dl>

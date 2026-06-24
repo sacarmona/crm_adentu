@@ -17,6 +17,7 @@ import {
 } from "@/components/dashboard/dashboard-charts";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { interactionTypeLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   calculateDashboardMetrics,
@@ -307,7 +308,7 @@ export default async function DashboardPage({
               <span className="text-xs text-slate-500">
                 {formatDateTime(interaction.date)}
               </span>
-              <span className="text-sm font-medium">{interaction.type}</span>
+              <span className="text-sm font-medium">{interactionTypeLabels[interaction.type]}</span>
               <div>
                 <p className="text-sm text-slate-700">{interaction.content}</p>
                 <p className="mt-1 text-xs text-slate-500">

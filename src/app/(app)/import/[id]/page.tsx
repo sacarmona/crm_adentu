@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
+import { importBatchStatusLabels, importRowStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   cancelImportBatch,
@@ -90,7 +91,7 @@ export default async function ImportDetailPage({
             </p>
             <h1 className="mt-1 text-2xl font-semibold">{batch.fileName}</h1>
             <p className="mt-2 text-sm text-slate-600">
-              {batch.status} · creado por{" "}
+              {importBatchStatusLabels[batch.status]} · creado por{" "}
               {batch.createdBy?.name ?? "Sin usuario"} ·{" "}
               {formatDateTime(batch.createdAt)}
             </p>
@@ -168,7 +169,7 @@ export default async function ImportDetailPage({
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-semibold ${rowStyles[row.status]}`}
                   >
-                    {row.status}
+                    {importRowStatusLabels[row.status]}
                   </span>
                 </td>
                 <td className="max-w-xl px-4 py-3 text-xs leading-5 text-slate-600">

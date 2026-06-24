@@ -5,6 +5,11 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import {
+  companyStatusLabels,
+  interactionTypeLabels,
+  opportunityStatusLabels,
+} from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { deleteCompany } from "@/server/actions/crm";
 
@@ -47,7 +52,7 @@ export default async function CompanyDetailPage({
             <p className="text-sm font-medium text-slate-500">Empresa</p>
             <h1 className="mt-1 text-2xl font-semibold">{company.name}</h1>
             <p className="mt-2 text-sm text-slate-600">
-              {company.industry ?? "Sin industria"} · {company.region ?? "Sin region"} · {company.status}
+              {company.industry ?? "Sin industria"} · {company.region ?? "Sin region"} · {companyStatusLabels[company.status]}
             </p>
           </div>
           <div className="flex gap-2">
@@ -114,7 +119,7 @@ export default async function CompanyDetailPage({
                 <Link className="font-medium hover:underline" href={`/opportunities/${opportunity.id}`}>
                   {opportunity.name}
                 </Link>
-                <span className="text-slate-500"> · {opportunity.status} · {opportunity.service?.name ?? "sin servicio"}</span>
+                <span className="text-slate-500"> · {opportunityStatusLabels[opportunity.status]} · {opportunity.service?.name ?? "sin servicio"}</span>
               </li>
             ))}
           </ul>
@@ -126,7 +131,7 @@ export default async function CompanyDetailPage({
           {company.interactions.map((interaction) => (
             <li key={interaction.id}>
               <span className="font-medium">{formatDate(interaction.date)}</span>
-              <span className="text-slate-600"> · {interaction.type} · {interaction.content}</span>
+              <span className="text-slate-600"> · {interactionTypeLabels[interaction.type]} · {interaction.content}</span>
             </li>
           ))}
         </ul>

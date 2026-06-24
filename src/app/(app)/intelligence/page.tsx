@@ -5,6 +5,11 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import {
+  aiInsightStatusLabels,
+  commercialSentimentLabels,
+  interactionTypeLabels,
+} from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { analyzeInteraction } from "@/server/actions/intelligence";
 import { isAiConfigured } from "@/server/services/openai";
@@ -111,7 +116,7 @@ export default async function IntelligencePage({
                   <p className="truncate text-sm font-medium">
                     {interaction.company?.name ??
                       interaction.opportunity?.name ??
-                      interaction.type}
+                      interactionTypeLabels[interaction.type]}
                   </p>
                   <p className="mt-1 line-clamp-2 text-xs text-slate-500">
                     {interaction.content}
@@ -138,7 +143,7 @@ export default async function IntelligencePage({
           <option value="">Todos los estados</option>
           {Object.values(AiInsightStatus).map((value) => (
             <option key={value} value={value}>
-              {value}
+              {aiInsightStatusLabels[value]}
             </option>
           ))}
         </select>
@@ -172,12 +177,14 @@ export default async function IntelligencePage({
                 <td className="px-4 py-3">
                   {insight.opportunity?.name ?? "-"}
                 </td>
-                <td className="px-4 py-3">{insight.sentiment ?? "-"}</td>
+                <td className="px-4 py-3">
+                  {insight.sentiment ? commercialSentimentLabels[insight.sentiment] : "-"}
+                </td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-semibold ${statusStyles[insight.status]}`}
                   >
-                    {insight.status}
+                    {aiInsightStatusLabels[insight.status]}
                   </span>
                 </td>
                 <td className="px-4 py-3">
