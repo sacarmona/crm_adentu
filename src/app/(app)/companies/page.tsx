@@ -21,6 +21,7 @@ export default async function CompaniesPage({
   searchParams?: Promise<{
     q?: string;
     status?: string;
+    industry?: string;
     sort?: string;
     dir?: string;
     page?: string;
@@ -30,6 +31,7 @@ export default async function CompaniesPage({
   const session = await auth();
   const q = params?.q?.trim();
   const status = params?.status as CompanyStatus | undefined;
+  const industry = params?.industry;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(params?.page) || 1);
@@ -45,9 +47,10 @@ export default async function CompaniesPage({
         }
       : {}),
     ...(status ? { status } : {}),
+    ...(industry ? { industry } : {}),
   };
   const canEdit = session?.user.role !== "LECTURA";
-  const [companies, total, users] = await Promise.all([
+  const [companies, total, users, industries] = await Promise.all([
     prisma.company.findMany({
       where,
       include: { responsible: true },
@@ -63,11 +66,18 @@ export default async function CompaniesPage({
           orderBy: { name: "asc" },
         })
       : Promise.resolve([]),
+    prisma.company.findMany({
+      where: { deletedAt: null, industry: { not: null } },
+      select: { industry: true },
+      distinct: ["industry"],
+      orderBy: { industry: "asc" },
+    }),
   ]);
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
     if (status) qs.set("status", status);
+    if (industry) qs.set("industry", industry);
     qs.set("sort", field);
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/companies?${qs.toString()}`;
@@ -81,7 +91,7 @@ export default async function CompaniesPage({
         description="Gestiona cuentas, estados comerciales, responsables y datos base de clientes y prospectos."
         title="Empresas"
       />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_220px_auto]">
+      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_200px_200px_auto]">
         <input
           className="h-10 rounded-md border border-slate-300 px-3 text-sm"
           defaultValue={q}
@@ -97,6 +107,18 @@ export default async function CompaniesPage({
           {Object.values(CompanyStatus).map((value) => (
             <option key={value} value={value}>
               {companyStatusLabels[value]}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          defaultValue={industry ?? ""}
+          name="industry"
+        >
+          <option value="">Todas las industrias</option>
+          {industries.map(({ industry: value }) => (
+            <option key={value} value={value ?? ""}>
+              {value}
             </option>
           ))}
         </select>
@@ -163,7 +185,7 @@ export default async function CompaniesPage({
           basePath="/companies"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status, sort, dir: sort ? dir : undefined }}
+          params={{ q, status, industry, sort, dir: sort ? dir : undefined }}
           total={total}
         />
       </section>
