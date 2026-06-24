@@ -222,13 +222,11 @@ export async function confirmImportBatch(batchId: string) {
     throw new Error("El lote no esta disponible para importar.");
   }
 
-  const orderedRows = [...batch.rows].sort((a, b) => {
-    const order = { Company: 0, Contact: 1, Opportunity: 2 };
-    return (
-      (order[a.targetModel as keyof typeof order] ?? 9) -
-      (order[b.targetModel as keyof typeof order] ?? 9)
-    );
-  });
+  const companyRows = batch.rows.filter((row) => row.targetModel === "Company");
+  const contactRows = batch.rows.filter((row) => row.targetModel === "Contact");
+  const opportunityRows = batch.rows.filter(
+    (row) => row.targetModel === "Opportunity",
+  );
 
   await prisma.$transaction(async (tx) => {
     const [companies, contacts, services] = await Promise.all([
@@ -259,149 +257,236 @@ export async function confirmImportBatch(batchId: string) {
       ).map((opportunity) => normalizeName(opportunity.name)),
     );
 
-    for (const row of orderedRows) {
+    const rowOutcomes = new Map<
+      string,
+      { status: ImportRowStatus; entityId: string | null }
+    >();
+
+    // --- Companies: bulk-create the new ones in a single round trip ---
+    const newCompanyRows: typeof companyRows = [];
+    for (const row of companyRows) {
       const data = row.normalizedData as ImportData | null;
-
-      if (!data) {
-        continue;
+      if (!data) continue;
+      const normalizedName = normalizeName(String(data.name));
+      const existing = companyMap.get(normalizedName);
+      if (existing) {
+        rowOutcomes.set(row.id, {
+          status: ImportRowStatus.SKIPPED,
+          entityId: existing.id,
+        });
+      } else if (!newCompanyRows.some((r) => normalizeName(String((r.normalizedData as ImportData).name)) === normalizedName)) {
+        newCompanyRows.push(row);
+      } else {
+        rowOutcomes.set(row.id, { status: ImportRowStatus.SKIPPED, entityId: null });
       }
+    }
 
-      let entityId: string | null = null;
-      let skipped = false;
-
-      if (row.targetModel === "Company") {
-        const normalizedName = normalizeName(String(data.name));
-        const existing = companyMap.get(normalizedName);
-        if (existing) {
-          skipped = true;
-          entityId = existing.id;
-        } else {
-          const companyInput = {
-            name: String(data.name),
-            industry: text(data, "industry"),
-            region: text(data, "region"),
-            status: String(data.status) as never,
-            size: text(data, "size"),
-            responsibleId: null,
-            notes: text(data, "notes"),
-          };
-          const created = await tx.company.create({
-            data: {
-              ...companyInput,
-              normalizedName,
-              completeness: calculateCompanyCompleteness(companyInput),
-            },
-          });
-          companyMap.set(normalizedName, created);
-          entityId = created.id;
-        }
-      }
-
-      if (row.targetModel === "Contact") {
-        const email = text(data, "email")?.toLowerCase() ?? null;
-        const existing = email ? contactEmailMap.get(email) : null;
-        if (existing) {
-          skipped = true;
-          entityId = existing.id;
-        } else {
-          const companyName = text(data, "companyName");
-          const company = companyName
-            ? companyMap.get(normalizeName(companyName))
-            : null;
-          const contactInput = {
-            name: String(data.name),
-            companyId: company?.id ?? null,
-            roleArea: text(data, "roleArea"),
-            status: String(data.status) as never,
-            email,
-            phone: text(data, "phone"),
-            leadSource: text(data, "leadSource") as never,
-            responsibleId: null,
-            notes: text(data, "notes"),
-          };
-          const created = await tx.contact.create({
-            data: {
-              ...contactInput,
-              completeness: calculateContactCompleteness(contactInput),
-            },
-          });
-          if (email) contactEmailMap.set(email, created);
-          contactNameMap.set(normalizeName(created.name), created);
-          entityId = created.id;
-        }
-      }
-
-      if (row.targetModel === "Opportunity") {
-        const normalizedOpportunityName = normalizeName(String(data.name));
-        if (opportunityNames.has(normalizedOpportunityName)) {
-          skipped = true;
-        } else {
-          const companyName = text(data, "companyName");
-          const contactName = text(data, "contactName");
-          const serviceName = text(data, "serviceName");
-          const company = companyName
-            ? companyMap.get(normalizeName(companyName))
-            : null;
-          const contact = contactName
-            ? contactNameMap.get(normalizeName(contactName))
-            : null;
-          const service = serviceName
-            ? serviceMap.get(normalizeName(serviceName))
-            : null;
-          const amountInput = {
-            price: Number(data.price),
-            exchangeRate: Number(data.exchangeRate),
-            quantity: Number(data.quantity),
-            months: Number(data.months),
-            probability: Number(data.probability),
-          };
-          const amounts = calculateOpportunityAmounts(amountInput);
-          const opportunityInput = {
-            name: String(data.name),
-            companyId: company?.id ?? null,
-            primaryContactId: contact?.id ?? null,
-            serviceId: service?.id ?? null,
-            status: String(data.status) as never,
-            certainty: text(data, "certainty") as never,
-            probability: amountInput.probability,
-            businessUnit: text(data, "businessUnit"),
-            currency: String(data.currency) as never,
-            price: amountInput.price,
-            exchangeRate: amountInput.exchangeRate,
-            quantity: amountInput.quantity,
-            months: amountInput.months,
-            estimatedCloseDate: text(data, "estimatedCloseDate"),
-            estimatedStartDate: text(data, "estimatedStartDate"),
-            nextActionDate: text(data, "nextActionDate"),
-            responsibleId: null,
-            notes: null,
-          };
-          const created = await tx.opportunity.create({
-            data: {
-              ...opportunityInput,
-              estimatedCloseDate: date(data, "estimatedCloseDate"),
-              estimatedStartDate: date(data, "estimatedStartDate"),
-              nextActionDate: date(data, "nextActionDate"),
-              priceClp: amounts.priceClp,
-              monthlyAmount: amounts.monthlyAmount,
-              totalAmount: amounts.totalAmount,
-              weightedAmount: amounts.weightedAmount,
-              completeness:
-                calculateOpportunityCompleteness(opportunityInput),
-            },
-          });
-          opportunityNames.add(normalizedOpportunityName);
-          entityId = created.id;
-        }
-      }
-
-      await tx.importRow.update({
-        where: { id: row.id },
-        data: {
-          status: skipped ? ImportRowStatus.SKIPPED : ImportRowStatus.IMPORTED,
-          createdEntityId: entityId,
-        },
+    if (newCompanyRows.length > 0) {
+      const companyInputs = newCompanyRows.map((row) => {
+        const data = row.normalizedData as ImportData;
+        const input = {
+          name: String(data.name),
+          industry: text(data, "industry"),
+          region: text(data, "region"),
+          status: String(data.status) as never,
+          size: text(data, "size"),
+          responsibleId: null,
+          notes: text(data, "notes"),
+        };
+        return {
+          row,
+          input,
+          normalizedName: normalizeName(String(data.name)),
+        };
       });
+
+      const created = await tx.company.createManyAndReturn({
+        data: companyInputs.map(({ input, normalizedName }) => ({
+          ...input,
+          normalizedName,
+          completeness: calculateCompanyCompleteness(input),
+        })),
+      });
+
+      created.forEach((company, index) => {
+        const { row, normalizedName } = companyInputs[index];
+        companyMap.set(normalizedName, company);
+        rowOutcomes.set(row.id, {
+          status: ImportRowStatus.IMPORTED,
+          entityId: company.id,
+        });
+      });
+    }
+
+    // --- Contacts: bulk-create the new ones in a single round trip ---
+    const newContactRows: typeof contactRows = [];
+    const seenContactEmails = new Set<string>();
+    for (const row of contactRows) {
+      const data = row.normalizedData as ImportData | null;
+      if (!data) continue;
+      const email = text(data, "email")?.toLowerCase() ?? null;
+      const existing = email ? contactEmailMap.get(email) : null;
+      if (existing) {
+        rowOutcomes.set(row.id, {
+          status: ImportRowStatus.SKIPPED,
+          entityId: existing.id,
+        });
+      } else if (email && seenContactEmails.has(email)) {
+        rowOutcomes.set(row.id, { status: ImportRowStatus.SKIPPED, entityId: null });
+      } else {
+        if (email) seenContactEmails.add(email);
+        newContactRows.push(row);
+      }
+    }
+
+    if (newContactRows.length > 0) {
+      const contactInputs = newContactRows.map((row) => {
+        const data = row.normalizedData as ImportData;
+        const companyName = text(data, "companyName");
+        const company = companyName
+          ? companyMap.get(normalizeName(companyName))
+          : null;
+        const email = text(data, "email")?.toLowerCase() ?? null;
+        const input = {
+          name: String(data.name),
+          companyId: company?.id ?? null,
+          roleArea: text(data, "roleArea"),
+          status: String(data.status) as never,
+          email,
+          phone: text(data, "phone"),
+          leadSource: text(data, "leadSource") as never,
+          responsibleId: null,
+          notes: text(data, "notes"),
+        };
+        return { row, input };
+      });
+
+      const created = await tx.contact.createManyAndReturn({
+        data: contactInputs.map(({ input }) => ({
+          ...input,
+          completeness: calculateContactCompleteness(input),
+        })),
+      });
+
+      created.forEach((contact, index) => {
+        const { row } = contactInputs[index];
+        if (contact.email) contactEmailMap.set(contact.email, contact);
+        contactNameMap.set(normalizeName(contact.name), contact);
+        rowOutcomes.set(row.id, {
+          status: ImportRowStatus.IMPORTED,
+          entityId: contact.id,
+        });
+      });
+    }
+
+    // --- Opportunities: bulk-create the new ones in a single round trip ---
+    const newOpportunityRows: typeof opportunityRows = [];
+    const seenOpportunityNames = new Set<string>();
+    for (const row of opportunityRows) {
+      const data = row.normalizedData as ImportData | null;
+      if (!data) continue;
+      const normalizedOpportunityName = normalizeName(String(data.name));
+      if (
+        opportunityNames.has(normalizedOpportunityName) ||
+        seenOpportunityNames.has(normalizedOpportunityName)
+      ) {
+        rowOutcomes.set(row.id, { status: ImportRowStatus.SKIPPED, entityId: null });
+      } else {
+        seenOpportunityNames.add(normalizedOpportunityName);
+        newOpportunityRows.push(row);
+      }
+    }
+
+    if (newOpportunityRows.length > 0) {
+      const opportunityInputs = newOpportunityRows.map((row) => {
+        const data = row.normalizedData as ImportData;
+        const companyName = text(data, "companyName");
+        const contactName = text(data, "contactName");
+        const serviceName = text(data, "serviceName");
+        const company = companyName
+          ? companyMap.get(normalizeName(companyName))
+          : null;
+        const contact = contactName
+          ? contactNameMap.get(normalizeName(contactName))
+          : null;
+        const service = serviceName
+          ? serviceMap.get(normalizeName(serviceName))
+          : null;
+        const amountInput = {
+          price: Number(data.price),
+          exchangeRate: Number(data.exchangeRate),
+          quantity: Number(data.quantity),
+          months: Number(data.months),
+          probability: Number(data.probability),
+        };
+        const amounts = calculateOpportunityAmounts(amountInput);
+        const input = {
+          name: String(data.name),
+          companyId: company?.id ?? null,
+          primaryContactId: contact?.id ?? null,
+          serviceId: service?.id ?? null,
+          status: String(data.status) as never,
+          certainty: text(data, "certainty") as never,
+          probability: amountInput.probability,
+          businessUnit: text(data, "businessUnit"),
+          currency: String(data.currency) as never,
+          price: amountInput.price,
+          exchangeRate: amountInput.exchangeRate,
+          quantity: amountInput.quantity,
+          months: amountInput.months,
+          estimatedCloseDate: text(data, "estimatedCloseDate"),
+          estimatedStartDate: text(data, "estimatedStartDate"),
+          nextActionDate: text(data, "nextActionDate"),
+          responsibleId: null,
+          notes: null,
+        };
+        return { row, input, amounts };
+      });
+
+      const created = await tx.opportunity.createManyAndReturn({
+        data: opportunityInputs.map(({ input, amounts }) => ({
+          ...input,
+          estimatedCloseDate: date(input, "estimatedCloseDate"),
+          estimatedStartDate: date(input, "estimatedStartDate"),
+          nextActionDate: date(input, "nextActionDate"),
+          priceClp: amounts.priceClp,
+          monthlyAmount: amounts.monthlyAmount,
+          totalAmount: amounts.totalAmount,
+          weightedAmount: amounts.weightedAmount,
+          completeness: calculateOpportunityCompleteness(input),
+        })),
+      });
+
+      created.forEach((opportunity, index) => {
+        const { row } = opportunityInputs[index];
+        rowOutcomes.set(row.id, {
+          status: ImportRowStatus.IMPORTED,
+          entityId: opportunity.id,
+        });
+      });
+    }
+
+    // --- Persist all row outcomes in a single bulk UPDATE ---
+    const outcomeEntries = [...rowOutcomes.entries()];
+    if (outcomeEntries.length > 0) {
+      const values = outcomeEntries
+        .map(
+          (_, index) =>
+            `($${index * 3 + 1}::text, $${index * 3 + 2}::"ImportRowStatus", $${index * 3 + 3}::text)`,
+        )
+        .join(", ");
+      const params = outcomeEntries.flatMap(([rowId, outcome]) => [
+        rowId,
+        outcome.status,
+        outcome.entityId,
+      ]);
+      await tx.$executeRawUnsafe(
+        `UPDATE "ImportRow" AS ir
+         SET status = v.status, "createdEntityId" = v.entity_id
+         FROM (VALUES ${values}) AS v(id, status, entity_id)
+         WHERE ir.id = v.id`,
+        ...params,
+      );
     }
 
     await tx.importBatch.update({
@@ -420,7 +505,7 @@ export async function confirmImportBatch(batchId: string) {
         after: { fileName: batch.fileName, rows: batch.rows.length },
       },
     });
-  }, { timeout: 120_000 });
+  }, { timeout: 60_000 });
 
   revalidatePath("/import");
   revalidatePath(`/import/${batch.id}`);
