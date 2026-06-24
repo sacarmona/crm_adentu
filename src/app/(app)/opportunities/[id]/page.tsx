@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
+import { PlaybookGuide } from "@/components/playbooks/playbook-guide";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -20,11 +21,24 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
       include: {
         company: true,
         primaryContact: true,
-        service: true,
         responsible: true,
         interactions: { where: { deletedAt: null }, orderBy: { date: "desc" }, take: 10 },
         tasks: { where: { deletedAt: null }, orderBy: { dueDate: "asc" }, take: 10 },
         aiInsights: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 5 },
+        service: {
+          include: {
+            playbooks: {
+              where: { deletedAt: null, isActive: true },
+              include: {
+                items: {
+                  where: { deletedAt: null },
+                  orderBy: { sortOrder: "asc" },
+                },
+              },
+              take: 1,
+            },
+          },
+        },
       },
     }),
   ]);
@@ -79,6 +93,30 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           </ul>
         </div>
       </section>
+      {opportunity.service?.playbooks[0] ? (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold">
+                Playbook · {opportunity.service.playbooks[0].name}
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Guia sugerida para {opportunity.service.name}
+              </p>
+            </div>
+            <Link
+              className="text-sm font-medium hover:underline"
+              href={`/playbooks/${opportunity.service.playbooks[0].id}`}
+            >
+              Ver completo
+            </Link>
+          </div>
+          <PlaybookGuide
+            compact
+            items={opportunity.service.playbooks[0].items}
+          />
+        </section>
+      ) : null}
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-md border border-slate-200 bg-white p-5">
           <h2 className="font-semibold">Interacciones recientes</h2>

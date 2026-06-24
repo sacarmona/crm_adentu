@@ -150,6 +150,21 @@ Fase 11 completada:
 - Desactivacion limpia cuando `OPENAI_API_KEY` no esta configurada.
 - Modelo configurable mediante `OPENAI_MODEL`.
 - Pruebas unitarias del contrato estructurado, prompts y probabilidades.
+- Validacion real completada con `gpt-5.4-mini`: salida estructurada,
+  persistencia, aprobacion, tarea y auditoria verificadas.
+
+Fase 12 completada:
+
+- Playbooks generales o asociados a servicios.
+- Preguntas clave y criterios de calificacion.
+- Objeciones frecuentes y siguientes pasos sugeridos.
+- Checklist de propuesta y documentos recomendados.
+- Orden administrable de elementos por tipo.
+- Activacion y eliminacion logica de guias.
+- Integracion contextual en la ficha de oportunidad segun servicio.
+- Acceso de lectura para todos los roles y edicion para `ADMIN`/`COMERCIAL`.
+- Auditoria de playbooks y sus elementos.
+- Pruebas unitarias para agrupacion y cobertura de tipos.
 
 ## Estructura inicial
 
@@ -245,4 +260,4 @@ AdentuDemo2026!
 
 ## Proxima fase de implementacion
 
-Iniciar Fase 12: playbooks comerciales por servicio con preguntas, objeciones, criterios y checklist de propuesta.
+Iniciar Fase 13: auditoria integral, refinamiento de permisos, pruebas de flujos criticos y preparacion de despliegue.

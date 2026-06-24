@@ -6,6 +6,7 @@ import {
   InteractionType,
   LeadSource,
   OpportunityStatus,
+  PlaybookItemType,
   TaskStatus,
 } from "@prisma/client";
 import { z } from "zod";
@@ -181,6 +182,23 @@ export const dictionaryValueSchema = z.object({
     .transform((value) => value === "on" || value === "true"),
 });
 
+export const playbookSchema = z.object({
+  name: z.string().trim().min(2, "El nombre es obligatorio."),
+  serviceId: optionalText,
+  description: optionalText,
+  isActive: z
+    .string()
+    .optional()
+    .transform((value) => value === "on" || value === "true"),
+});
+
+export const playbookItemSchema = z.object({
+  type: z.nativeEnum(PlaybookItemType),
+  title: z.string().trim().min(2, "El titulo es obligatorio."),
+  content: z.string().trim().min(2, "El contenido es obligatorio."),
+  sortOrder: z.coerce.number().int().min(0),
+});
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type OpportunityInput = z.infer<typeof opportunitySchema>;
@@ -190,3 +208,5 @@ export type MarketAssetInput = z.infer<typeof marketAssetSchema>;
 export type CommercialMilestoneInput = z.infer<typeof commercialMilestoneSchema>;
 export type ServiceInput = z.infer<typeof serviceSchema>;
 export type DictionaryValueInput = z.infer<typeof dictionaryValueSchema>;
+export type PlaybookInput = z.infer<typeof playbookSchema>;
+export type PlaybookItemInput = z.infer<typeof playbookItemSchema>;

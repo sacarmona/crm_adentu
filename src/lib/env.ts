@@ -7,7 +7,7 @@ const envSchema = z.object({
   NEXTAUTH_SECRET: z.string().optional(),
   NEXTAUTH_URL: z.string().url().optional(),
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().default("gpt-5.5"),
+  OPENAI_MODEL: z.string().default("gpt-5.4-mini"),
 });
 
 export const env = envSchema.parse({
