@@ -1,3 +1,6 @@
+// Fixed UTC-4 (no DST), matching the offset already used in lib/normalize.ts.
+const APP_TIME_ZONE = "Etc/GMT+4";
+
 export function formatDate(value?: Date | string | null) {
   if (!value) {
     return "Sin fecha";
@@ -7,6 +10,7 @@ export function formatDate(value?: Date | string | null) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: APP_TIME_ZONE,
   }).format(new Date(value));
 }
 
@@ -21,6 +25,7 @@ export function formatDateTime(value?: Date | string | null) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: APP_TIME_ZONE,
   }).format(new Date(value));
 }
 
