@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+// Tolerates copy/paste mistakes from .env.example, where values are quoted
+// (e.g. a pasted `"false"` arriving with the literal quote characters).
+function unquote(value: unknown) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  const unwrapped =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+  return unwrapped;
+}
+
 const envSchema = z.object({
   DATABASE_URL: z.string().url().optional(),
   AUTH_SECRET: z.string().optional(),
@@ -17,8 +30,19 @@ const envSchema = z.object({
   MICROSOFT_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_TENANT_ID: z.string().default("common"),
   CRON_SECRET: z.string().optional(),
-  EMAIL_AUTO_CLASSIFY: z.enum(["true", "false"]).default("false"),
-  EMAIL_AUTO_CLASSIFY_LIMIT: z.coerce.number().int().min(1).max(20).default(5),
+  EMAIL_AUTO_CLASSIFY: z.preprocess(
+    (value) => {
+      const normalized = unquote(value);
+      return typeof normalized === "string"
+        ? normalized.toLowerCase()
+        : normalized;
+    },
+    z.enum(["true", "false"]).default("false"),
+  ),
+  EMAIL_AUTO_CLASSIFY_LIMIT: z.preprocess(
+    unquote,
+    z.coerce.number().int().min(1).max(20).default(5),
+  ),
 });
 
 export const env = envSchema.parse({
