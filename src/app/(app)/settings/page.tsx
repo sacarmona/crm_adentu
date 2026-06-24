@@ -4,12 +4,15 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
+import { userRoleLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   toggleDictionaryValue,
   toggleService,
   updateAiProvider,
 } from "@/server/actions/settings";
+import { toggleUserActive } from "@/server/actions/users";
 import { getActiveAiProvider } from "@/server/services/ai-provider";
 import { isAiConfigured } from "@/server/services/openai";
 import { isAnthropicConfigured } from "@/server/services/anthropic";
@@ -29,9 +32,11 @@ export default async function SettingsPage({
       ? "dictionaries"
       : params?.view === "ai"
         ? "ai"
-        : "services";
+        : params?.view === "users"
+          ? "users"
+          : "services";
   const canEdit = session?.user.role === UserRole.ADMIN;
-  const [services, dictionaryValues, activeProvider] = await Promise.all([
+  const [services, dictionaryValues, activeProvider, users] = await Promise.all([
     prisma.service.findMany({
       where: { deletedAt: null },
       include: {
@@ -52,6 +57,9 @@ export default async function SettingsPage({
       orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
     }),
     getActiveAiProvider(),
+    canEdit
+      ? prisma.user.findMany({ orderBy: [{ name: "asc" }] })
+      : Promise.resolve([]),
   ]);
   const openaiReady = isAiConfigured();
   const anthropicReady = isAnthropicConfigured();
@@ -76,17 +84,25 @@ export default async function SettingsPage({
             <Button asChild variant="outline">
               <Link href="/settings/audit">Ver auditoria</Link>
             </Button>
-            <Button asChild>
-              <Link
-                href={
-                  view === "services"
-                    ? "/settings/services/new"
-                    : `/settings/dictionaries/new${selectedType ? `?type=${selectedType}` : ""}`
-                }
-              >
-                {view === "services" ? "Nuevo servicio" : "Nuevo valor"}
-              </Link>
-            </Button>
+            {view === "ai" ? null : (
+              <Button asChild>
+                <Link
+                  href={
+                    view === "services"
+                      ? "/settings/services/new"
+                      : view === "users"
+                        ? "/settings/users/new"
+                        : `/settings/dictionaries/new${selectedType ? `?type=${selectedType}` : ""}`
+                  }
+                >
+                  {view === "services"
+                    ? "Nuevo servicio"
+                    : view === "users"
+                      ? "Nuevo usuario"
+                      : "Nuevo valor"}
+                </Link>
+              </Button>
+            )}
           </div>
         ) : null}
       </div>
@@ -116,6 +132,14 @@ export default async function SettingsPage({
         >
           Inteligencia Comercial
         </Link>
+        {canEdit ? (
+          <Link
+            className={`px-4 py-2 text-sm font-medium ${view === "users" ? "border-b-2 border-slate-950" : "text-slate-500"}`}
+            href="/settings?view=users"
+          >
+            Usuarios
+          </Link>
+        ) : null}
       </div>
 
       {view === "ai" ? (
@@ -321,6 +345,63 @@ export default async function SettingsPage({
               </tbody>
             </table>
           </div>
+        </section>
+      ) : null}
+
+      {view === "users" ? (
+        <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Usuario</th>
+                <th className="px-4 py-3">Rol</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Creado</th>
+                <th className="px-4 py-3">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{user.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">{user.email}</p>
+                  </td>
+                  <td className="px-4 py-3">{userRoleLabels[user.role]}</td>
+                  <td className="px-4 py-3">
+                    <Status active={!user.deletedAt} />
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {formatDateTime(user.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Link
+                        className="text-xs font-medium hover:underline"
+                        href={`/settings/users/${user.id}/edit`}
+                      >
+                        Editar
+                      </Link>
+                      {user.id === session?.user.id ? null : (
+                        <form action={toggleUserActive.bind(null, user.id)}>
+                          <button className="text-xs font-medium text-slate-600 hover:underline">
+                            {user.deletedAt ? "Activar" : "Desactivar"}
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                    No hay usuarios para mostrar.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </section>
       ) : null}
     </div>

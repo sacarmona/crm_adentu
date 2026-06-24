@@ -1,7 +1,8 @@
-import { DictionaryValue, Service } from "@prisma/client";
+import { DictionaryValue, Service, UserRole } from "@prisma/client";
 
-import { TextArea, TextField } from "@/components/crm/form-controls";
+import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
 import { Button } from "@/components/ui/button";
+import { userRoleLabels } from "@/lib/labels";
 
 function ActiveField({
   defaultChecked,
@@ -118,6 +119,90 @@ export function DictionaryValueForm({
       <div className="self-end">
         <Button type="submit">Guardar valor</Button>
       </div>
+    </form>
+  );
+}
+
+export function UserForm({
+  action,
+}: {
+  action: (formData: FormData) => void | Promise<void>;
+}) {
+  return (
+    <form
+      action={action}
+      className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 md:grid-cols-2"
+    >
+      <TextField label="Nombre" name="name" required />
+      <TextField label="Correo" name="email" required type="email" />
+      <SelectField
+        defaultValue={UserRole.COMERCIAL}
+        label="Rol"
+        name="role"
+        options={Object.values(UserRole).map((role) => ({
+          value: role,
+          label: userRoleLabels[role],
+        }))}
+        required
+      />
+      <TextField
+        label="Contrasena inicial"
+        name="password"
+        required
+        type="password"
+      />
+      <div className="md:col-span-2">
+        <Button type="submit">Crear usuario</Button>
+      </div>
+    </form>
+  );
+}
+
+export function UserRoleForm({
+  action,
+  role,
+}: {
+  action: (formData: FormData) => void | Promise<void>;
+  role: UserRole;
+}) {
+  return (
+    <form action={action} className="flex items-center gap-2">
+      <select
+        className="h-9 rounded-md border border-slate-300 bg-white px-2 text-xs"
+        defaultValue={role}
+        name="role"
+      >
+        {Object.values(UserRole).map((value) => (
+          <option key={value} value={value}>
+            {userRoleLabels[value]}
+          </option>
+        ))}
+      </select>
+      <button className="text-xs font-medium hover:underline" type="submit">
+        Guardar
+      </button>
+    </form>
+  );
+}
+
+export function ResetPasswordForm({
+  action,
+}: {
+  action: (formData: FormData) => void | Promise<void>;
+}) {
+  return (
+    <form action={action} className="flex items-center gap-2">
+      <input
+        className="h-9 rounded-md border border-slate-300 px-2 text-xs"
+        minLength={12}
+        name="password"
+        placeholder="Nueva contrasena"
+        required
+        type="password"
+      />
+      <button className="text-xs font-medium hover:underline" type="submit">
+        Restablecer
+      </button>
     </form>
   );
 }
