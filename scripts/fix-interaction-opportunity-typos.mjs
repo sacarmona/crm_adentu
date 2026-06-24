@@ -70,36 +70,47 @@ const corrections = [
     company: "Elera",
     targetOpportunity: "Amanecer Solar termo",
   },
+  // No textual clue distinguished termo vs lineas for these two; assigned
+  // to "Amanecer Solar termo" per explicit user instruction.
+  {
+    date: new Date("2025-11-03T00:00:00.000Z"),
+    content: "FUP",
+    company: "Amanecer Solar SpA",
+    targetOpportunity: "Amanecer Solar termo",
+  },
+  {
+    date: new Date("2025-12-03T00:00:00.000Z"),
+    content: "15 de enero aprox deciden proveedor",
+    company: "Elera",
+    targetOpportunity: "Amanecer Solar termo",
+  },
 ];
 
 async function main() {
-  const companies = await prisma.company.findMany({
-    where: { deletedAt: null },
-    select: { id: true, normalizedName: true },
-  });
   const opportunities = await prisma.opportunity.findMany({
     where: { deletedAt: null },
     select: { id: true, name: true },
   });
-  const companyMap = new Map(companies.map((c) => [c.normalizedName, c.id]));
   const opportunityMap = new Map(
     opportunities.map((o) => [normalizeName(o.name), o.id]),
   );
 
   const results = [];
   for (const fix of corrections) {
-    const companyId = companyMap.get(normalizeName(fix.company));
     const opportunityId = opportunityMap.get(normalizeName(fix.targetOpportunity));
-    if (!companyId || !opportunityId) {
-      results.push({ ...fix, status: "skipped: company or opportunity not found" });
+    if (!opportunityId) {
+      results.push({ ...fix, status: "skipped: opportunity not found" });
       continue;
     }
 
+    // Matched on date + content only: the source "Empresa" label for these
+    // rows doesn't always match an existing Company record exactly (e.g.
+    // "Amanecer Solar SpA" vs the opportunity's linked "Elera"), so it's
+    // kept here for documentation, not as a query filter.
     const updated = await prisma.interaction.updateMany({
       where: {
         date: fix.date,
         content: fix.content,
-        companyId,
         opportunityId: null,
         deletedAt: null,
       },
