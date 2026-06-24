@@ -420,7 +420,7 @@ export async function confirmImportBatch(batchId: string) {
         after: { fileName: batch.fileName, rows: batch.rows.length },
       },
     });
-  });
+  }, { timeout: 120_000 });
 
   revalidatePath("/import");
   revalidatePath(`/import/${batch.id}`);
