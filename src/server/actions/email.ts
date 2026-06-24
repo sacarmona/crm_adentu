@@ -4,7 +4,6 @@ import {
   AuditAction,
   EmailClassificationStatus,
   InteractionType,
-  OpportunityStatus,
   TaskStatus,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -12,58 +11,10 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireWriter } from "@/server/authz";
 import {
-  analyzeEmailWithActiveProvider,
-  isActiveProviderConfigured,
-} from "@/server/services/ai-provider";
-import { parsedSuggestedDueDate } from "@/server/services/email-analysis";
+  classifyEmailMessage,
+  classifyPendingEmails,
+} from "@/server/services/email-agent";
 import { synchronizeEmailConnection } from "@/server/services/email-sync";
-
-const MAX_EMAIL_ANALYSES_PER_HOUR = 20;
-
-function stringArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
-async function emailCrmMatch(message: {
-  direction: string;
-  fromAddress: string;
-  toAddresses: unknown;
-}) {
-  const addresses =
-    message.direction === "INBOUND"
-      ? [message.fromAddress]
-      : stringArray(message.toAddresses);
-  const contact = await prisma.contact.findFirst({
-    where: {
-      deletedAt: null,
-      email: { in: addresses, mode: "insensitive" },
-    },
-    include: { company: true },
-  });
-  if (!contact) {
-    return { contact: null, company: null, opportunity: null };
-  }
-  const opportunity = await prisma.opportunity.findFirst({
-    where: {
-      deletedAt: null,
-      status: {
-        notIn: [OpportunityStatus.WON, OpportunityStatus.LOST],
-      },
-      OR: [
-        { primaryContactId: contact.id },
-        ...(contact.companyId ? [{ companyId: contact.companyId }] : []),
-      ],
-    },
-    orderBy: { updatedAt: "desc" },
-  });
-  return {
-    contact,
-    company: contact.company,
-    opportunity,
-  };
-}
 
 export async function syncEmailConnection(connectionId: string) {
   const user = await requireWriter("No tienes permisos para sincronizar correo.");
@@ -100,84 +51,19 @@ export async function disconnectEmailConnection(connectionId: string) {
 
 export async function analyzeEmailMessage(messageId: string) {
   const user = await requireWriter("No tienes permisos para analizar correo.");
-  if (!(await isActiveProviderConfigured())) {
-    throw new Error("El proveedor de IA activo no esta configurado.");
-  }
-  const since = new Date(Date.now() - 60 * 60 * 1000);
-  const recentAnalyses = await prisma.auditLog.count({
-    where: {
-      actorId: user.id,
-      entityType: "EmailClassification",
-      action: AuditAction.CREATE,
-      createdAt: { gte: since },
-    },
+  await classifyEmailMessage({
+    messageId,
+    actorId: user.id,
   });
-  if (recentAnalyses >= MAX_EMAIL_ANALYSES_PER_HOUR) {
-    throw new Error("Alcanzaste el limite de 20 analisis de correo por hora.");
-  }
+  revalidatePath("/email");
+}
 
-  const message = await prisma.emailMessage.findFirst({
-    where: { id: messageId, connection: { userId: user.id } },
-  });
-  if (!message) {
-    throw new Error("El mensaje no esta disponible.");
-  }
-  const match = await emailCrmMatch(message);
-  const analysis = await analyzeEmailWithActiveProvider({
-    direction: message.direction,
-    fromAddress: message.fromAddress,
-    toAddresses: stringArray(message.toAddresses),
-    subject: message.subject,
-    snippet: message.snippet,
-    sentAt: message.sentAt,
-    matchedContactName: match.contact?.name,
-    matchedCompanyName: match.company?.name,
-    matchedOpportunityName: match.opportunity?.name,
-  });
-
-  const classification = await prisma.emailClassification.upsert({
-    where: { emailMessageId: message.id },
-    create: {
-      emailMessageId: message.id,
-      isCommercial: analysis.isCommercial,
-      confidence: analysis.confidence,
-      summary: analysis.summary,
-      intent: analysis.intent,
-      sentiment: analysis.sentiment,
-      suggestedNextAction: analysis.suggestedNextAction,
-      suggestedDueDate: parsedSuggestedDueDate(analysis.suggestedDueDate),
-      matchedContactId: match.contact?.id,
-      matchedCompanyId: match.company?.id,
-      matchedOpportunityId: match.opportunity?.id,
-    },
-    update: {
-      status: EmailClassificationStatus.PROPOSED,
-      isCommercial: analysis.isCommercial,
-      confidence: analysis.confidence,
-      summary: analysis.summary,
-      intent: analysis.intent,
-      sentiment: analysis.sentiment,
-      suggestedNextAction: analysis.suggestedNextAction,
-      suggestedDueDate: parsedSuggestedDueDate(analysis.suggestedDueDate),
-      matchedContactId: match.contact?.id,
-      matchedCompanyId: match.company?.id,
-      matchedOpportunityId: match.opportunity?.id,
-      reviewedById: null,
-      reviewedAt: null,
-    },
-  });
-  await prisma.auditLog.create({
-    data: {
-      action: AuditAction.CREATE,
-      entityType: "EmailClassification",
-      entityId: classification.id,
-      actorId: user.id,
-      after: {
-        isCommercial: classification.isCommercial,
-        confidence: classification.confidence.toString(),
-        intent: classification.intent,
-      },
-    },
+export async function analyzePendingEmails() {
+  const user = await requireWriter("No tienes permisos para analizar correo.");
+  await classifyPendingEmails({
+    userId: user.id,
+    limit: 5,
+    enforceHourlyLimit: true,
   });
   revalidatePath("/email");
 }

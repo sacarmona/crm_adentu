@@ -22,6 +22,7 @@ import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import {
   analyzeEmailMessage,
+  analyzePendingEmails,
   approveEmailClassification,
   disconnectEmailConnection,
   ignoreEmailClassification,
@@ -241,10 +242,26 @@ export default async function EmailPage({
 
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-3">
-          <h2 className="font-semibold">Mensajes sincronizados</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Metadatos y extractos preparados para la siguiente fase de clasificacion.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Mensajes sincronizados</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Revisa las propuestas antes de incorporarlas al historial comercial.
+              </p>
+            </div>
+            {canAnalyze ? (
+              <form action={analyzePendingEmails}>
+                <SubmitButton
+                  pendingLabel="Procesando lote"
+                  size="sm"
+                  variant="outline"
+                >
+                  <Bot className="h-4 w-4" aria-hidden />
+                  Analizar pendientes
+                </SubmitButton>
+              </form>
+            ) : null}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">

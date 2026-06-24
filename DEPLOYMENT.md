@@ -28,6 +28,9 @@ GMAIL_CLIENT_SECRET
 MICROSOFT_CLIENT_ID
 MICROSOFT_CLIENT_SECRET
 MICROSOFT_TENANT_ID=common
+CRON_SECRET
+EMAIL_AUTO_CLASSIFY=false
+EMAIL_AUTO_CLASSIFY_LIMIT=5
 ```
 
 Un ADMIN puede elegir cual proveedor usa el modulo de Inteligencia Comercial
@@ -43,6 +46,15 @@ https://SU_DOMINIO/api/email/oauth/microsoft/callback
 
 `EMAIL_TOKEN_ENCRYPTION_KEY` debe ser independiente de `AUTH_SECRET`, tener alta
 entropia y mantenerse estable; su rotacion requiere reconectar los buzones.
+
+`CRON_SECRET` debe tener al menos 16 caracteres. Vercel lo envia como
+`Authorization: Bearer ...` al endpoint `/api/cron/email`. El repositorio
+programa una ejecucion diaria a las 08:00 UTC, compatible con Vercel Hobby.
+
+La sincronizacion automatica siempre esta activa cuando existe el cron. La
+clasificacion con IA permanece apagada mientras `EMAIL_AUTO_CLASSIFY=false`.
+Al activarla, `EMAIL_AUTO_CLASSIFY_LIMIT` limita el numero de correos nuevos
+analizados por usuario en cada ejecucion.
 
 No usar usuarios ni contrasenas demo en produccion.
 
@@ -73,6 +85,8 @@ produccion.
    consumo en OpenAI Platform.
 7. Conectar un buzon de prueba, sincronizar mensajes no sensibles y aprobar
    una clasificacion comercial desde `Correo`.
+8. Revisar `Settings > Cron Jobs` y confirmar una respuesta `ok` o `partial`
+   de `/api/cron/email`.
 
 ## Respaldo y operacion
 

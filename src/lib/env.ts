@@ -16,6 +16,9 @@ const envSchema = z.object({
   MICROSOFT_CLIENT_ID: z.string().optional(),
   MICROSOFT_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_TENANT_ID: z.string().default("common"),
+  CRON_SECRET: z.string().optional(),
+  EMAIL_AUTO_CLASSIFY: z.enum(["true", "false"]).default("false"),
+  EMAIL_AUTO_CLASSIFY_LIMIT: z.coerce.number().int().min(1).max(20).default(5),
 });
 
 export const env = envSchema.parse({
@@ -34,4 +37,7 @@ export const env = envSchema.parse({
   MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID,
   MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET,
   MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID,
+  CRON_SECRET: process.env.CRON_SECRET,
+  EMAIL_AUTO_CLASSIFY: process.env.EMAIL_AUTO_CLASSIFY,
+  EMAIL_AUTO_CLASSIFY_LIMIT: process.env.EMAIL_AUTO_CLASSIFY_LIMIT,
 });

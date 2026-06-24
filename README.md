@@ -200,6 +200,16 @@ Fase 14B completada:
 - Limite de 20 analisis de correo por usuario y hora.
 - Auditoria completa de analisis y decisiones.
 
+Fase 14C completada:
+
+- Sincronizacion automatica diaria mediante Vercel Cron.
+- Endpoint protegido con `CRON_SECRET`.
+- Procesamiento idempotente de todos los buzones conectados.
+- Clasificacion automatica opcional, apagada por defecto.
+- Limite configurable de mensajes por ejecucion automatica.
+- Accion manual para analizar hasta cinco mensajes pendientes.
+- Resultado parcial por buzon para aislar fallos sin detener el lote completo.
+
 ## Estructura inicial
 
 ```txt
@@ -294,6 +304,6 @@ AdentuDemo2026!
 
 ## Estado de implementacion
 
-Las fases 0 a 14B estan completadas. El siguiente hito es configurar las
+Las fases 0 a 14C estan completadas. El siguiente hito es configurar las
 aplicaciones OAuth en staging, conectar un buzon controlado y validar la
 clasificacion con mensajes no sensibles.
