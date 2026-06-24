@@ -10,6 +10,12 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default("gpt-5.4-mini"),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-4-6"),
+  EMAIL_TOKEN_ENCRYPTION_KEY: z.string().optional(),
+  GMAIL_CLIENT_ID: z.string().optional(),
+  GMAIL_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_CLIENT_ID: z.string().optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_TENANT_ID: z.string().default("common"),
 });
 
 export const env = envSchema.parse({
@@ -22,4 +28,10 @@ export const env = envSchema.parse({
   OPENAI_MODEL: process.env.OPENAI_MODEL,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+  EMAIL_TOKEN_ENCRYPTION_KEY: process.env.EMAIL_TOKEN_ENCRYPTION_KEY,
+  GMAIL_CLIENT_ID: process.env.GMAIL_CLIENT_ID,
+  GMAIL_CLIENT_SECRET: process.env.GMAIL_CLIENT_SECRET,
+  MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID,
+  MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET,
+  MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID,
 });

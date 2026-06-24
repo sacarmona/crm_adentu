@@ -181,6 +181,15 @@ Fase 13 completada:
 - Guia de despliegue, verificacion, respaldo y rotacion de secretos.
 - Pruebas unitarias de autorizacion y readiness operativo.
 
+Fase 14A completada:
+
+- Conexion OAuth individual con Gmail y Microsoft 365.
+- Tokens de acceso y renovacion cifrados con AES-256-GCM.
+- Sincronizacion manual e idempotente de hasta 50 mensajes recientes.
+- Almacenamiento normalizado de metadatos, destinatarios, extractos y direccion.
+- Bandeja de correo protegida por usuario y permisos del CRM.
+- Base preparada para clasificacion comercial y agentes especializados en Fase 14B.
+
 ## Estructura inicial
 
 ```txt
@@ -275,6 +284,6 @@ AdentuDemo2026!
 
 ## Estado de implementacion
 
-Las fases 0 a 13 estan completadas. El siguiente hito es desplegar un entorno
-staging, cargar usuarios reales controlados y ejecutar pruebas de aceptacion
-con datos no sensibles.
+Las fases 0 a 14A estan completadas. El siguiente hito es configurar las
+aplicaciones OAuth en staging y avanzar con la clasificacion comercial de
+mensajes en Fase 14B.

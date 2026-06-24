@@ -22,11 +22,27 @@ OPENAI_API_KEY
 OPENAI_MODEL=gpt-5.4-mini
 ANTHROPIC_API_KEY
 ANTHROPIC_MODEL=claude-sonnet-4-6
+EMAIL_TOKEN_ENCRYPTION_KEY
+GMAIL_CLIENT_ID
+GMAIL_CLIENT_SECRET
+MICROSOFT_CLIENT_ID
+MICROSOFT_CLIENT_SECRET
+MICROSOFT_TENANT_ID=common
 ```
 
 Un ADMIN puede elegir cual proveedor usa el modulo de Inteligencia Comercial
 desde Configuracion > Inteligencia Comercial, sin redeploy. Configura al
 menos una de las dos claves.
+
+Para correo, registre estas URL de retorno en cada proveedor:
+
+```txt
+https://SU_DOMINIO/api/email/oauth/gmail/callback
+https://SU_DOMINIO/api/email/oauth/microsoft/callback
+```
+
+`EMAIL_TOKEN_ENCRYPTION_KEY` debe ser independiente de `AUTH_SECRET`, tener alta
+entropia y mantenerse estable; su rotacion requiere reconectar los buzones.
 
 No usar usuarios ni contrasenas demo en produccion.
 

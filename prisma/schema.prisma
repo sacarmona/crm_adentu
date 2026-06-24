@@ -80,6 +80,16 @@ enum InteractionType {
   OTHER
 }
 
+enum EmailProvider {
+  GMAIL
+  MICROSOFT
+}
+
+enum EmailDirection {
+  INBOUND
+  OUTBOUND
+}
+
 enum TaskStatus {
   PENDING
   EXECUTED
@@ -180,9 +190,59 @@ model User {
   createdPlaybooks         Playbook[]            @relation("PlaybookCreator")
   commercialMilestones     CommercialMilestone[] @relation("MilestoneOwner")
   aiSettingsUpdates        AiSettings[]
+  emailConnections         EmailConnection[]
 
   @@index([email])
   @@index([role])
+}
+
+model EmailConnection {
+  id                    String        @id @default(uuid())
+  userId                String
+  provider              EmailProvider
+  emailAddress          String
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  scope                 String?
+  syncCursor            String?
+  lastSyncedAt          DateTime?
+  lastError             String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages EmailMessage[]
+
+  @@unique([userId, provider])
+  @@index([emailAddress])
+}
+
+model EmailMessage {
+  id                String         @id @default(uuid())
+  connectionId      String
+  providerMessageId String
+  threadId          String?
+  direction         EmailDirection
+  fromAddress       String
+  fromName          String?
+  toAddresses       Json
+  ccAddresses       Json?
+  subject           String?
+  snippet           String?
+  sentAt            DateTime
+  isRead            Boolean        @default(false)
+  interactionId     String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  connection  EmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  interaction Interaction?     @relation(fields: [interactionId], references: [id])
+
+  @@unique([connectionId, providerMessageId])
+  @@index([sentAt])
+  @@index([fromAddress])
+  @@index([interactionId])
 }
 
 model Account {
@@ -372,6 +432,7 @@ model Interaction {
   tasks       Task[]
   aiInsights  AiInsight[]
   attachments Attachment[]
+  emailMessages EmailMessage[]
 
   @@index([companyId])
   @@index([contactId])
