@@ -61,6 +61,15 @@ const corrections = [
     company: "Veltis",
     targetOpportunity: "Piloto - Inspección Correas Transportadoras Zaldivar",
   },
+  // Both "Amanecer Solar termo" and "Amanecer Solar lineas" share the same
+  // company/contact (Elera / Guillermo Loli); only the explicit mention of
+  // "termografia" in the next-action note disambiguates these two rows.
+  {
+    date: new Date("2025-08-01T00:00:00.000Z"),
+    content: "Envío propuesta",
+    company: "Elera",
+    targetOpportunity: "Amanecer Solar termo",
+  },
 ];
 
 async function main() {
