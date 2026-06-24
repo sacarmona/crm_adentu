@@ -210,6 +210,17 @@ Fase 14C completada:
 - Accion manual para analizar hasta cinco mensajes pendientes.
 - Resultado parcial por buzon para aislar fallos sin detener el lote completo.
 
+Fase 14D completada:
+
+- Captura manual y asistida de conversaciones, publicaciones y senales de LinkedIn.
+- Validacion de URLs HTTPS pertenecientes a LinkedIn.
+- Asociacion obligatoria con empresa, contacto u oportunidad del CRM.
+- Registro transaccional como interaccion `LINKEDIN`.
+- Creacion opcional de tarea y actualizacion de ultima interaccion.
+- Historial dedicado con acceso a la fuente original.
+- Auditoria del origen, persona y organizacion declarados.
+- Sin scraping, lectura automatica de mensajes ni acciones sobre cuentas LinkedIn.
+
 ## Estructura inicial
 
 ```txt
@@ -304,6 +315,6 @@ AdentuDemo2026!
 
 ## Estado de implementacion
 
-Las fases 0 a 14C estan completadas. El siguiente hito es configurar las
+Las fases 0 a 14D estan completadas. El siguiente hito es configurar las
 aplicaciones OAuth en staging, conectar un buzon controlado y validar la
 clasificacion con mensajes no sensibles.

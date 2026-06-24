@@ -87,6 +87,13 @@ produccion.
    una clasificacion comercial desde `Correo`.
 8. Revisar `Settings > Cron Jobs` y confirmar una respuesta `ok` o `partial`
    de `/api/cron/email`.
+9. Registrar una captura de LinkedIn con una URL y contenido no sensible.
+
+## LinkedIn
+
+La aplicacion no usa credenciales ni APIs privadas de LinkedIn. Tampoco realiza
+scraping, lectura automatica de mensajes, invitaciones o envios. El usuario
+registra manualmente el enlace y el contexto que tiene autorizacion para usar.
 
 ## Respaldo y operacion
 

@@ -96,6 +96,36 @@ export const interactionSchema = z
     "La interaccion debe asociarse a una empresa, contacto u oportunidad.",
   );
 
+export const linkedInCaptureSchema = z
+  .object({
+    date: z.string().min(1, "La fecha es obligatoria."),
+    sourceUrl: z
+      .string()
+      .trim()
+      .url("Ingresa una URL valida.")
+      .refine((value) => {
+        const url = new URL(value);
+        const hostname = url.hostname.toLowerCase();
+        return (
+          url.protocol === "https:" &&
+          (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com"))
+        );
+      }, "La URL debe ser HTTPS y pertenecer a LinkedIn."),
+    personName: optionalText,
+    organizationName: optionalText,
+    content: z.string().trim().min(10, "Registra el contexto relevante."),
+    companyId: optionalText,
+    contactId: optionalText,
+    opportunityId: optionalText,
+    serviceId: optionalText,
+    nextAction: optionalText,
+    nextActionDate: optionalText,
+  })
+  .refine(
+    (data) => data.companyId || data.contactId || data.opportunityId,
+    "La captura debe asociarse a una empresa, contacto u oportunidad.",
+  );
+
 export const taskSchema = z.object({
   title: z.string().trim().min(3, "El titulo es obligatorio."),
   description: optionalText,
@@ -203,6 +233,7 @@ export type CompanyInput = z.infer<typeof companySchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 export type OpportunityInput = z.infer<typeof opportunitySchema>;
 export type InteractionInput = z.infer<typeof interactionSchema>;
+export type LinkedInCaptureInput = z.infer<typeof linkedInCaptureSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
 export type MarketAssetInput = z.infer<typeof marketAssetSchema>;
 export type CommercialMilestoneInput = z.infer<typeof commercialMilestoneSchema>;

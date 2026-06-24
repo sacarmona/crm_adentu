@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Mail,
   MessageSquareText,
+  Share2,
   Settings,
   Target,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const navigation = [
   { label: "Pipeline", href: "/pipeline", icon: Target },
   { label: "Interacciones", href: "/interactions", icon: MessageSquareText },
   { label: "Correo", href: "/email", icon: Mail },
+  { label: "LinkedIn", href: "/linkedin", icon: Share2 },
   { label: "Tareas", href: "/tasks", icon: ClipboardList },
   { label: "Mercado", href: "/market", icon: BarChart3 },
   { label: "Inteligencia Comercial", href: "/intelligence", icon: Bot },
