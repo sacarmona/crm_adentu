@@ -179,6 +179,7 @@ model User {
   approvedAiInsights       AiInsight[]           @relation("AiInsightApprover")
   createdPlaybooks         Playbook[]            @relation("PlaybookCreator")
   commercialMilestones     CommercialMilestone[] @relation("MilestoneOwner")
+  aiSettingsUpdates        AiSettings[]
 
   @@index([email])
   @@index([role])
@@ -534,6 +535,22 @@ model PlaybookItem {
 
   @@index([playbookId])
   @@index([type])
+}
+
+enum AiProvider {
+  OPENAI
+  ANTHROPIC
+}
+
+// Singleton row (fixed id "default") holding the AI provider an Admin
+// selected at runtime, so it can be switched without a redeploy.
+model AiSettings {
+  id              String     @id @default("default")
+  activeProvider  AiProvider @default(OPENAI)
+  updatedById     String?
+  updatedAt       DateTime   @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id])
 }
 
 model AiInsight {

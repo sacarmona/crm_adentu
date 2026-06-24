@@ -13,9 +13,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { clampProbability } from "@/server/services/ai-analysis";
 import {
-  analyzeCommercialInteraction,
-  isAiConfigured,
-} from "@/server/services/openai";
+  analyzeInteractionWithActiveProvider,
+  isActiveProviderConfigured,
+} from "@/server/services/ai-provider";
 import { requireWriter } from "@/server/authz";
 
 const MAX_AI_REQUESTS_PER_HOUR = 10;
@@ -26,8 +26,8 @@ function json(value: unknown): Prisma.InputJsonValue {
 
 export async function analyzeInteraction(interactionId: string) {
   const user = await requireWriter("No tienes permisos para usar inteligencia comercial.");
-  if (!isAiConfigured()) {
-    throw new Error("La integracion OpenAI no esta configurada.");
+  if (!(await isActiveProviderConfigured())) {
+    throw new Error("El proveedor de IA activo no esta configurado.");
   }
 
   const since = new Date(Date.now() - 60 * 60 * 1000);
@@ -54,7 +54,7 @@ export async function analyzeInteraction(interactionId: string) {
   });
   if (!interaction) throw new Error("La interaccion ya no esta disponible.");
 
-  const analysis = await analyzeCommercialInteraction({
+  const analysis = await analyzeInteractionWithActiveProvider({
     interactionType: interaction.type,
     interactionDate: interaction.date,
     content: interaction.content,

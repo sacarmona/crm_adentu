@@ -1,6 +1,6 @@
 "use server";
 
-import { AuditAction } from "@prisma/client";
+import { AiProvider, AuditAction } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -10,6 +10,7 @@ import {
   serviceSchema,
 } from "@/schemas/crm";
 import { slugifyService } from "@/server/services/settings";
+import { setActiveAiProvider } from "@/server/services/ai-provider";
 import { requireAdmin } from "@/server/authz";
 
 function parseForm(formData: FormData) {
@@ -164,5 +165,25 @@ export async function toggleDictionaryValue(id: string) {
       },
     }),
   ]);
+  revalidatePath("/settings");
+}
+
+export async function updateAiProvider(formData: FormData) {
+  const user = await requireAdmin("Solo ADMIN puede cambiar el proveedor de IA.");
+  const provider = formData.get("provider");
+  if (provider !== AiProvider.OPENAI && provider !== AiProvider.ANTHROPIC) {
+    throw new Error("Proveedor de IA invalido.");
+  }
+
+  await setActiveAiProvider(provider, user.id);
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.UPDATE,
+      entityType: "AiSettings",
+      entityId: "default",
+      actorId: user.id,
+      after: { activeProvider: provider },
+    },
+  });
   revalidatePath("/settings");
 }

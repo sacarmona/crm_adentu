@@ -20,7 +20,13 @@ Variables opcionales:
 ```txt
 OPENAI_API_KEY
 OPENAI_MODEL=gpt-5.4-mini
+ANTHROPIC_API_KEY
+ANTHROPIC_MODEL=claude-sonnet-4-6
 ```
+
+Un ADMIN puede elegir cual proveedor usa el modulo de Inteligencia Comercial
+desde Configuracion > Inteligencia Comercial, sin redeploy. Configura al
+menos una de las dos claves.
 
 No usar usuarios ni contrasenas demo en produccion.
 
@@ -53,6 +59,6 @@ produccion.
 ## Respaldo y operacion
 
 - Habilitar backups diarios y point-in-time recovery en PostgreSQL.
-- Rotar `AUTH_SECRET` y `OPENAI_API_KEY` ante cualquier exposicion.
+- Rotar `AUTH_SECRET`, `OPENAI_API_KEY` y `ANTHROPIC_API_KEY` ante cualquier exposicion.
 - Monitorear `/api/health`, errores 5xx y uso de OpenAI.
 - Mantener `.env.local` fuera de Git.

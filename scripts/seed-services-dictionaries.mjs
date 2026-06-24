@@ -67,9 +67,8 @@ function slugify(value) {
 }
 
 async function main() {
-  let createdServices = 0;
   for (const [index, name] of services.entries()) {
-    const result = await prisma.service.upsert({
+    await prisma.service.upsert({
       where: { name },
       update: {},
       create: {
@@ -79,7 +78,6 @@ async function main() {
         description: `Servicio comercial: ${name}.`,
       },
     });
-    if (result) createdServices += 1;
   }
 
   let createdDictionaryValues = 0;

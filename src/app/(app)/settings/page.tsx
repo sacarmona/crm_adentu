@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { AiProvider, UserRole } from "@prisma/client";
 import { BookOpen, Power, Settings2, Wrench } from "lucide-react";
 import Link from "next/link";
 
@@ -8,7 +8,11 @@ import { prisma } from "@/lib/prisma";
 import {
   toggleDictionaryValue,
   toggleService,
+  updateAiProvider,
 } from "@/server/actions/settings";
+import { getActiveAiProvider } from "@/server/services/ai-provider";
+import { isAiConfigured } from "@/server/services/openai";
+import { isAnthropicConfigured } from "@/server/services/anthropic";
 import { groupDictionaryCounts } from "@/server/services/settings";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +24,14 @@ export default async function SettingsPage({
 }) {
   const session = await auth();
   const params = await searchParams;
-  const view = params?.view === "dictionaries" ? "dictionaries" : "services";
+  const view =
+    params?.view === "dictionaries"
+      ? "dictionaries"
+      : params?.view === "ai"
+        ? "ai"
+        : "services";
   const canEdit = session?.user.role === UserRole.ADMIN;
-  const [services, dictionaryValues] = await Promise.all([
+  const [services, dictionaryValues, activeProvider] = await Promise.all([
     prisma.service.findMany({
       where: { deletedAt: null },
       include: {
@@ -42,7 +51,10 @@ export default async function SettingsPage({
       where: { deletedAt: null },
       orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
     }),
+    getActiveAiProvider(),
   ]);
+  const openaiReady = isAiConfigured();
+  const anthropicReady = isAnthropicConfigured();
   const dictionaryCounts = groupDictionaryCounts(dictionaryValues);
   const types = Object.keys(dictionaryCounts);
   const selectedType = params?.type || types[0];
@@ -98,7 +110,53 @@ export default async function SettingsPage({
         >
           Diccionarios
         </Link>
+        <Link
+          className={`px-4 py-2 text-sm font-medium ${view === "ai" ? "border-b-2 border-slate-950" : "text-slate-500"}`}
+          href="/settings?view=ai"
+        >
+          Inteligencia Comercial
+        </Link>
       </div>
+
+      {view === "ai" ? (
+        <section className="max-w-xl rounded-md border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold">Proveedor de IA</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Selecciona que proveedor usa el modulo de Inteligencia Comercial
+            para analizar interacciones.
+          </p>
+          <div className="mt-4 space-y-3">
+            <ProviderRow
+              configured={openaiReady}
+              label="OpenAI"
+              selected={activeProvider === AiProvider.OPENAI}
+            />
+            <ProviderRow
+              configured={anthropicReady}
+              label="Anthropic (Claude)"
+              selected={activeProvider === AiProvider.ANTHROPIC}
+            />
+          </div>
+          {canEdit ? (
+            <form action={updateAiProvider} className="mt-5 flex flex-wrap gap-3">
+              <SelectProvider
+                defaultValue={activeProvider}
+                disabled={!openaiReady}
+                provider={AiProvider.OPENAI}
+              />
+              <SelectProvider
+                defaultValue={activeProvider}
+                disabled={!anthropicReady}
+                provider={AiProvider.ANTHROPIC}
+              />
+            </form>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">
+              Solo ADMIN puede cambiar el proveedor activo.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {view === "services" ? (
         <>
@@ -292,5 +350,60 @@ function Summary({
       <p className="mt-3 text-xs text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>
+  );
+}
+
+function ProviderRow({
+  label,
+  selected,
+  configured,
+}: {
+  label: string;
+  selected: boolean;
+  configured: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm">
+      <div className="flex items-center gap-2">
+        <span className="font-medium">{label}</span>
+        {selected ? (
+          <span className="rounded-md bg-slate-950 px-2 py-0.5 text-xs font-semibold text-white">
+            Activo
+          </span>
+        ) : null}
+      </div>
+      <span
+        className={`text-xs font-medium ${configured ? "text-emerald-700" : "text-rose-700"}`}
+      >
+        {configured ? "Configurado" : "Sin API key"}
+      </span>
+    </div>
+  );
+}
+
+function SelectProvider({
+  provider,
+  defaultValue,
+  disabled,
+}: {
+  provider: AiProvider;
+  defaultValue: AiProvider;
+  disabled: boolean;
+}) {
+  const isCurrent = provider === defaultValue;
+  return (
+    <button
+      className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        isCurrent
+          ? "border-slate-950 bg-slate-950 text-white"
+          : "border-slate-300 bg-white text-slate-950 hover:bg-slate-50"
+      }`}
+      disabled={disabled}
+      name="provider"
+      type="submit"
+      value={provider}
+    >
+      Usar {provider === "OPENAI" ? "OpenAI" : "Anthropic"}
+    </button>
   );
 }
