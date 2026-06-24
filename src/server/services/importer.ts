@@ -284,7 +284,9 @@ function normalizeRow(
     // Quantity often represents a fractional measurement (MW, km, etc.), not a
     // unit count, so it is stored as a decimal rather than an integer.
     quantity: numberValue(rawData.quantity, 1) || 1,
-    months: numberValue(rawData.months, 1) || 1,
+    // Months must stay a whole number; round rather than reject the rare
+    // fractional value (e.g. a formula artifact in the source sheet).
+    months: Math.round(numberValue(rawData.months, 1)) || 1,
     estimatedCloseDate: dateValue(rawData.estimatedCloseDate),
     estimatedStartDate: dateValue(rawData.estimatedStartDate),
     nextActionDate: dateValue(rawData.nextActionDate),
