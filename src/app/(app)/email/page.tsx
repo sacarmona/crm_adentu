@@ -9,6 +9,7 @@ import {
   Check,
   CheckCircle2,
   EyeOff,
+  ListFilter,
   Mail,
   RefreshCw,
   Unplug,
@@ -28,6 +29,7 @@ import {
   approveEmailClassification,
   disconnectEmailConnection,
   ignoreEmailClassification,
+  restoreDiscardedEmail,
   syncEmailConnection,
 } from "@/server/actions/email";
 import { isActiveProviderConfigured } from "@/server/services/ai-provider";
@@ -69,7 +71,11 @@ export default async function EmailPage({
     connections.length > 0
       ? await prisma.emailMessage.findMany({
           where: { connectionId: { in: connections.map(({ id }) => id) } },
-          include: { connection: true, classification: true, draft: true },
+          include: {
+            connection: true,
+            classification: { include: { discardRule: true } },
+            draft: true,
+          },
           orderBy: { sentAt: "desc" },
           take: 100,
         })
@@ -252,16 +258,24 @@ export default async function EmailPage({
               </p>
             </div>
             {canAnalyze ? (
-              <form action={analyzePendingEmails}>
-                <SubmitButton
-                  pendingLabel="Procesando lote"
-                  size="sm"
-                  variant="outline"
-                >
-                  <Bot className="h-4 w-4" aria-hidden />
-                  Analizar pendientes
-                </SubmitButton>
-              </form>
+              <div className="flex gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/email/rules">
+                    <ListFilter className="h-4 w-4" aria-hidden />
+                    Reglas
+                  </Link>
+                </Button>
+                <form action={analyzePendingEmails}>
+                  <SubmitButton
+                    pendingLabel="Procesando lote"
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Bot className="h-4 w-4" aria-hidden />
+                    Analizar pendientes
+                  </SubmitButton>
+                </form>
+              </div>
             ) : null}
           </div>
         </div>
@@ -377,9 +391,7 @@ export default async function EmailPage({
                   {canEdit ? (
                     <td className="px-4 py-3">
                       <div className="flex flex-col items-start gap-2">
-                        {!message.classification ||
-                        message.classification.status ===
-                          EmailClassificationStatus.IGNORED ? (
+                        {!message.classification ? (
                           <form action={analyzeEmailMessage.bind(null, message.id)}>
                             <SubmitButton
                               disabled={!canAnalyze}
@@ -391,6 +403,30 @@ export default async function EmailPage({
                               Analizar
                             </SubmitButton>
                           </form>
+                        ) : null}
+                        {message.classification?.status ===
+                        EmailClassificationStatus.IGNORED ? (
+                          <>
+                            <span className="text-xs text-slate-500">
+                              {message.classification.discardRule
+                                ? `Regla: ${message.classification.discardRule.value}`
+                                : "Descartado manualmente"}
+                            </span>
+                            <form
+                              action={restoreDiscardedEmail.bind(
+                                null,
+                                message.id,
+                              )}
+                            >
+                              <SubmitButton
+                                pendingLabel="Restaurando"
+                                size="sm"
+                                variant="ghost"
+                              >
+                                Restaurar
+                              </SubmitButton>
+                            </form>
+                          </>
                         ) : null}
                         {message.classification?.status ===
                         EmailClassificationStatus.PROPOSED ? (

@@ -4,6 +4,7 @@ import {
   usableEmailAccessToken,
 } from "@/server/services/email-providers";
 import { emailSyncErrorMessage } from "@/server/services/email-sync-error";
+import { applyDiscardRulesForUser } from "@/server/services/email-discard-rules";
 
 export async function synchronizeEmailConnection(connectionId: string, userId: string) {
   const connection = await prisma.emailConnection.findFirst({
@@ -46,6 +47,7 @@ export async function synchronizeEmailConnection(connectionId: string, userId: s
       where: { id: connection.id },
       data: { lastSyncedAt: new Date(), lastError: null },
     });
+    await applyDiscardRulesForUser(userId);
 
     return inserted.count;
   } catch (error) {

@@ -96,6 +96,13 @@ Los borradores se generan con el proveedor de IA activo y requieren revision
 humana. El estado `APPROVED` significa que el texto esta listo para copiar; la
 aplicacion no envia mensajes ni llama endpoints de envio de Gmail o Microsoft.
 
+## Reglas de descarte
+
+Los usuarios pueden descartar un mensaje individual o crear reglas por
+remitente, dominio y asunto. Las reglas se ejecutan antes de la IA y no eliminan
+mensajes. Restaurar un mensaje descartado por regla desactiva esa regla para
+evitar que vuelva a aplicarse en la siguiente sincronizacion.
+
 ## LinkedIn
 
 La aplicacion no usa credenciales ni APIs privadas de LinkedIn. Tampoco realiza

@@ -113,6 +113,12 @@ enum EmailDraftStatus {
   DISCARDED
 }
 
+enum EmailDiscardRuleType {
+  SENDER_EXACT
+  SENDER_DOMAIN
+  SUBJECT_CONTAINS
+}
+
 enum TaskStatus {
   PENDING
   EXECUTED
@@ -212,6 +218,7 @@ model User {
   approvedAiInsights           AiInsight[]           @relation("AiInsightApprover")
   reviewedEmailClassifications EmailClassification[] @relation("EmailClassificationReviewer")
   reviewedEmailDrafts          EmailDraft[]          @relation("EmailDraftReviewer")
+  emailDiscardRules            EmailDiscardRule[]
   createdPlaybooks             Playbook[]            @relation("PlaybookCreator")
   commercialMilestones         CommercialMilestone[] @relation("MilestoneOwner")
   aiSettingsUpdates            AiSettings[]
@@ -306,17 +313,39 @@ model EmailClassification {
   matchedOpportunityId String?
   reviewedById         String?
   reviewedAt           DateTime?
+  discardRuleId        String?
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
 
-  emailMessage EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
-  reviewedBy   User?        @relation("EmailClassificationReviewer", fields: [reviewedById], references: [id])
+  emailMessage EmailMessage      @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+  reviewedBy   User?             @relation("EmailClassificationReviewer", fields: [reviewedById], references: [id])
+  discardRule  EmailDiscardRule? @relation(fields: [discardRuleId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([isCommercial])
   @@index([matchedContactId])
   @@index([matchedCompanyId])
   @@index([matchedOpportunityId])
+  @@index([discardRuleId])
+}
+
+model EmailDiscardRule {
+  id         String               @id @default(uuid())
+  userId     String
+  type       EmailDiscardRuleType
+  value      String
+  direction  EmailDirection?
+  isActive   Boolean              @default(true)
+  matchCount Int                  @default(0)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classifications EmailClassification[]
+
+  @@unique([userId, type, value, direction])
+  @@index([userId, isActive])
+  @@index([type])
 }
 
 model Account {

@@ -1,5 +1,11 @@
-import { EmailDraftStatus, EmailDirection, UserRole } from "@prisma/client";
-import { Bot, ChevronLeft, Mail } from "lucide-react";
+import {
+  EmailClassificationStatus,
+  EmailDiscardRuleType,
+  EmailDraftStatus,
+  EmailDirection,
+  UserRole,
+} from "@prisma/client";
+import { Bot, ChevronLeft, EyeOff, ListFilter, Mail } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -12,8 +18,11 @@ import { emailCommercialIntentLabels, emailDraftStatusLabels } from "@/lib/label
 import { prisma } from "@/lib/prisma";
 import {
   approveEmailDraft,
+  createDiscardRuleFromMessage,
+  discardEmailMessage,
   discardEmailDraft,
   generateEmailDraft,
+  restoreDiscardedEmail,
   saveEmailDraft,
 } from "@/server/actions/email";
 import { isActiveProviderConfigured } from "@/server/services/ai-provider";
@@ -31,7 +40,11 @@ export default async function EmailMessagePage({
       id: (await params).id,
       connection: { userId: session?.user.id },
     },
-    include: { classification: true, draft: true, connection: true },
+    include: {
+      classification: { include: { discardRule: true } },
+      draft: true,
+      connection: true,
+    },
   });
   if (!message) notFound();
 
@@ -76,6 +89,63 @@ export default async function EmailMessagePage({
           {message.snippet ?? "El proveedor no entrego un extracto."}
         </p>
       </section>
+
+      {canEdit ? (
+        <section className="rounded-md border border-slate-200 bg-white p-5">
+          <div className="flex items-center gap-2">
+            <ListFilter className="h-5 w-5 text-teal-700" aria-hidden />
+            <h2 className="font-semibold">Descarte y aprendizaje</h2>
+          </div>
+          <p className="mt-2 text-sm text-slate-600">
+            Las reglas se aplican antes de la IA y reducen analisis innecesarios.
+          </p>
+          {message.classification?.status ===
+          EmailClassificationStatus.IGNORED ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="text-sm text-slate-600">
+                {message.classification.discardRule
+                  ? `Descartado por regla: ${message.classification.discardRule.value}`
+                  : "Descartado manualmente"}
+              </span>
+              <form action={restoreDiscardedEmail.bind(null, message.id)}>
+                <SubmitButton pendingLabel="Restaurando" size="sm">
+                  Restaurar correo
+                </SubmitButton>
+              </form>
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <form action={discardEmailMessage.bind(null, message.id)}>
+                <SubmitButton
+                  pendingLabel="Descartando"
+                  size="sm"
+                  variant="outline"
+                >
+                  <EyeOff className="h-4 w-4" aria-hidden />
+                  Descartar solo este
+                </SubmitButton>
+              </form>
+              {[
+                [EmailDiscardRuleType.SENDER_EXACT, "Regla por remitente"],
+                [EmailDiscardRuleType.SENDER_DOMAIN, "Regla por dominio"],
+                [EmailDiscardRuleType.SUBJECT_CONTAINS, "Regla por asunto"],
+              ].map(([type, label]) => (
+                <form action={createDiscardRuleFromMessage} key={type}>
+                  <input name="messageId" type="hidden" value={message.id} />
+                  <input name="type" type="hidden" value={type} />
+                  <SubmitButton
+                    pendingLabel="Creando regla"
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {label}
+                  </SubmitButton>
+                </form>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {message.classification ? (
         <section className="rounded-md border border-slate-200 bg-white p-5">

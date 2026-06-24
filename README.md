@@ -231,6 +231,17 @@ Fase 14E completada:
 - Copia manual del texto aprobado para uso en el cliente de correo.
 - Sin envio automatico ni llamadas a APIs de transmision.
 
+Fase 14F completada:
+
+- Descarte manual de correos sin eliminarlos.
+- Reglas por remitente exacto, dominio o texto contenido en el asunto.
+- Aplicacion de reglas antes del analisis de IA.
+- Clasificacion automatica explicable con referencia a la regla aplicada.
+- Administracion de reglas activas e inactivas por usuario.
+- Conteo de coincidencias para evaluar utilidad.
+- Restauracion de mensajes y desactivacion de la regla asociada.
+- Auditoria de creacion, aplicacion y restauracion.
+
 ## Estructura inicial
 
 ```txt
@@ -325,6 +336,6 @@ AdentuDemo2026!
 
 ## Estado de implementacion
 
-Las fases 0 a 14E estan completadas. El siguiente hito es configurar las
+Las fases 0 a 14F estan completadas. El siguiente hito es completar las
 aplicaciones OAuth en staging, conectar un buzon controlado y validar la
 clasificacion con mensajes no sensibles.

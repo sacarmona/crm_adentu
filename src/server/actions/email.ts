@@ -17,6 +17,11 @@ import {
 } from "@/server/services/email-agent";
 import { generateEmailDraftWithActiveProvider } from "@/server/services/ai-provider";
 import { emailDraftFormSchema } from "@/server/services/email-draft";
+import {
+  applyDiscardRulesForUser,
+  discardRuleValue,
+  emailDiscardRuleSchema,
+} from "@/server/services/email-discard-rules";
 import { synchronizeEmailConnection } from "@/server/services/email-sync";
 
 export async function syncEmailConnection(connectionId: string) {
@@ -409,4 +414,182 @@ export async function discardEmailDraft(draftId: string) {
   ]);
   revalidatePath(`/email/${draft.emailMessageId}`);
   revalidatePath("/email");
+}
+
+export async function discardEmailMessage(messageId: string) {
+  const user = await requireWriter("No tienes permisos para descartar correo.");
+  const message = await prisma.emailMessage.findFirst({
+    where: { id: messageId, connection: { userId: user.id } },
+  });
+  if (!message) throw new Error("El mensaje no esta disponible.");
+
+  await prisma.emailClassification.upsert({
+    where: { emailMessageId: message.id },
+    create: {
+      emailMessageId: message.id,
+      status: EmailClassificationStatus.IGNORED,
+      isCommercial: false,
+      confidence: 1,
+      summary: "Descartado manualmente por el usuario.",
+      intent: "OTHER",
+      sentiment: "NEUTRAL",
+      reviewedById: user.id,
+      reviewedAt: new Date(),
+    },
+    update: {
+      status: EmailClassificationStatus.IGNORED,
+      isCommercial: false,
+      confidence: 1,
+      summary: "Descartado manualmente por el usuario.",
+      intent: "OTHER",
+      sentiment: "NEUTRAL",
+      discardRuleId: null,
+      reviewedById: user.id,
+      reviewedAt: new Date(),
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.UPDATE,
+      entityType: "EmailMessage",
+      entityId: message.id,
+      actorId: user.id,
+      after: { discarded: true, ruleCreated: false },
+    },
+  });
+  revalidatePath("/email");
+  revalidatePath(`/email/${message.id}`);
+}
+
+export async function createDiscardRuleFromMessage(formData: FormData) {
+  const user = await requireWriter("No tienes permisos para crear reglas.");
+  const data = emailDiscardRuleSchema.parse(
+    Object.fromEntries(formData.entries()),
+  );
+  const message = await prisma.emailMessage.findFirst({
+    where: { id: data.messageId, connection: { userId: user.id } },
+  });
+  if (!message) throw new Error("El mensaje no esta disponible.");
+
+  const value = discardRuleValue({
+    type: data.type,
+    fromAddress: message.fromAddress,
+    subject: message.subject,
+  });
+  const rule = await prisma.emailDiscardRule.upsert({
+    where: {
+      userId_type_value_direction: {
+        userId: user.id,
+        type: data.type,
+        value,
+        direction: message.direction,
+      },
+    },
+    create: {
+      userId: user.id,
+      type: data.type,
+      value,
+      direction: message.direction,
+    },
+    update: { isActive: true },
+  });
+  await prisma.$transaction([
+    prisma.emailClassification.upsert({
+      where: { emailMessageId: message.id },
+      create: {
+        emailMessageId: message.id,
+        status: EmailClassificationStatus.IGNORED,
+        isCommercial: false,
+        confidence: 1,
+        summary: `Descartado por regla: ${value}`,
+        intent: "OTHER",
+        sentiment: "NEUTRAL",
+        discardRuleId: rule.id,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+      },
+      update: {
+        status: EmailClassificationStatus.IGNORED,
+        isCommercial: false,
+        confidence: 1,
+        summary: `Descartado por regla: ${value}`,
+        intent: "OTHER",
+        sentiment: "NEUTRAL",
+        discardRuleId: rule.id,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.CREATE,
+        entityType: "EmailDiscardRule",
+        entityId: rule.id,
+        actorId: user.id,
+        after: {
+          type: rule.type,
+          value: rule.value,
+          direction: rule.direction,
+        },
+      },
+    }),
+    prisma.emailDiscardRule.update({
+      where: { id: rule.id },
+      data: { matchCount: { increment: 1 } },
+    }),
+  ]);
+  await applyDiscardRulesForUser(user.id);
+  revalidatePath("/email");
+  revalidatePath("/email/rules");
+  revalidatePath(`/email/${message.id}`);
+}
+
+export async function restoreDiscardedEmail(messageId: string) {
+  const user = await requireWriter("No tienes permisos para restaurar correo.");
+  const classification = await prisma.emailClassification.findFirst({
+    where: {
+      emailMessageId: messageId,
+      status: EmailClassificationStatus.IGNORED,
+      emailMessage: { connection: { userId: user.id } },
+    },
+  });
+  if (!classification) throw new Error("El correo no esta descartado.");
+  await prisma.$transaction([
+    prisma.emailClassification.delete({ where: { id: classification.id } }),
+    ...(classification.discardRuleId
+      ? [
+          prisma.emailDiscardRule.update({
+            where: { id: classification.discardRuleId },
+            data: { isActive: false },
+          }),
+        ]
+      : []),
+  ]);
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.UPDATE,
+      entityType: "EmailMessage",
+      entityId: messageId,
+      actorId: user.id,
+      after: { restored: true },
+    },
+  });
+  revalidatePath("/email");
+  revalidatePath(`/email/${messageId}`);
+}
+
+export async function toggleDiscardRule(ruleId: string) {
+  const user = await requireWriter("No tienes permisos para modificar reglas.");
+  const rule = await prisma.emailDiscardRule.findFirst({
+    where: { id: ruleId, userId: user.id },
+  });
+  if (!rule) throw new Error("La regla no esta disponible.");
+  await prisma.emailDiscardRule.update({
+    where: { id: rule.id },
+    data: { isActive: !rule.isActive },
+  });
+  if (!rule.isActive) {
+    await applyDiscardRulesForUser(user.id);
+  }
+  revalidatePath("/email/rules");
 }

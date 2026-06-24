@@ -10,6 +10,7 @@ import {
   isActiveProviderConfigured,
 } from "@/server/services/ai-provider";
 import { parsedSuggestedDueDate } from "@/server/services/email-analysis";
+import { applyDiscardRulesForUser } from "@/server/services/email-discard-rules";
 
 const MAX_EMAIL_ANALYSES_PER_HOUR = 20;
 
@@ -150,6 +151,7 @@ export async function classifyPendingEmails(input: {
   limit: number;
   enforceHourlyLimit?: boolean;
 }) {
+  await applyDiscardRulesForUser(input.userId);
   const messages = await prisma.emailMessage.findMany({
     where: {
       connection: { userId: input.userId },
