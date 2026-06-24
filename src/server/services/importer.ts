@@ -108,7 +108,7 @@ const opportunitySchema = z.object({
   currency: z.nativeEnum(Currency),
   price: z.number().min(0),
   exchangeRate: z.number().positive(),
-  quantity: z.number().int().positive(),
+  quantity: z.number().positive(),
   months: z.number().int().positive(),
   estimatedCloseDate: z.string().nullable(),
   estimatedStartDate: z.string().nullable(),
