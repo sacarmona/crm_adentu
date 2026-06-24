@@ -23,6 +23,7 @@
     "db:backfill-opportunity-services": "node scripts/backfill-opportunity-services.mjs",
     "db:backfill-last-interaction": "node scripts/backfill-last-interaction.mjs",
     "db:check-interaction-relations": "node scripts/check-interaction-relations.mjs",
+    "db:fix-interaction-opportunity-typos": "node scripts/fix-interaction-opportunity-typos.mjs",
     "db:studio": "prisma studio"
   },
   "dependencies": {
