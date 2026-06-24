@@ -1,4 +1,4 @@
-import { OpportunityStatus } from "@prisma/client";
+import { OpportunityStatus, Prisma } from "@prisma/client";
 import Link from "next/link";
 
 import { auth } from "@/auth";
@@ -7,11 +7,56 @@ import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { getFollowUpHealth } from "@/server/services/dashboard-metrics";
+import {
+  FOLLOW_UP_NORMAL_DAYS,
+  FOLLOW_UP_STALLED_DAYS,
+  FollowUpHealth,
+  getFollowUpHealth,
+} from "@/server/services/dashboard-metrics";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
+const closedStatuses = [OpportunityStatus.WON, OpportunityStatus.LOST];
+
+function buildFollowUpWhere(
+  followUp: FollowUpHealth | undefined,
+): Prisma.OpportunityWhereInput | null {
+  if (!followUp) return null;
+  if (followUp === "closed") {
+    return { status: { in: closedStatuses } };
+  }
+
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const normalBoundary = new Date(now - FOLLOW_UP_NORMAL_DAYS * day);
+  const stalledBoundary = new Date(now - FOLLOW_UP_STALLED_DAYS * day);
+  const notClosed: Prisma.OpportunityWhereInput = {
+    status: { notIn: closedStatuses },
+  };
+  const referenceGte = (boundary: Date): Prisma.OpportunityWhereInput => ({
+    OR: [
+      { lastInteraction: { gte: boundary } },
+      { lastInteraction: null, createdAt: { gte: boundary } },
+    ],
+  });
+  const referenceLt = (boundary: Date): Prisma.OpportunityWhereInput => ({
+    OR: [
+      { lastInteraction: { lt: boundary } },
+      { lastInteraction: null, createdAt: { lt: boundary } },
+    ],
+  });
+
+  if (followUp === "normal") {
+    return { AND: [notClosed, referenceGte(normalBoundary)] };
+  }
+  if (followUp === "stalled") {
+    return { AND: [notClosed, referenceLt(stalledBoundary)] };
+  }
+  return {
+    AND: [notClosed, referenceLt(normalBoundary), referenceGte(stalledBoundary)],
+  };
+}
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -19,6 +64,7 @@ export default async function OpportunitiesPage({
   searchParams?: Promise<{
     q?: string;
     status?: string;
+    followUp?: string;
     sort?: string;
     dir?: string;
     page?: string;
@@ -28,21 +74,27 @@ export default async function OpportunitiesPage({
   const session = await auth();
   const q = params?.q?.trim();
   const status = params?.status as OpportunityStatus | undefined;
+  const followUp = ["normal", "watch", "stalled", "closed"].includes(
+    params?.followUp ?? "",
+  )
+    ? (params?.followUp as FollowUpHealth)
+    : undefined;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(params?.page) || 1);
-  const where = {
-    deletedAt: null,
-    ...(q
-      ? {
-          OR: [
-            { name: { contains: q, mode: "insensitive" as const } },
-            { company: { name: { contains: q, mode: "insensitive" as const } } },
-          ],
-        }
-      : {}),
-    ...(status ? { status } : {}),
-  };
+  const followUpWhere = buildFollowUpWhere(followUp);
+  const conditions: Prisma.OpportunityWhereInput[] = [{ deletedAt: null }];
+  if (q) {
+    conditions.push({
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { company: { name: { contains: q, mode: "insensitive" } } },
+      ],
+    });
+  }
+  if (status) conditions.push({ status });
+  if (followUpWhere) conditions.push(followUpWhere);
+  const where: Prisma.OpportunityWhereInput = { AND: conditions };
   const [opportunities, total] = await Promise.all([
     prisma.opportunity.findMany({
       where,
@@ -57,6 +109,7 @@ export default async function OpportunitiesPage({
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
     if (status) qs.set("status", status);
+    if (followUp) qs.set("followUp", followUp);
     qs.set("sort", field);
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/opportunities?${qs.toString()}`;
@@ -70,12 +123,18 @@ export default async function OpportunitiesPage({
         description="Gestiona pipeline, servicios, probabilidad y montos comerciales calculados."
         title="Oportunidades"
       />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_220px_auto]">
+      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_200px_200px_auto]">
         <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={q} name="q" placeholder="Buscar oportunidad o empresa" />
         <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={status ?? ""} name="status">
           <option value="">Todos los estados</option>
           {Object.values(OpportunityStatus).map((value) => (
             <option key={value} value={value}>{opportunityStatusLabels[value]}</option>
+          ))}
+        </select>
+        <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={followUp ?? ""} name="followUp">
+          <option value="">Todo seguimiento</option>
+          {(["normal", "watch", "stalled", "closed"] as const).map((value) => (
+            <option key={value} value={value}>{followUpHealthLabels[value]}</option>
           ))}
         </select>
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">Filtrar</button>
@@ -143,7 +202,7 @@ export default async function OpportunitiesPage({
           basePath="/opportunities"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status, sort, dir: sort ? dir : undefined }}
+          params={{ q, status, followUp, sort, dir: sort ? dir : undefined }}
           total={total}
         />
       </section>
