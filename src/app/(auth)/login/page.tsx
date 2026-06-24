@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
@@ -16,8 +17,16 @@ export default async function LoginPage() {
     <main className="min-h-screen bg-slate-100 px-5 py-10 text-slate-950">
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <section>
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            ADENTU Ingenieria SpA
+          <Image
+            alt="ADENTU"
+            height={56}
+            priority
+            src="/brand/adentu-logo.png"
+            style={{ height: "56px", width: "auto" }}
+            width={200}
+          />
+          <p className="mt-2 text-sm font-medium uppercase tracking-wide text-slate-500">
+            Ingenieria SpA
           </p>
           <h1 className="mt-3 max-w-xl text-4xl font-semibold tracking-normal">
             Acceso al CRM comercial
