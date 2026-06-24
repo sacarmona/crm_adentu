@@ -172,6 +172,19 @@ function nullableText(value: unknown) {
   return text.length > 0 ? text : null;
 }
 
+function nullableEmail(value: unknown) {
+  const text = nullableText(value);
+  if (!text) {
+    return null;
+  }
+
+  // Strip "Name <email@domain>" wrapping and stray angle brackets pasted from
+  // email signatures, keeping only the address itself.
+  const match = text.match(/<([^<>]+)>/);
+  const cleaned = (match ? match[1] : text).trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 function enumValue(value: unknown, fallback: string) {
   const text = nullableText(value);
   if (!text) {
@@ -239,7 +252,7 @@ function normalizeRow(
       companyName: nullableText(rawData.companyName),
       roleArea: nullableText(rawData.roleArea),
       status: enumValue(rawData.status, ContactStatus.UNQUALIFIED),
-      email: nullableText(rawData.email)?.toLowerCase() ?? null,
+      email: nullableEmail(rawData.email)?.toLowerCase() ?? null,
       phone: nullableText(rawData.phone),
       leadSource: rawData.leadSource
         ? enumValue(rawData.leadSource, LeadSource.INBOUND_OTHER)
