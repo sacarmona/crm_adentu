@@ -79,74 +79,116 @@ export default async function InteractionsPage({
           Filtrar
         </button>
       </form>
-      <section className="divide-y divide-slate-100 overflow-hidden rounded-md border border-slate-200 bg-white">
-        {interactions.map((interaction) => (
-          <article className="p-4" key={interaction.id}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">{interaction.type}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {formatDateTime(interaction.date)} ·{" "}
-                  {interaction.executedBy?.name ?? "Sin ejecutor"}
-                </p>
-              </div>
-              <p className="text-xs text-slate-500">
-                {interaction.service?.name ?? "Sin servicio"}
-              </p>
-            </div>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-              {interaction.content}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-              {interaction.company ? (
-                <Link
-                  className="font-medium hover:underline"
-                  href={`/companies/${interaction.company.id}`}
+      <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Fecha</th>
+              <th className="px-4 py-3">Tipo</th>
+              <th className="px-4 py-3">Empresa</th>
+              <th className="px-4 py-3">Contacto</th>
+              <th className="px-4 py-3">Oportunidad</th>
+              <th className="px-4 py-3">Servicio</th>
+              <th className="px-4 py-3">Ejecuto</th>
+              <th className="px-4 py-3">Contenido</th>
+              <th className="px-4 py-3">Proxima accion</th>
+              {canAnalyze ? <th className="px-4 py-3">Acciones</th> : null}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {interactions.map((interaction) => (
+              <tr key={interaction.id}>
+                <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
+                  {formatDateTime(interaction.date)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap font-medium">
+                  {interaction.type}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {interaction.company ? (
+                    <Link
+                      className="hover:underline"
+                      href={`/companies/${interaction.company.id}`}
+                    >
+                      {interaction.company.name}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {interaction.contact ? (
+                    <Link
+                      className="hover:underline"
+                      href={`/contacts/${interaction.contact.id}`}
+                    >
+                      {interaction.contact.name}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {interaction.opportunity ? (
+                    <Link
+                      className="hover:underline"
+                      href={`/opportunities/${interaction.opportunity.id}`}
+                    >
+                      {interaction.opportunity.name}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
+                  {interaction.service?.name ?? "-"}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
+                  {interaction.executedBy?.name ?? "-"}
+                </td>
+                <td className="px-4 py-3">
+                  <p className="max-w-xs truncate text-slate-700" title={interaction.content}>
+                    {interaction.content}
+                  </p>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-xs">
+                  {interaction.nextAction ? (
+                    <>
+                      <span className="font-medium text-slate-700">
+                        {interaction.nextAction}
+                      </span>
+                      <br />
+                      <span className="text-slate-500">
+                        {formatDateTime(interaction.nextActionDate)}
+                      </span>
+                    </>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                {canAnalyze ? (
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <form action={analyzeInteraction.bind(null, interaction.id)}>
+                      <Button size="sm" type="submit" variant="outline">
+                        Analizar con IA
+                      </Button>
+                    </form>
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+            {interactions.length === 0 ? (
+              <tr>
+                <td
+                  className="px-4 py-8 text-center text-slate-500"
+                  colSpan={canAnalyze ? 10 : 9}
                 >
-                  {interaction.company.name}
-                </Link>
-              ) : null}
-              {interaction.contact ? (
-                <Link
-                  className="font-medium hover:underline"
-                  href={`/contacts/${interaction.contact.id}`}
-                >
-                  {interaction.contact.name}
-                </Link>
-              ) : null}
-              {interaction.opportunity ? (
-                <Link
-                  className="font-medium hover:underline"
-                  href={`/opportunities/${interaction.opportunity.id}`}
-                >
-                  {interaction.opportunity.name}
-                </Link>
-              ) : null}
-            </div>
-            {interaction.nextAction ? (
-              <div className="mt-3 border-l-2 border-sky-300 pl-3 text-sm">
-                <span className="font-medium">Proxima accion:</span>{" "}
-                {interaction.nextAction} ·{" "}
-                {formatDateTime(interaction.nextActionDate)}
-              </div>
+                  No hay interacciones para los filtros seleccionados.
+                </td>
+              </tr>
             ) : null}
-            {canAnalyze ? (
-              <form
-                action={analyzeInteraction.bind(null, interaction.id)}
-                className="mt-3"
-              >
-                <Button size="sm" type="submit" variant="outline">
-                  Analizar con IA
-                </Button>
-              </form>
-            ) : null}
-          </article>
-        ))}
-        {interactions.length === 0 ? (
-          <p className="p-8 text-center text-sm text-slate-500">
-            No hay interacciones para los filtros seleccionados.
-          </p>
-        ) : null}
+          </tbody>
+        </table>
       </section>
     </div>
   );
