@@ -20,6 +20,7 @@
     "db:seed": "node prisma/seed.mjs",
     "db:seed-dictionaries": "node scripts/seed-services-dictionaries.mjs",
     "db:import-extra": "node scripts/import-extra-data.mjs",
+    "db:backfill-opportunity-services": "node scripts/backfill-opportunity-services.mjs",
     "db:studio": "prisma studio"
   },
   "dependencies": {
