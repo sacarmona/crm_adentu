@@ -4,12 +4,15 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { opportunityStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { daysSince } from "@/server/services/dashboard-metrics";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -19,6 +22,7 @@ export default async function OpportunitiesPage({
     status?: string;
     sort?: string;
     dir?: string;
+    page?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -27,23 +31,29 @@ export default async function OpportunitiesPage({
   const status = params?.status as OpportunityStatus | undefined;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
-  const opportunities = await prisma.opportunity.findMany({
-    where: {
-      deletedAt: null,
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q, mode: "insensitive" } },
-              { company: { name: { contains: q, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-      ...(status ? { status } : {}),
-    },
-    include: { company: true, service: true, responsible: true },
-    orderBy: sort === "lastInteraction" ? { lastInteraction: dir } : { updatedAt: "desc" },
-    take: 50,
-  });
+  const page = Math.max(1, Number(params?.page) || 1);
+  const where = {
+    deletedAt: null,
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { company: { name: { contains: q, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+    ...(status ? { status } : {}),
+  };
+  const [opportunities, total] = await Promise.all([
+    prisma.opportunity.findMany({
+      where,
+      include: { company: true, service: true, responsible: true },
+      orderBy: sort === "lastInteraction" ? { lastInteraction: dir } : { updatedAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.opportunity.count({ where }),
+  ]);
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
@@ -119,6 +129,13 @@ export default async function OpportunitiesPage({
             ) : null}
           </tbody>
         </table>
+        <Pagination
+          basePath="/opportunities"
+          page={page}
+          pageSize={PAGE_SIZE}
+          params={{ q, status, sort, dir: sort ? dir : undefined }}
+          total={total}
+        />
       </section>
     </div>
   );

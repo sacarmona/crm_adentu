@@ -4,11 +4,14 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { Pagination } from "@/components/crm/pagination";
 import { formatDate } from "@/lib/format";
 import { contactStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 export default async function ContactsPage({
   searchParams,
@@ -18,6 +21,7 @@ export default async function ContactsPage({
     status?: string;
     sort?: string;
     dir?: string;
+    page?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -26,24 +30,30 @@ export default async function ContactsPage({
   const status = params?.status as ContactStatus | undefined;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
-  const contacts = await prisma.contact.findMany({
-    where: {
-      deletedAt: null,
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-              { roleArea: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-      ...(status ? { status } : {}),
-    },
-    include: { company: true, responsible: true },
-    orderBy: sort === "lastInteraction" ? { lastInteraction: dir } : { updatedAt: "desc" },
-    take: 50,
-  });
+  const page = Math.max(1, Number(params?.page) || 1);
+  const where = {
+    deletedAt: null,
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { email: { contains: q, mode: "insensitive" as const } },
+            { roleArea: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+    ...(status ? { status } : {}),
+  };
+  const [contacts, total] = await Promise.all([
+    prisma.contact.findMany({
+      where,
+      include: { company: true, responsible: true },
+      orderBy: sort === "lastInteraction" ? { lastInteraction: dir } : { updatedAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.contact.count({ where }),
+  ]);
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
@@ -104,6 +114,13 @@ export default async function ContactsPage({
             ) : null}
           </tbody>
         </table>
+        <Pagination
+          basePath="/contacts"
+          page={page}
+          pageSize={PAGE_SIZE}
+          params={{ q, status, sort, dir: sort ? dir : undefined }}
+          total={total}
+        />
       </section>
     </div>
   );

@@ -4,11 +4,14 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { Pagination } from "@/components/crm/pagination";
 import { formatDate } from "@/lib/format";
 import { companyStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 export default async function CompaniesPage({
   searchParams,
@@ -18,6 +21,7 @@ export default async function CompaniesPage({
     status?: string;
     sort?: string;
     dir?: string;
+    page?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -26,24 +30,30 @@ export default async function CompaniesPage({
   const status = params?.status as CompanyStatus | undefined;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
-  const companies = await prisma.company.findMany({
-    where: {
-      deletedAt: null,
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q, mode: "insensitive" } },
-              { industry: { contains: q, mode: "insensitive" } },
-              { region: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-      ...(status ? { status } : {}),
-    },
-    include: { responsible: true },
-    orderBy: sort === "lastInteraction" ? { lastInteraction: dir } : { updatedAt: "desc" },
-    take: 50,
-  });
+  const page = Math.max(1, Number(params?.page) || 1);
+  const where = {
+    deletedAt: null,
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { industry: { contains: q, mode: "insensitive" as const } },
+            { region: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+    ...(status ? { status } : {}),
+  };
+  const [companies, total] = await Promise.all([
+    prisma.company.findMany({
+      where,
+      include: { responsible: true },
+      orderBy: sort === "lastInteraction" ? { lastInteraction: dir } : { updatedAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.company.count({ where }),
+  ]);
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
@@ -127,6 +137,13 @@ export default async function CompaniesPage({
             ) : null}
           </tbody>
         </table>
+        <Pagination
+          basePath="/companies"
+          page={page}
+          pageSize={PAGE_SIZE}
+          params={{ q, status, sort, dir: sort ? dir : undefined }}
+          total={total}
+        />
       </section>
     </div>
   );

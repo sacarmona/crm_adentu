@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { Pagination } from "@/components/crm/pagination";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { interactionTypeLabels } from "@/lib/labels";
@@ -12,33 +13,42 @@ import { isAiConfigured } from "@/server/services/openai";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 50;
+
 export default async function InteractionsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; type?: string; serviceId?: string }>;
+  searchParams?: Promise<{
+    q?: string;
+    type?: string;
+    serviceId?: string;
+    page?: string;
+  }>;
 }) {
   const session = await auth();
   const params = await searchParams;
   const q = params?.q?.trim();
   const type = params?.type as InteractionType | undefined;
   const serviceId = params?.serviceId;
-  const [interactions, services] = await Promise.all([
+  const page = Math.max(1, Number(params?.page) || 1);
+  const where = {
+    deletedAt: null,
+    ...(type ? { type } : {}),
+    ...(serviceId ? { serviceId } : {}),
+    ...(q
+      ? {
+          OR: [
+            { content: { contains: q, mode: "insensitive" as const } },
+            { company: { name: { contains: q, mode: "insensitive" as const } } },
+            { contact: { name: { contains: q, mode: "insensitive" as const } } },
+            { opportunity: { name: { contains: q, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+  const [interactions, total, services] = await Promise.all([
     prisma.interaction.findMany({
-      where: {
-        deletedAt: null,
-        ...(type ? { type } : {}),
-        ...(serviceId ? { serviceId } : {}),
-        ...(q
-          ? {
-              OR: [
-                { content: { contains: q, mode: "insensitive" } },
-                { company: { name: { contains: q, mode: "insensitive" } } },
-                { contact: { name: { contains: q, mode: "insensitive" } } },
-                { opportunity: { name: { contains: q, mode: "insensitive" } } },
-              ],
-            }
-          : {}),
-      },
+      where,
       include: {
         company: true,
         contact: true,
@@ -47,8 +57,10 @@ export default async function InteractionsPage({
         service: true,
       },
       orderBy: { date: "desc" },
-      take: 100,
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
+    prisma.interaction.count({ where }),
     prisma.service.findMany({
       where: { deletedAt: null },
       orderBy: { name: "asc" },
@@ -211,6 +223,13 @@ export default async function InteractionsPage({
             ) : null}
           </tbody>
         </table>
+        <Pagination
+          basePath="/interactions"
+          page={page}
+          pageSize={PAGE_SIZE}
+          params={{ q, type, serviceId }}
+          total={total}
+        />
       </section>
     </div>
   );
