@@ -1,10 +1,9 @@
-import { Prisma } from "@prisma/client";
-
 import { prisma } from "@/lib/prisma";
 import {
   fetchProviderMessages,
   usableEmailAccessToken,
 } from "@/server/services/email-providers";
+import { emailSyncErrorMessage } from "@/server/services/email-sync-error";
 
 export async function synchronizeEmailConnection(connectionId: string, userId: string) {
   const connection = await prisma.emailConnection.findFirst({
@@ -34,45 +33,27 @@ export async function synchronizeEmailConnection(connectionId: string, userId: s
       mailbox: connection.emailAddress,
     });
 
-    await prisma.$transaction(async (tx) => {
-      for (const message of messages) {
-        await tx.emailMessage.upsert({
-          where: {
-            connectionId_providerMessageId: {
-              connectionId: connection.id,
-              providerMessageId: message.providerMessageId,
-            },
-          },
-          create: {
-            ...message,
-            connectionId: connection.id,
-            toAddresses: message.toAddresses,
-            ccAddresses: message.ccAddresses,
-          },
-          update: {
-            ...message,
-            toAddresses: message.toAddresses,
-            ccAddresses: message.ccAddresses,
-          },
-        });
-      }
-      await tx.emailConnection.update({
-        where: { id: connection.id },
-        data: { lastSyncedAt: new Date(), lastError: null },
-      });
+    const inserted = await prisma.emailMessage.createMany({
+      data: messages.map((message) => ({
+        ...message,
+        connectionId: connection.id,
+        toAddresses: message.toAddresses,
+        ccAddresses: message.ccAddresses,
+      })),
+      skipDuplicates: true,
     });
-
-    return messages.length;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Fallo desconocido de sincronizacion.";
     await prisma.emailConnection.update({
       where: { id: connection.id },
-      data: { lastError: message.slice(0, 500) },
+      data: { lastSyncedAt: new Date(), lastError: null },
     });
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      throw new Error("No fue posible guardar los mensajes sincronizados.");
-    }
-    throw error;
+
+    return inserted.count;
+  } catch (error) {
+    const message = emailSyncErrorMessage(error);
+    await prisma.emailConnection.update({
+      where: { id: connection.id },
+      data: { lastError: message },
+    });
+    throw new Error(message);
   }
 }
