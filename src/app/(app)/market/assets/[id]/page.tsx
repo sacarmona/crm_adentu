@@ -43,7 +43,7 @@ export default async function MarketAssetDetailPage({
             <h1 className="mt-1 text-2xl font-semibold">{asset.unitName}</h1>
             <p className="mt-2 text-sm text-slate-600">
               {asset.service?.name ?? "Sin servicio sugerido"} ·{" "}
-              {asset.quantity} unidad(es)
+              {asset.quantity.toString()} unidad(es)
             </p>
           </div>
           {canEdit ? (

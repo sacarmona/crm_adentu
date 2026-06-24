@@ -166,7 +166,7 @@ export function OpportunityForm({
       <SelectField defaultValue={opportunity?.currency} label="Moneda" name="currency" options={enumOptions(Currency)} required />
       <TextField defaultValue={opportunity?.price?.toString() ?? "0"} label="Precio" name="price" type="number" />
       <TextField defaultValue={opportunity?.exchangeRate?.toString() ?? "1"} label="Tipo de cambio" name="exchangeRate" type="number" />
-      <TextField defaultValue={opportunity?.quantity ?? 1} label="Cantidad" name="quantity" type="number" />
+      <TextField defaultValue={opportunity?.quantity?.toString() ?? "1"} label="Cantidad" name="quantity" type="number" />
       <TextField defaultValue={opportunity?.months ?? 1} label="Meses" name="months" type="number" />
       <TextField defaultValue={opportunity?.businessUnit} label="Unidad" name="businessUnit" />
       <SelectField defaultValue={opportunity?.responsibleId} label="Responsable" name="responsibleId" options={userOptions(users)} />

@@ -54,7 +54,7 @@ export function MarketAssetForm({
         options={serviceOptions(services)}
       />
       <TextField
-        defaultValue={asset?.quantity ?? 1}
+        defaultValue={asset?.quantity?.toString() ?? "1"}
         label="Cantidad"
         name="quantity"
         required
@@ -178,7 +178,7 @@ export function MarketOpportunityForm({
     name: string;
     companyId?: string | null;
     serviceId?: string | null;
-    quantity: number;
+    quantity: string;
     notes?: string | null;
     responsibleId?: string;
   };

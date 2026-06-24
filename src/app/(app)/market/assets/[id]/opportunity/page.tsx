@@ -59,7 +59,7 @@ export default async function MarketOpportunityPage({
           }),
           companyId: asset.ownerCompanyId,
           serviceId: asset.serviceId,
-          quantity: asset.quantity,
+          quantity: asset.quantity.toString(),
           notes: `Oportunidad originada desde activo de mercado: ${asset.unitName}.${asset.comment ? ` ${asset.comment}` : ""}`,
           responsibleId: session?.user.id,
         }}

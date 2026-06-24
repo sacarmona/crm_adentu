@@ -278,6 +278,8 @@ function normalizeRow(
     currency: enumValue(rawData.currency, Currency.CLP),
     price: numberValue(rawData.price, 0),
     exchangeRate: numberValue(rawData.exchangeRate, 1),
+    // Quantity often represents a fractional measurement (MW, km, etc.), not a
+    // unit count, so it is stored as a decimal rather than an integer.
     quantity: numberValue(rawData.quantity, 1),
     months: numberValue(rawData.months, 1),
     estimatedCloseDate: dateValue(rawData.estimatedCloseDate),

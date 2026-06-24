@@ -148,7 +148,7 @@ export default async function MarketPage({
               <div className="flex items-start justify-between gap-3">
                 <Factory className="h-5 w-5 text-teal-700" aria-hidden="true" />
                 <span className="text-xs font-semibold text-slate-500">
-                  {asset.quantity} unidad(es)
+                  {asset.quantity.toString()} unidad(es)
                 </span>
               </div>
               <Link

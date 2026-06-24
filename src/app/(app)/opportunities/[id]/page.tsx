@@ -85,7 +85,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
             <div className="flex justify-between"><dt>Precio CLP</dt><dd>{formatCurrency(opportunity.priceClp.toString())}</dd></div>
             <div className="flex justify-between"><dt>Monto mensual</dt><dd>{formatCurrency(opportunity.monthlyAmount.toString())}</dd></div>
             <div className="flex justify-between"><dt>Meses</dt><dd>{opportunity.months}</dd></div>
-            <div className="flex justify-between"><dt>Cantidad</dt><dd>{opportunity.quantity}</dd></div>
+            <div className="flex justify-between"><dt>Cantidad</dt><dd>{opportunity.quantity.toString()}</dd></div>
           </dl>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-5">
