@@ -166,6 +166,21 @@ Fase 12 completada:
 - Auditoria de playbooks y sus elementos.
 - Pruebas unitarias para agrupacion y cobertura de tipos.
 
+Fase 13 completada:
+
+- Autorizacion centralizada para todos los server actions.
+- Escritura restringida a `ADMIN` y `COMERCIAL`; administracion reservada a `ADMIN`.
+- Rutas y controles de edicion ocultos o redirigidos para `LECTURA`.
+- Visor de auditoria con filtros por accion, entidad y usuario.
+- Endpoint `GET /api/health` para configuracion y conectividad PostgreSQL.
+- Encabezados HTTP de seguridad y ocultamiento de `X-Powered-By`.
+- Validacion de variables obligatorias para produccion.
+- Comando `pnpm verify` para pruebas, tipos, lint y build.
+- Comando `pnpm db:deploy` para migraciones de produccion.
+- Aprovisionamiento seguro del primer administrador sin seed demo.
+- Guia de despliegue, verificacion, respaldo y rotacion de secretos.
+- Pruebas unitarias de autorizacion y readiness operativo.
+
 ## Estructura inicial
 
 ```txt
@@ -248,7 +263,7 @@ AdentuDemo2026!
 ## Recomendaciones tecnicas adoptadas
 
 - Auth: Auth.js / NextAuth v5 con Prisma Adapter en Fase 2.
-- IA: Vercel AI SDK con respuestas validadas por Zod antes de guardar en `AiInsight`.
+- IA: SDK oficial de OpenAI con Structured Outputs validados por Zod antes de guardar en `AiInsight`.
 - Jobs async: Inngest o QStash para IA, importacion grande y notificaciones.
 - Importador Excel: `exceljs` o `xlsx`, con procesamiento por lotes si los archivos crecen.
 - Adjuntos: Vercel Blob o Cloudflare R2; no filesystem local en serverless.
@@ -258,6 +273,8 @@ AdentuDemo2026!
 - Seguridad IA: rate limiting por usuario antes de exponer acciones con costo.
 - Multi-tenant: no requerido hoy; el schema deja anotada la expansion futura a `tenantId`.
 
-## Proxima fase de implementacion
+## Estado de implementacion
 
-Iniciar Fase 13: auditoria integral, refinamiento de permisos, pruebas de flujos criticos y preparacion de despliegue.
+Las fases 0 a 13 estan completadas. El siguiente hito es desplegar un entorno
+staging, cargar usuarios reales controlados y ejecutar pruebas de aceptacion
+con datos no sensibles.

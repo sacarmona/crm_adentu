@@ -49,8 +49,12 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
                 <Button asChild variant="outline"><Link href={`/tasks/new?contactId=${contact.id}&companyId=${contact.companyId ?? ""}`}>Tarea</Link></Button>
               </>
             ) : null}
-            <Button asChild variant="outline"><Link href={`/contacts/${contact.id}/edit`}>Editar</Link></Button>
-            <form action={deleteContact.bind(null, contact.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
+            {canEdit ? (
+              <>
+                <Button asChild variant="outline"><Link href={`/contacts/${contact.id}/edit`}>Editar</Link></Button>
+                <form action={deleteContact.bind(null, contact.id)}><Button type="submit" variant="secondary">Eliminar</Button></form>
+              </>
+            ) : null}
           </div>
         </div>
       </section>

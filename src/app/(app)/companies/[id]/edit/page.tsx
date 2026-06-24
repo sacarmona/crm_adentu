@@ -1,5 +1,8 @@
+import { UserRole } from "@prisma/client";
 import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
+import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { CompanyForm } from "@/components/crm/forms";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +16,8 @@ export default async function EditCompanyPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
+  if (session?.user.role === UserRole.LECTURA) redirect(`/companies/${id}`);
   const [company, users] = await Promise.all([
     prisma.company.findFirst({ where: { id, deletedAt: null } }),
     prisma.user.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),

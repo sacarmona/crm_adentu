@@ -4,12 +4,10 @@ import {
   AuditAction,
   Currency,
   OpportunityStatus,
-  UserRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { nullableDate } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import {
@@ -19,27 +17,14 @@ import {
 } from "@/schemas/crm";
 import { calculateOpportunityCompleteness } from "@/server/services/completeness-scoring";
 import { calculateOpportunityAmounts } from "@/server/services/opportunity-calculations";
+import { requireWriter } from "@/server/authz";
 
 function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
 }
 
-async function requireWriter() {
-  const session = await auth();
-
-  if (
-    !session?.user ||
-    (session.user.role !== UserRole.ADMIN &&
-      session.user.role !== UserRole.COMERCIAL)
-  ) {
-    throw new Error("No tienes permisos para modificar el modulo de mercado.");
-  }
-
-  return session.user;
-}
-
 export async function createMarketAsset(formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar el modulo de mercado.");
   const data = marketAssetSchema.parse(parseForm(formData));
   const asset = await prisma.marketAsset.create({ data });
 
@@ -58,7 +43,7 @@ export async function createMarketAsset(formData: FormData) {
 }
 
 export async function updateMarketAsset(id: string, formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar el modulo de mercado.");
   const data = marketAssetSchema.parse(parseForm(formData));
   const before = await prisma.marketAsset.findFirst({
     where: { id, deletedAt: null },
@@ -86,7 +71,7 @@ export async function updateMarketAsset(id: string, formData: FormData) {
 }
 
 export async function deleteMarketAsset(id: string) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar el modulo de mercado.");
   await prisma.$transaction([
     prisma.marketAsset.update({
       where: { id },
@@ -106,7 +91,7 @@ export async function deleteMarketAsset(id: string) {
 }
 
 export async function createCommercialMilestone(formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar el modulo de mercado.");
   const data = commercialMilestoneSchema.parse(parseForm(formData));
   const milestone = await prisma.commercialMilestone.create({
     data: {
@@ -129,7 +114,7 @@ export async function createCommercialMilestone(formData: FormData) {
 }
 
 export async function deleteCommercialMilestone(id: string) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar el modulo de mercado.");
   await prisma.$transaction([
     prisma.commercialMilestone.update({
       where: { id },
@@ -148,7 +133,7 @@ export async function deleteCommercialMilestone(id: string) {
 }
 
 export async function createOpportunityFromMarket(formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar el modulo de mercado.");
   const data = marketOpportunitySchema.parse(parseForm(formData));
   const asset = await prisma.marketAsset.findFirst({
     where: { id: data.assetId, deletedAt: null },

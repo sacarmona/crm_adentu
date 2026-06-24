@@ -1,27 +1,19 @@
 "use server";
 
-import { AuditAction, UserRole } from "@prisma/client";
+import { AuditAction } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
   dictionaryValueSchema,
   serviceSchema,
 } from "@/schemas/crm";
 import { slugifyService } from "@/server/services/settings";
+import { requireAdmin } from "@/server/authz";
 
 function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
-}
-
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== UserRole.ADMIN) {
-    throw new Error("Solo ADMIN puede modificar la configuracion.");
-  }
-  return session.user;
 }
 
 async function uniqueServiceSlug(name: string, excludeId?: string) {
@@ -41,7 +33,7 @@ async function uniqueServiceSlug(name: string, excludeId?: string) {
 }
 
 export async function createService(formData: FormData) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo ADMIN puede modificar la configuracion.");
   const data = serviceSchema.parse(parseForm(formData));
   const service = await prisma.service.create({
     data: { ...data, slug: await uniqueServiceSlug(data.name) },
@@ -60,7 +52,7 @@ export async function createService(formData: FormData) {
 }
 
 export async function updateService(id: string, formData: FormData) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo ADMIN puede modificar la configuracion.");
   const data = serviceSchema.parse(parseForm(formData));
   const before = await prisma.service.findUnique({ where: { id } });
   if (!before) throw new Error("El servicio ya no esta disponible.");
@@ -84,7 +76,7 @@ export async function updateService(id: string, formData: FormData) {
 }
 
 export async function toggleService(id: string) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo ADMIN puede modificar la configuracion.");
   const before = await prisma.service.findUnique({ where: { id } });
   if (!before) throw new Error("El servicio ya no esta disponible.");
   await prisma.$transaction([
@@ -107,7 +99,7 @@ export async function toggleService(id: string) {
 }
 
 export async function createDictionaryValue(formData: FormData) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo ADMIN puede modificar la configuracion.");
   const data = dictionaryValueSchema.parse(parseForm(formData));
   const value = await prisma.dictionaryValue.create({ data });
   await prisma.auditLog.create({
@@ -124,7 +116,7 @@ export async function createDictionaryValue(formData: FormData) {
 }
 
 export async function updateDictionaryValue(id: string, formData: FormData) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo ADMIN puede modificar la configuracion.");
   const data = dictionaryValueSchema.parse(parseForm(formData));
   const before = await prisma.dictionaryValue.findUnique({ where: { id } });
   if (!before) throw new Error("El valor ya no esta disponible.");
@@ -153,7 +145,7 @@ export async function updateDictionaryValue(id: string, formData: FormData) {
 }
 
 export async function toggleDictionaryValue(id: string) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo ADMIN puede modificar la configuracion.");
   const before = await prisma.dictionaryValue.findUnique({ where: { id } });
   if (!before) throw new Error("El valor ya no esta disponible.");
   await prisma.$transaction([

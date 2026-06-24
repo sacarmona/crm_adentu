@@ -6,39 +6,26 @@ import {
   AuditAction,
   Prisma,
   TaskStatus,
-  UserRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { clampProbability } from "@/server/services/ai-analysis";
 import {
   analyzeCommercialInteraction,
   isAiConfigured,
 } from "@/server/services/openai";
+import { requireWriter } from "@/server/authz";
 
 const MAX_AI_REQUESTS_PER_HOUR = 10;
-
-async function requireWriter() {
-  const session = await auth();
-  if (
-    !session?.user ||
-    (session.user.role !== UserRole.ADMIN &&
-      session.user.role !== UserRole.COMERCIAL)
-  ) {
-    throw new Error("No tienes permisos para usar inteligencia comercial.");
-  }
-  return session.user;
-}
 
 function json(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 export async function analyzeInteraction(interactionId: string) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para usar inteligencia comercial.");
   if (!isAiConfigured()) {
     throw new Error("La integracion OpenAI no esta configurada.");
   }
@@ -127,7 +114,7 @@ export async function analyzeInteraction(interactionId: string) {
 }
 
 export async function approveInsight(insightId: string) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para usar inteligencia comercial.");
   const insight = await prisma.aiInsight.findFirst({
     where: {
       id: insightId,
@@ -194,7 +181,7 @@ export async function approveInsight(insightId: string) {
 }
 
 export async function rejectInsight(insightId: string) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para usar inteligencia comercial.");
   const insight = await prisma.aiInsight.findFirst({
     where: {
       id: insightId,

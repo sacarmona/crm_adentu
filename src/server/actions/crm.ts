@@ -1,10 +1,9 @@
 "use server";
 
-import { AuditAction, UserRole } from "@prisma/client";
+import { AuditAction } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { normalizeName, nullableDate } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import {
@@ -19,16 +18,13 @@ import {
   calculateOpportunityCompleteness,
 } from "@/server/services/completeness-scoring";
 import { calculateOpportunityAmounts } from "@/server/services/opportunity-calculations";
-
-async function getActorId() {
-  const session = await auth();
-  return session?.user?.id ?? null;
-}
+import { requireWriter } from "@/server/authz";
 
 async function writeAudit(input: {
   action: AuditAction;
   entityType: string;
   entityId: string;
+  actorId: string;
   before?: unknown;
   after?: unknown;
 }) {
@@ -37,7 +33,7 @@ async function writeAudit(input: {
       action: input.action,
       entityType: input.entityType,
       entityId: input.entityId,
-      actorId: await getActorId(),
+      actorId: input.actorId,
       ...(input.before == null ? {} : { before: input.before }),
       ...(input.after == null ? {} : { after: input.after }),
     },
@@ -49,6 +45,7 @@ function parseForm(formData: FormData) {
 }
 
 export async function createCompany(formData: FormData) {
+  const user = await requireWriter();
   const data = companySchema.parse(parseForm(formData));
   const company = await prisma.company.create({
     data: {
@@ -63,6 +60,7 @@ export async function createCompany(formData: FormData) {
     action: "CREATE",
     entityType: "Company",
     entityId: company.id,
+    actorId: user.id,
     after: { name: company.name },
   });
 
@@ -71,6 +69,7 @@ export async function createCompany(formData: FormData) {
 }
 
 export async function updateCompany(id: string, formData: FormData) {
+  const user = await requireWriter();
   const data = companySchema.parse(parseForm(formData));
   const before = await prisma.company.findUnique({ where: { id } });
   const company = await prisma.company.update({
@@ -87,6 +86,7 @@ export async function updateCompany(id: string, formData: FormData) {
     action: "UPDATE",
     entityType: "Company",
     entityId: company.id,
+    actorId: user.id,
     before: before ? { name: before.name, status: before.status } : undefined,
     after: { name: company.name, status: company.status },
   });
@@ -97,16 +97,18 @@ export async function updateCompany(id: string, formData: FormData) {
 }
 
 export async function deleteCompany(id: string) {
+  const user = await requireWriter();
   await prisma.company.update({
     where: { id },
     data: { deletedAt: new Date() },
   });
-  await writeAudit({ action: "SOFT_DELETE", entityType: "Company", entityId: id });
+  await writeAudit({ action: "SOFT_DELETE", entityType: "Company", entityId: id, actorId: user.id });
   revalidatePath("/companies");
   redirect("/companies");
 }
 
 export async function createContact(formData: FormData) {
+  const user = await requireWriter();
   const data = contactSchema.parse(parseForm(formData));
   const contact = await prisma.contact.create({
     data: {
@@ -119,6 +121,7 @@ export async function createContact(formData: FormData) {
     action: "CREATE",
     entityType: "Contact",
     entityId: contact.id,
+    actorId: user.id,
     after: { name: contact.name },
   });
 
@@ -127,6 +130,7 @@ export async function createContact(formData: FormData) {
 }
 
 export async function updateContact(id: string, formData: FormData) {
+  const user = await requireWriter();
   const data = contactSchema.parse(parseForm(formData));
   const before = await prisma.contact.findUnique({ where: { id } });
   const contact = await prisma.contact.update({
@@ -141,6 +145,7 @@ export async function updateContact(id: string, formData: FormData) {
     action: "UPDATE",
     entityType: "Contact",
     entityId: contact.id,
+    actorId: user.id,
     before: before ? { name: before.name, status: before.status } : undefined,
     after: { name: contact.name, status: contact.status },
   });
@@ -151,16 +156,18 @@ export async function updateContact(id: string, formData: FormData) {
 }
 
 export async function deleteContact(id: string) {
+  const user = await requireWriter();
   await prisma.contact.update({
     where: { id },
     data: { deletedAt: new Date() },
   });
-  await writeAudit({ action: "SOFT_DELETE", entityType: "Contact", entityId: id });
+  await writeAudit({ action: "SOFT_DELETE", entityType: "Contact", entityId: id, actorId: user.id });
   revalidatePath("/contacts");
   redirect("/contacts");
 }
 
 export async function createOpportunity(formData: FormData) {
+  const user = await requireWriter();
   const data = opportunitySchema.parse(parseForm(formData));
   const amounts = calculateOpportunityAmounts(data);
   const opportunity = await prisma.opportunity.create({
@@ -181,6 +188,7 @@ export async function createOpportunity(formData: FormData) {
     action: "CREATE",
     entityType: "Opportunity",
     entityId: opportunity.id,
+    actorId: user.id,
     after: { name: opportunity.name, status: opportunity.status },
   });
 
@@ -189,6 +197,7 @@ export async function createOpportunity(formData: FormData) {
 }
 
 export async function updateOpportunity(id: string, formData: FormData) {
+  const user = await requireWriter();
   const data = opportunitySchema.parse(parseForm(formData));
   const amounts = calculateOpportunityAmounts(data);
   const before = await prisma.opportunity.findUnique({ where: { id } });
@@ -211,6 +220,7 @@ export async function updateOpportunity(id: string, formData: FormData) {
     action: before?.status !== opportunity.status ? "STAGE_CHANGE" : "UPDATE",
     entityType: "Opportunity",
     entityId: opportunity.id,
+    actorId: user.id,
     before: before ? { name: before.name, status: before.status } : undefined,
     after: { name: opportunity.name, status: opportunity.status },
   });
@@ -221,6 +231,7 @@ export async function updateOpportunity(id: string, formData: FormData) {
 }
 
 export async function deleteOpportunity(id: string) {
+  const user = await requireWriter();
   await prisma.opportunity.update({
     where: { id },
     data: { deletedAt: new Date() },
@@ -229,6 +240,7 @@ export async function deleteOpportunity(id: string) {
     action: "SOFT_DELETE",
     entityType: "Opportunity",
     entityId: id,
+    actorId: user.id,
   });
   revalidatePath("/opportunities");
   redirect("/opportunities");
@@ -238,15 +250,9 @@ export async function changeOpportunityStage(input: {
   opportunityId: string;
   status: string;
 }) {
-  const session = await auth();
-
-  if (
-    !session?.user ||
-    (session.user.role !== UserRole.ADMIN &&
-      session.user.role !== UserRole.COMERCIAL)
-  ) {
-    throw new Error("No tienes permisos para modificar el pipeline.");
-  }
+  const user = await requireWriter(
+    "No tienes permisos para modificar el pipeline.",
+  );
 
   const data = opportunityStageSchema.parse(input);
   const before = await prisma.opportunity.findFirst({
@@ -272,7 +278,7 @@ export async function changeOpportunityStage(input: {
         action: AuditAction.STAGE_CHANGE,
         entityType: "Opportunity",
         entityId: before.id,
-        actorId: session.user.id,
+        actorId: user.id,
         before: { name: before.name, status: before.status },
         after: { name: before.name, status: data.status },
         metadata: { source: "pipeline" },

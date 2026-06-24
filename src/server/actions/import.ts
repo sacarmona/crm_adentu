@@ -5,12 +5,10 @@ import {
   ImportBatchStatus,
   ImportRowStatus,
   Prisma,
-  UserRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { normalizeName } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import { calculateCompanyCompleteness, calculateContactCompleteness, calculateOpportunityCompleteness } from "@/server/services/completeness-scoring";
@@ -21,16 +19,7 @@ import {
   summarizeImportRows,
 } from "@/server/services/importer";
 import { calculateOpportunityAmounts } from "@/server/services/opportunity-calculations";
-
-async function requireAdmin() {
-  const session = await auth();
-
-  if (!session?.user || session.user.role !== UserRole.ADMIN) {
-    throw new Error("Solo un administrador puede ejecutar importaciones.");
-  }
-
-  return session.user;
-}
+import { requireAdmin } from "@/server/authz";
 
 function json(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -144,7 +133,7 @@ async function markDuplicates(rows: ParsedImportRow[]) {
 }
 
 export async function uploadImportBatch(formData: FormData) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo un administrador puede ejecutar importaciones.");
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -218,7 +207,7 @@ function date(data: ImportData, key: string) {
 }
 
 export async function confirmImportBatch(batchId: string) {
-  const user = await requireAdmin();
+  const user = await requireAdmin("Solo un administrador puede ejecutar importaciones.");
   const batch = await prisma.importBatch.findFirst({
     where: { id: batchId, status: ImportBatchStatus.READY },
     include: {
@@ -442,7 +431,7 @@ export async function confirmImportBatch(batchId: string) {
 }
 
 export async function cancelImportBatch(batchId: string) {
-  await requireAdmin();
+  await requireAdmin("Solo un administrador puede ejecutar importaciones.");
   await prisma.importBatch.update({
     where: { id: batchId },
     data: { status: ImportBatchStatus.CANCELLED },

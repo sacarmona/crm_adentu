@@ -1,5 +1,7 @@
-import { notFound } from "next/navigation";
+import { UserRole } from "@prisma/client";
+import { notFound, redirect } from "next/navigation";
 
+import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { OpportunityForm } from "@/components/crm/forms";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +11,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditOpportunityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await auth();
+  if (session?.user.role === UserRole.LECTURA) redirect(`/opportunities/${id}`);
   const opportunity = await prisma.opportunity.findFirst({
     where: { id, deletedAt: null },
   });

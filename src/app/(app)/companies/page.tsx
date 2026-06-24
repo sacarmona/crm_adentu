@@ -1,6 +1,7 @@
 import { CompanyStatus } from "@prisma/client";
 import Link from "next/link";
 
+import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatDate } from "@/lib/format";
@@ -14,6 +15,7 @@ export default async function CompaniesPage({
   searchParams?: Promise<{ q?: string; status?: string }>;
 }) {
   const params = await searchParams;
+  const session = await auth();
   const q = params?.q?.trim();
   const status = params?.status as CompanyStatus | undefined;
   const companies = await prisma.company.findMany({
@@ -38,8 +40,8 @@ export default async function CompaniesPage({
   return (
     <div className="space-y-5">
       <EntityHeader
-        actionHref="/companies/new"
-        actionLabel="Nueva empresa"
+        actionHref={session?.user.role === "LECTURA" ? undefined : "/companies/new"}
+        actionLabel={session?.user.role === "LECTURA" ? undefined : "Nueva empresa"}
         description="Gestiona cuentas, estados comerciales, responsables y datos base de clientes y prospectos."
         title="Empresas"
       />

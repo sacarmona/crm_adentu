@@ -6,6 +6,8 @@ import { createContact } from "@/server/actions/crm";
 export const dynamic = "force-dynamic";
 
 export default async function NewContactPage() {
+  const session = await auth();
+  if (session?.user.role === UserRole.LECTURA) redirect("/contacts");
   const [companies, users] = await Promise.all([
     prisma.company.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),
     prisma.user.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),
@@ -18,3 +20,7 @@ export default async function NewContactPage() {
     </div>
   );
 }
+import { UserRole } from "@prisma/client";
+import { redirect } from "next/navigation";
+
+import { auth } from "@/auth";

@@ -1,6 +1,7 @@
 import { OpportunityStatus } from "@prisma/client";
 import Link from "next/link";
 
+import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
@@ -14,6 +15,7 @@ export default async function OpportunitiesPage({
   searchParams?: Promise<{ q?: string; status?: string }>;
 }) {
   const params = await searchParams;
+  const session = await auth();
   const q = params?.q?.trim();
   const status = params?.status as OpportunityStatus | undefined;
   const opportunities = await prisma.opportunity.findMany({
@@ -37,8 +39,8 @@ export default async function OpportunitiesPage({
   return (
     <div className="space-y-5">
       <EntityHeader
-        actionHref="/opportunities/new"
-        actionLabel="Nueva oportunidad"
+        actionHref={session?.user.role === "LECTURA" ? undefined : "/opportunities/new"}
+        actionLabel={session?.user.role === "LECTURA" ? undefined : "Nueva oportunidad"}
         description="Gestiona pipeline, servicios, probabilidad y montos comerciales calculados."
         title="Oportunidades"
       />

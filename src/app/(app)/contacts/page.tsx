@@ -1,6 +1,7 @@
 import { ContactStatus } from "@prisma/client";
 import Link from "next/link";
 
+import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { formatDate } from "@/lib/format";
@@ -14,6 +15,7 @@ export default async function ContactsPage({
   searchParams?: Promise<{ q?: string; status?: string }>;
 }) {
   const params = await searchParams;
+  const session = await auth();
   const q = params?.q?.trim();
   const status = params?.status as ContactStatus | undefined;
   const contacts = await prisma.contact.findMany({
@@ -38,8 +40,8 @@ export default async function ContactsPage({
   return (
     <div className="space-y-5">
       <EntityHeader
-        actionHref="/contacts/new"
-        actionLabel="Nuevo contacto"
+        actionHref={session?.user.role === "LECTURA" ? undefined : "/contacts/new"}
+        actionLabel={session?.user.role === "LECTURA" ? undefined : "Nuevo contacto"}
         description="Gestiona personas, origen lead, datos de contacto y relacion con empresas."
         title="Contactos"
       />

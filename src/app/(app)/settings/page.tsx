@@ -60,17 +60,22 @@ export default async function SettingsPage({
           </p>
         </div>
         {canEdit ? (
-          <Button asChild>
-            <Link
-              href={
-                view === "services"
-                  ? "/settings/services/new"
-                  : `/settings/dictionaries/new${selectedType ? `?type=${selectedType}` : ""}`
-              }
-            >
-              {view === "services" ? "Nuevo servicio" : "Nuevo valor"}
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href="/settings/audit">Ver auditoria</Link>
+            </Button>
+            <Button asChild>
+              <Link
+                href={
+                  view === "services"
+                    ? "/settings/services/new"
+                    : `/settings/dictionaries/new${selectedType ? `?type=${selectedType}` : ""}`
+                }
+              >
+                {view === "services" ? "Nuevo servicio" : "Nuevo valor"}
+              </Link>
+            </Button>
+          </div>
         ) : null}
       </div>
 

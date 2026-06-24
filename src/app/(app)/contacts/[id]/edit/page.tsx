@@ -1,5 +1,8 @@
+import { UserRole } from "@prisma/client";
 import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
+import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { ContactForm } from "@/components/crm/forms";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await auth();
+  if (session?.user.role === UserRole.LECTURA) redirect(`/contacts/${id}`);
   const [contact, companies, users] = await Promise.all([
     prisma.contact.findFirst({ where: { id, deletedAt: null } }),
     prisma.company.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),

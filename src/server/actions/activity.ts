@@ -1,10 +1,9 @@
 "use server";
 
-import { AuditAction, TaskStatus, UserRole } from "@prisma/client";
+import { AuditAction, TaskStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
   interactionSchema,
@@ -15,23 +14,10 @@ import {
   parseLocalDateTime,
   taskExecutionFields,
 } from "@/server/services/activity";
+import { requireWriter } from "@/server/authz";
 
 function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
-}
-
-async function requireWriter() {
-  const session = await auth();
-
-  if (
-    !session?.user ||
-    (session.user.role !== UserRole.ADMIN &&
-      session.user.role !== UserRole.COMERCIAL)
-  ) {
-    throw new Error("No tienes permisos para modificar la actividad comercial.");
-  }
-
-  return session.user;
 }
 
 function activityPaths(input: {
@@ -51,7 +37,7 @@ function activityPaths(input: {
 }
 
 export async function createInteraction(formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
   const data = interactionSchema.parse(parseForm(formData));
   const date = parseLocalDateTime(data.date);
   const nextActionDate = parseLocalDateTime(data.nextActionDate);
@@ -153,7 +139,7 @@ export async function createInteraction(formData: FormData) {
 }
 
 export async function createTask(formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
   const data = taskSchema.parse(parseForm(formData));
   const execution = taskExecutionFields(data.status, data.result);
   const task = await prisma.task.create({
@@ -180,7 +166,7 @@ export async function createTask(formData: FormData) {
 }
 
 export async function changeTaskStatus(formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
   const data = taskStatusSchema.parse(parseForm(formData));
   const before = await prisma.task.findFirst({
     where: { id: data.taskId, deletedAt: null },

@@ -1,31 +1,19 @@
 "use server";
 
-import { AuditAction, UserRole } from "@prisma/client";
+import { AuditAction } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { playbookItemSchema, playbookSchema } from "@/schemas/crm";
+import { requireWriter } from "@/server/authz";
 
 function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
 }
 
-async function requireWriter() {
-  const session = await auth();
-  if (
-    !session?.user ||
-    (session.user.role !== UserRole.ADMIN &&
-      session.user.role !== UserRole.COMERCIAL)
-  ) {
-    throw new Error("No tienes permisos para modificar playbooks.");
-  }
-  return session.user;
-}
-
 export async function createPlaybook(formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar playbooks.");
   const data = playbookSchema.parse(parseForm(formData));
   const playbook = await prisma.playbook.create({
     data: { ...data, createdById: user.id },
@@ -44,7 +32,7 @@ export async function createPlaybook(formData: FormData) {
 }
 
 export async function updatePlaybook(id: string, formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar playbooks.");
   const data = playbookSchema.parse(parseForm(formData));
   const before = await prisma.playbook.findFirst({
     where: { id, deletedAt: null },
@@ -67,7 +55,7 @@ export async function updatePlaybook(id: string, formData: FormData) {
 }
 
 export async function deletePlaybook(id: string) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar playbooks.");
   await prisma.$transaction([
     prisma.playbook.update({
       where: { id },
@@ -90,7 +78,7 @@ export async function createPlaybookItem(
   playbookId: string,
   formData: FormData,
 ) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar playbooks.");
   const data = playbookItemSchema.parse(parseForm(formData));
   const item = await prisma.playbookItem.create({
     data: { ...data, playbookId },
@@ -109,7 +97,7 @@ export async function createPlaybookItem(
 }
 
 export async function updatePlaybookItem(id: string, formData: FormData) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar playbooks.");
   const data = playbookItemSchema.parse(parseForm(formData));
   const before = await prisma.playbookItem.findFirst({
     where: { id, deletedAt: null },
@@ -131,7 +119,7 @@ export async function updatePlaybookItem(id: string, formData: FormData) {
 }
 
 export async function deletePlaybookItem(id: string) {
-  const user = await requireWriter();
+  const user = await requireWriter("No tienes permisos para modificar playbooks.");
   const item = await prisma.playbookItem.findFirst({
     where: { id, deletedAt: null },
   });

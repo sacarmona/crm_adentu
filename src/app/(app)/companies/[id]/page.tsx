@@ -61,12 +61,16 @@ export default async function CompanyDetailPage({
                 </Button>
               </>
             ) : null}
-            <Button asChild variant="outline">
-              <Link href={`/companies/${company.id}/edit`}>Editar</Link>
-            </Button>
-            <form action={deleteCompany.bind(null, company.id)}>
-              <Button type="submit" variant="secondary">Eliminar</Button>
-            </form>
+            {canEdit ? (
+              <>
+                <Button asChild variant="outline">
+                  <Link href={`/companies/${company.id}/edit`}>Editar</Link>
+                </Button>
+                <form action={deleteCompany.bind(null, company.id)}>
+                  <Button type="submit" variant="secondary">Eliminar</Button>
+                </form>
+              </>
+            ) : null}
           </div>
         </div>
       </section>
