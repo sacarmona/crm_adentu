@@ -277,11 +277,14 @@ function normalizeRow(
     businessUnit: nullableText(rawData.businessUnit),
     currency: enumValue(rawData.currency, Currency.CLP),
     price: numberValue(rawData.price, 0),
-    exchangeRate: numberValue(rawData.exchangeRate, 1),
+    // exchangeRate/quantity/months are multiplicative factors; a literal 0 in
+    // the source (vs. a blank cell) makes no business sense, so treat it the
+    // same as missing and fall back to the neutral value of 1.
+    exchangeRate: numberValue(rawData.exchangeRate, 1) || 1,
     // Quantity often represents a fractional measurement (MW, km, etc.), not a
     // unit count, so it is stored as a decimal rather than an integer.
-    quantity: numberValue(rawData.quantity, 1),
-    months: numberValue(rawData.months, 1),
+    quantity: numberValue(rawData.quantity, 1) || 1,
+    months: numberValue(rawData.months, 1) || 1,
     estimatedCloseDate: dateValue(rawData.estimatedCloseDate),
     estimatedStartDate: dateValue(rawData.estimatedStartDate),
     nextActionDate: dateValue(rawData.nextActionDate),
