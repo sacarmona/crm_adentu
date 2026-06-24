@@ -90,6 +90,23 @@ enum EmailDirection {
   OUTBOUND
 }
 
+enum EmailClassificationStatus {
+  PROPOSED
+  APPROVED
+  IGNORED
+}
+
+enum EmailCommercialIntent {
+  INQUIRY
+  OPPORTUNITY
+  FOLLOW_UP
+  PROPOSAL
+  NEGOTIATION
+  SUPPORT
+  ADMINISTRATIVE
+  OTHER
+}
+
 enum TaskStatus {
   PENDING
   EXECUTED
@@ -176,21 +193,22 @@ model User {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  accounts                 Account[]
-  sessions                 Session[]
-  responsibleCompanies     Company[]             @relation("CompanyResponsible")
-  responsibleContacts      Contact[]             @relation("ContactResponsible")
-  responsibleOpportunities Opportunity[]         @relation("OpportunityResponsible")
-  executedInteractions     Interaction[]         @relation("InteractionExecutor")
-  assignedTasks            Task[]                @relation("TaskAssignee")
-  createdTasks             Task[]                @relation("TaskCreator")
-  importBatches            ImportBatch[]         @relation("ImportBatchCreator")
-  auditLogs                AuditLog[]            @relation("AuditActor")
-  approvedAiInsights       AiInsight[]           @relation("AiInsightApprover")
-  createdPlaybooks         Playbook[]            @relation("PlaybookCreator")
-  commercialMilestones     CommercialMilestone[] @relation("MilestoneOwner")
-  aiSettingsUpdates        AiSettings[]
-  emailConnections         EmailConnection[]
+  accounts                     Account[]
+  sessions                     Session[]
+  responsibleCompanies         Company[]             @relation("CompanyResponsible")
+  responsibleContacts          Contact[]             @relation("ContactResponsible")
+  responsibleOpportunities     Opportunity[]         @relation("OpportunityResponsible")
+  executedInteractions         Interaction[]         @relation("InteractionExecutor")
+  assignedTasks                Task[]                @relation("TaskAssignee")
+  createdTasks                 Task[]                @relation("TaskCreator")
+  importBatches                ImportBatch[]         @relation("ImportBatchCreator")
+  auditLogs                    AuditLog[]            @relation("AuditActor")
+  approvedAiInsights           AiInsight[]           @relation("AiInsightApprover")
+  reviewedEmailClassifications EmailClassification[] @relation("EmailClassificationReviewer")
+  createdPlaybooks             Playbook[]            @relation("PlaybookCreator")
+  commercialMilestones         CommercialMilestone[] @relation("MilestoneOwner")
+  aiSettingsUpdates            AiSettings[]
+  emailConnections             EmailConnection[]
 
   @@index([email])
   @@index([role])
@@ -236,13 +254,43 @@ model EmailMessage {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
-  connection  EmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  interaction Interaction?     @relation(fields: [interactionId], references: [id])
+  connection     EmailConnection      @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  interaction    Interaction?         @relation(fields: [interactionId], references: [id])
+  classification EmailClassification?
 
   @@unique([connectionId, providerMessageId])
   @@index([sentAt])
   @@index([fromAddress])
   @@index([interactionId])
+}
+
+model EmailClassification {
+  id                   String                    @id @default(uuid())
+  emailMessageId       String                    @unique
+  status               EmailClassificationStatus @default(PROPOSED)
+  isCommercial         Boolean
+  confidence           Decimal                   @db.Decimal(5, 4)
+  summary              String
+  intent               EmailCommercialIntent
+  sentiment            CommercialSentiment
+  suggestedNextAction  String?
+  suggestedDueDate     DateTime?
+  matchedContactId     String?
+  matchedCompanyId     String?
+  matchedOpportunityId String?
+  reviewedById         String?
+  reviewedAt           DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  emailMessage EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("EmailClassificationReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@index([isCommercial])
+  @@index([matchedContactId])
+  @@index([matchedCompanyId])
+  @@index([matchedOpportunityId])
 }
 
 model Account {
@@ -424,14 +472,14 @@ model Interaction {
   updatedAt         DateTime        @updatedAt
   deletedAt         DateTime?
 
-  contact     Contact?     @relation(fields: [contactId], references: [id])
-  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
-  company     Company?     @relation(fields: [companyId], references: [id])
-  executedBy  User?        @relation("InteractionExecutor", fields: [executedById], references: [id])
-  service     Service?     @relation(fields: [serviceId], references: [id])
-  tasks       Task[]
-  aiInsights  AiInsight[]
-  attachments Attachment[]
+  contact       Contact?       @relation(fields: [contactId], references: [id])
+  opportunity   Opportunity?   @relation(fields: [opportunityId], references: [id])
+  company       Company?       @relation(fields: [companyId], references: [id])
+  executedBy    User?          @relation("InteractionExecutor", fields: [executedById], references: [id])
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  tasks         Task[]
+  aiInsights    AiInsight[]
+  attachments   Attachment[]
   emailMessages EmailMessage[]
 
   @@index([companyId])
@@ -606,10 +654,10 @@ enum AiProvider {
 // Singleton row (fixed id "default") holding the AI provider an Admin
 // selected at runtime, so it can be switched without a redeploy.
 model AiSettings {
-  id              String     @id @default("default")
-  activeProvider  AiProvider @default(OPENAI)
-  updatedById     String?
-  updatedAt       DateTime   @updatedAt
+  id             String     @id @default("default")
+  activeProvider AiProvider @default(OPENAI)
+  updatedById    String?
+  updatedAt      DateTime   @updatedAt
 
   updatedBy User? @relation(fields: [updatedById], references: [id])
 }

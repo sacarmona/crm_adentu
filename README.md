@@ -190,6 +190,16 @@ Fase 14A completada:
 - Bandeja de correo protegida por usuario y permisos del CRM.
 - Base preparada para clasificacion comercial y agentes especializados en Fase 14B.
 
+Fase 14B completada:
+
+- Clasificacion estructurada de correos mediante el proveedor de IA activo.
+- Deteccion de relevancia, intencion, sentimiento, resumen y siguiente accion.
+- Coincidencia determinista con contactos, empresas y oportunidades del CRM.
+- Bandeja de revision humana con estados propuesto, aprobado e ignorado.
+- Creacion transaccional de interaccion y tarea solo despues de aprobar.
+- Limite de 20 analisis de correo por usuario y hora.
+- Auditoria completa de analisis y decisiones.
+
 ## Estructura inicial
 
 ```txt
@@ -284,6 +294,6 @@ AdentuDemo2026!
 
 ## Estado de implementacion
 
-Las fases 0 a 14A estan completadas. El siguiente hito es configurar las
-aplicaciones OAuth en staging y avanzar con la clasificacion comercial de
-mensajes en Fase 14B.
+Las fases 0 a 14B estan completadas. El siguiente hito es configurar las
+aplicaciones OAuth en staging, conectar un buzon controlado y validar la
+clasificacion con mensajes no sensibles.

@@ -71,6 +71,8 @@ produccion.
 5. Revisar el evento en `Configuracion > Auditoria`.
 6. Si IA esta habilitada, analizar una interaccion de prueba y revisar el
    consumo en OpenAI Platform.
+7. Conectar un buzon de prueba, sincronizar mensajes no sensibles y aprobar
+   una clasificacion comercial desde `Correo`.
 
 ## Respaldo y operacion
 

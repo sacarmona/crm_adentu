@@ -7,9 +7,47 @@ import {
   buildInteractionAnalysisPrompt,
   commercialAnalysisSchema,
 } from "@/server/services/ai-analysis";
+import {
+  buildEmailAnalysisPrompt,
+  EmailCommercialAnalysis,
+  emailCommercialAnalysisSchema,
+} from "@/server/services/email-analysis";
 
 export function isAiConfigured() {
   return Boolean(env.OPENAI_API_KEY);
+}
+
+export async function analyzeCommercialEmail(
+  input: Parameters<typeof buildEmailAnalysisPrompt>[0],
+): Promise<EmailCommercialAnalysis> {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY no esta configurada.");
+  }
+
+  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const response = await openai.responses.parse({
+    model: env.OPENAI_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "Eres un clasificador prudente de correo comercial B2B. No inventes informacion ausente.",
+      },
+      { role: "user", content: buildEmailAnalysisPrompt(input) },
+    ],
+    text: {
+      format: zodTextFormat(
+        emailCommercialAnalysisSchema,
+        "commercial_email_analysis",
+      ),
+    },
+  });
+
+  if (!response.output_parsed) {
+    throw new Error("La clasificacion de correo no pudo validarse.");
+  }
+
+  return response.output_parsed;
 }
 
 export async function analyzeCommercialInteraction(

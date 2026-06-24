@@ -6,8 +6,14 @@ import {
   buildInteractionAnalysisPrompt,
   commercialAnalysisSchema,
 } from "@/server/services/ai-analysis";
+import {
+  buildEmailAnalysisPrompt,
+  EmailCommercialAnalysis,
+  emailCommercialAnalysisSchema,
+} from "@/server/services/email-analysis";
 
 const ANALYSIS_TOOL_NAME = "submit_commercial_analysis";
+const EMAIL_ANALYSIS_TOOL_NAME = "submit_email_classification";
 
 const analysisToolSchema = {
   name: ANALYSIS_TOOL_NAME,
@@ -65,6 +71,51 @@ const analysisToolSchema = {
   },
 };
 
+const emailAnalysisToolSchema = {
+  name: EMAIL_ANALYSIS_TOOL_NAME,
+  description: "Registra la clasificacion comercial estructurada del correo.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      isCommercial: { type: "boolean" as const },
+      confidence: { type: "number" as const, minimum: 0, maximum: 1 },
+      summary: { type: "string" as const },
+      intent: {
+        type: "string" as const,
+        enum: [
+          "INQUIRY",
+          "OPPORTUNITY",
+          "FOLLOW_UP",
+          "PROPOSAL",
+          "NEGOTIATION",
+          "SUPPORT",
+          "ADMINISTRATIVE",
+          "OTHER",
+        ],
+      },
+      sentiment: {
+        type: "string" as const,
+        enum: ["POSITIVE", "NEUTRAL", "NEGATIVE"],
+      },
+      suggestedNextAction: {
+        type: ["string", "null"] as unknown as "string",
+      },
+      suggestedDueDate: {
+        type: ["string", "null"] as unknown as "string",
+      },
+    },
+    required: [
+      "isCommercial",
+      "confidence",
+      "summary",
+      "intent",
+      "sentiment",
+      "suggestedNextAction",
+      "suggestedDueDate",
+    ],
+  },
+};
+
 export function isAnthropicConfigured() {
   return Boolean(env.ANTHROPIC_API_KEY);
 }
@@ -102,5 +153,36 @@ export async function analyzeCommercialInteractionWithAnthropic(
     throw new Error("La respuesta de IA no pudo validarse.");
   }
 
+  return result.data;
+}
+
+export async function analyzeCommercialEmailWithAnthropic(
+  input: Parameters<typeof buildEmailAnalysisPrompt>[0],
+): Promise<EmailCommercialAnalysis> {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY no esta configurada.");
+  }
+
+  const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const response = await anthropic.messages.create({
+    model: env.ANTHROPIC_MODEL,
+    max_tokens: 768,
+    system:
+      "Eres un clasificador prudente de correo comercial B2B. No inventes informacion ausente.",
+    messages: [{ role: "user", content: buildEmailAnalysisPrompt(input) }],
+    tools: [emailAnalysisToolSchema],
+    tool_choice: { type: "tool", name: EMAIL_ANALYSIS_TOOL_NAME },
+  });
+  const toolUse = response.content.find(
+    (block) =>
+      block.type === "tool_use" && block.name === EMAIL_ANALYSIS_TOOL_NAME,
+  );
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("La clasificacion de correo no pudo validarse.");
+  }
+  const result = emailCommercialAnalysisSchema.safeParse(toolUse.input);
+  if (!result.success) {
+    throw new Error("La clasificacion de correo no pudo validarse.");
+  }
   return result.data;
 }
