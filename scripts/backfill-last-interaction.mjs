@@ -11,35 +11,26 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg(databaseUrl),
 });
 
-async function backfill(model, relationColumn) {
-  const rows = await prisma.interaction.groupBy({
-    by: [relationColumn],
-    where: { deletedAt: null, [relationColumn]: { not: null } },
-    _max: { date: true },
-  });
-
-  let updated = 0;
-  for (const row of rows) {
-    const id = row[relationColumn];
-    const maxDate = row._max.date;
-    if (!id || !maxDate) continue;
-
-    const result = await model.updateMany({
-      where: {
-        id,
-        OR: [{ lastInteraction: null }, { lastInteraction: { lt: maxDate } }],
-      },
-      data: { lastInteraction: maxDate },
-    });
-    updated += result.count;
-  }
-  return { candidates: rows.length, updated };
+async function backfill(table, relationColumn) {
+  const result = await prisma.$executeRawUnsafe(`
+    UPDATE "${table}" AS t
+    SET "lastInteraction" = sub.max_date
+    FROM (
+      SELECT "${relationColumn}" AS id, MAX("date") AS max_date
+      FROM "Interaction"
+      WHERE "deletedAt" IS NULL AND "${relationColumn}" IS NOT NULL
+      GROUP BY "${relationColumn}"
+    ) AS sub
+    WHERE t.id = sub.id
+      AND (t."lastInteraction" IS NULL OR t."lastInteraction" < sub.max_date)
+  `);
+  return { updated: result };
 }
 
 async function main() {
-  const companies = await backfill(prisma.company, "companyId");
-  const contacts = await backfill(prisma.contact, "contactId");
-  const opportunities = await backfill(prisma.opportunity, "opportunityId");
+  const companies = await backfill("Company", "companyId");
+  const contacts = await backfill("Contact", "contactId");
+  const opportunities = await backfill("Opportunity", "opportunityId");
 
   console.log({ companies, contacts, opportunities });
 }
