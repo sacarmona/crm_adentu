@@ -50,8 +50,8 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-slate-200 bg-white lg:block">
-        <div className="flex h-16 items-center border-b border-slate-200 px-6">
+      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-slate-200 bg-white lg:flex">
+        <div className="flex h-16 shrink-0 items-center border-b border-slate-200 px-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               ADENTU
@@ -59,18 +59,20 @@ export function AppShell({
             <h1 className="text-lg font-semibold">CRM Comercial</h1>
           </div>
         </div>
-        <div className="border-b border-slate-200 px-6 py-4">
-          <p className="truncate text-sm font-medium text-slate-950">
-            {user?.name ?? "Usuario CRM"}
-          </p>
-          <p className="mt-1 truncate text-xs text-slate-500">
-            {user?.email ?? "sesion activa"}
-          </p>
-          <p className="mt-2 inline-flex rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-6 py-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-slate-950">
+              {user?.name ?? "Usuario CRM"}
+            </p>
+            <p className="truncate text-xs text-slate-500">
+              {user?.email ?? "sesion activa"}
+            </p>
+          </div>
+          <p className="shrink-0 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600">
             {user?.role ?? "LECTURA"}
           </p>
         </div>
-        <nav className="space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navigation.map((item) => (
             <Link
               className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
