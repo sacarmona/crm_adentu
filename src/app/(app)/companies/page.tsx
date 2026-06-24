@@ -4,10 +4,12 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { InlineSelectForm } from "@/components/crm/inline-select-form";
 import { Pagination } from "@/components/crm/pagination";
 import { formatDate } from "@/lib/format";
 import { companyStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { updateCompanyResponsible } from "@/server/actions/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,8 @@ export default async function CompaniesPage({
       : {}),
     ...(status ? { status } : {}),
   };
-  const [companies, total] = await Promise.all([
+  const canEdit = session?.user.role !== "LECTURA";
+  const [companies, total, users] = await Promise.all([
     prisma.company.findMany({
       where,
       include: { responsible: true },
@@ -53,6 +56,13 @@ export default async function CompaniesPage({
       take: PAGE_SIZE,
     }),
     prisma.company.count({ where }),
+    canEdit
+      ? prisma.user.findMany({
+          where: { deletedAt: null },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
@@ -121,7 +131,19 @@ export default async function CompaniesPage({
                 </td>
                 <td className="px-4 py-3">{companyStatusLabels[company.status]}</td>
                 <td className="px-4 py-3">{company.industry ?? "-"}</td>
-                <td className="px-4 py-3">{company.responsible?.name ?? "-"}</td>
+                <td className="px-4 py-3">
+                  {canEdit ? (
+                    <InlineSelectForm
+                      action={updateCompanyResponsible.bind(null, company.id)}
+                      defaultValue={company.responsibleId ?? ""}
+                      name="responsibleId"
+                      options={users.map((user) => ({ value: user.id, label: user.name }))}
+                      placeholder="Sin responsable"
+                    />
+                  ) : (
+                    company.responsible?.name ?? "-"
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <CompletenessIndicator score={company.completeness} />
                 </td>

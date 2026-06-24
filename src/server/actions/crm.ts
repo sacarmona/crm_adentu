@@ -110,6 +110,30 @@ export async function updateCompany(id: string, formData: FormData) {
   redirect(`/companies/${id}`);
 }
 
+export async function updateCompanyResponsible(id: string, formData: FormData) {
+  const user = await requireWriter();
+  const responsibleId = (formData.get("responsibleId") as string) || null;
+  const before = await prisma.company.findUnique({ where: { id } });
+  if (!before) throw new Error("La empresa ya no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.company.update({ where: { id }, data: { responsibleId } }),
+    prisma.auditLog.create({
+      data: {
+        action: "UPDATE",
+        entityType: "Company",
+        entityId: id,
+        actorId: user.id,
+        before: { responsibleId: before.responsibleId },
+        after: { responsibleId },
+      },
+    }),
+  ]);
+
+  revalidatePath("/companies");
+  revalidatePath(`/companies/${id}`);
+}
+
 export async function deleteCompany(id: string) {
   const user = await requireAdmin("Solo ADMIN puede eliminar empresas.");
   const [contacts, opportunities] = await Promise.all([
