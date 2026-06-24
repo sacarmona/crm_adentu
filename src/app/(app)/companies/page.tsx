@@ -13,12 +13,19 @@ export const dynamic = "force-dynamic";
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; status?: string }>;
+  searchParams?: Promise<{
+    q?: string;
+    status?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const params = await searchParams;
   const session = await auth();
   const q = params?.q?.trim();
   const status = params?.status as CompanyStatus | undefined;
+  const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
+  const dir = params?.dir === "asc" ? "asc" : "desc";
   const companies = await prisma.company.findMany({
     where: {
       deletedAt: null,
@@ -34,9 +41,17 @@ export default async function CompaniesPage({
       ...(status ? { status } : {}),
     },
     include: { responsible: true },
-    orderBy: { updatedAt: "desc" },
+    orderBy: sort === "lastInteraction" ? { lastInteraction: dir } : { updatedAt: "desc" },
     take: 50,
   });
+  const sortHref = (field: string) => {
+    const qs = new URLSearchParams();
+    if (q) qs.set("q", q);
+    if (status) qs.set("status", status);
+    qs.set("sort", field);
+    qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
+    return `/companies?${qs.toString()}`;
+  };
 
   return (
     <div className="space-y-5">
@@ -78,7 +93,12 @@ export default async function CompaniesPage({
               <th className="px-4 py-3">Industria</th>
               <th className="px-4 py-3">Responsable</th>
               <th className="px-4 py-3">Completitud</th>
-              <th className="px-4 py-3">Ultima interaccion</th>
+              <th className="px-4 py-3">
+                <Link className="inline-flex items-center gap-1 hover:underline" href={sortHref("lastInteraction")}>
+                  Ultima interaccion
+                  {sort === "lastInteraction" ? (dir === "asc" ? " ↑" : " ↓") : null}
+                </Link>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

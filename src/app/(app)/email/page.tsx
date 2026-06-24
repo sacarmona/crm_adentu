@@ -4,6 +4,7 @@ import {
   EmailProvider,
   UserRole,
 } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import {
   Bot,
   Check,
@@ -21,7 +22,11 @@ import { EntityHeader } from "@/components/crm/entity-header";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
-import { emailCommercialIntentLabels, emailDraftStatusLabels } from "@/lib/labels";
+import {
+  emailClassificationStatusLabels,
+  emailCommercialIntentLabels,
+  emailDraftStatusLabels,
+} from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   analyzeEmailMessage,
@@ -53,13 +58,18 @@ const providerDetails = {
 export default async function EmailPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ connected?: string; error?: string }>;
+  searchParams?: Promise<{
+    connected?: string;
+    error?: string;
+    classification?: string;
+  }>;
 }) {
   const session = await auth();
   const params = await searchParams;
   const userId = session?.user.id;
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canAnalyze = canEdit && (await isActiveProviderConfigured());
+  const classificationFilter = params?.classification;
   const connections = userId
     ? await prisma.emailConnection.findMany({
         where: { userId },
@@ -67,10 +77,19 @@ export default async function EmailPage({
         orderBy: { createdAt: "asc" },
       })
     : [];
+  const classificationWhere: Prisma.EmailMessageWhereInput =
+    classificationFilter === "NONE"
+      ? { classification: null }
+      : classificationFilter
+        ? { classification: { status: classificationFilter as EmailClassificationStatus } }
+        : {};
   const messages =
     connections.length > 0
       ? await prisma.emailMessage.findMany({
-          where: { connectionId: { in: connections.map(({ id }) => id) } },
+          where: {
+            connectionId: { in: connections.map(({ id }) => id) },
+            ...classificationWhere,
+          },
           include: {
             connection: true,
             classification: { include: { discardRule: true } },
@@ -257,6 +276,24 @@ export default async function EmailPage({
                 Revisa las propuestas antes de incorporarlas al historial comercial.
               </p>
             </div>
+            <form className="flex items-center gap-2" method="get">
+              <select
+                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-xs"
+                defaultValue={classificationFilter ?? ""}
+                name="classification"
+              >
+                <option value="">Todas las clasificaciones</option>
+                <option value="NONE">Sin analizar</option>
+                {Object.values(EmailClassificationStatus).map((value) => (
+                  <option key={value} value={value}>
+                    {emailClassificationStatusLabels[value]}
+                  </option>
+                ))}
+              </select>
+              <button className="h-9 rounded-md bg-slate-950 px-3 text-xs font-medium text-white">
+                Filtrar
+              </button>
+            </form>
             {canAnalyze ? (
               <div className="flex gap-2">
                 <Button asChild size="sm" variant="outline">

@@ -15,37 +15,46 @@ export const dynamic = "force-dynamic";
 export default async function InteractionsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; type?: string }>;
+  searchParams?: Promise<{ q?: string; type?: string; serviceId?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
   const q = params?.q?.trim();
   const type = params?.type as InteractionType | undefined;
-  const interactions = await prisma.interaction.findMany({
-    where: {
-      deletedAt: null,
-      ...(type ? { type } : {}),
-      ...(q
-        ? {
-            OR: [
-              { content: { contains: q, mode: "insensitive" } },
-              { company: { name: { contains: q, mode: "insensitive" } } },
-              { contact: { name: { contains: q, mode: "insensitive" } } },
-              { opportunity: { name: { contains: q, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-    },
-    include: {
-      company: true,
-      contact: true,
-      opportunity: true,
-      executedBy: true,
-      service: true,
-    },
-    orderBy: { date: "desc" },
-    take: 100,
-  });
+  const serviceId = params?.serviceId;
+  const [interactions, services] = await Promise.all([
+    prisma.interaction.findMany({
+      where: {
+        deletedAt: null,
+        ...(type ? { type } : {}),
+        ...(serviceId ? { serviceId } : {}),
+        ...(q
+          ? {
+              OR: [
+                { content: { contains: q, mode: "insensitive" } },
+                { company: { name: { contains: q, mode: "insensitive" } } },
+                { contact: { name: { contains: q, mode: "insensitive" } } },
+                { opportunity: { name: { contains: q, mode: "insensitive" } } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        company: true,
+        contact: true,
+        opportunity: true,
+        executedBy: true,
+        service: true,
+      },
+      orderBy: { date: "desc" },
+      take: 100,
+    }),
+    prisma.service.findMany({
+      where: { deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canAnalyze = canEdit && isAiConfigured();
 
@@ -57,7 +66,7 @@ export default async function InteractionsPage({
         description="Historial cronologico de reuniones, llamadas, mensajes, propuestas y seguimientos."
         title="Interacciones"
       />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_240px_auto]">
+      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_200px_200px_auto]">
         <input
           className="h-10 rounded-md border border-slate-300 px-3 text-sm"
           defaultValue={q}
@@ -73,6 +82,18 @@ export default async function InteractionsPage({
           {Object.values(InteractionType).map((value) => (
             <option key={value} value={value}>
               {interactionTypeLabels[value]}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          defaultValue={serviceId ?? ""}
+          name="serviceId"
+        >
+          <option value="">Todos los servicios</option>
+          {services.map((service) => (
+            <option key={service.id} value={service.id}>
+              {service.name}
             </option>
           ))}
         </select>
