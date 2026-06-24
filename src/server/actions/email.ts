@@ -104,14 +104,14 @@ export async function approveEmailClassification(
 
   const resolution = formData
     ? emailClassificationResolutionSchema.parse({
-        companyId: formData.get("companyId"),
-        newCompanyName: formData.get("newCompanyName"),
-        contactId: formData.get("contactId"),
-        newContactName: formData.get("newContactName"),
-        newContactEmail: formData.get("newContactEmail"),
-        opportunityId: formData.get("opportunityId"),
-        newOpportunityName: formData.get("newOpportunityName"),
-        newOpportunityServiceId: formData.get("newOpportunityServiceId"),
+        companyId: formData.get("companyId") ?? undefined,
+        newCompanyName: formData.get("newCompanyName") ?? undefined,
+        contactId: formData.get("contactId") ?? undefined,
+        newContactName: formData.get("newContactName") ?? undefined,
+        newContactEmail: formData.get("newContactEmail") ?? undefined,
+        opportunityId: formData.get("opportunityId") ?? undefined,
+        newOpportunityName: formData.get("newOpportunityName") ?? undefined,
+        newOpportunityServiceId: formData.get("newOpportunityServiceId") ?? undefined,
       })
     : null;
 
