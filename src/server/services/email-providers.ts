@@ -2,6 +2,10 @@ import { EmailDirection, EmailProvider } from "@prisma/client";
 
 import { env } from "@/lib/env";
 import { decryptEmailToken, encryptEmailToken } from "@/server/services/email-crypto";
+import {
+  fetchProviderWithRetry,
+  mapInBatches,
+} from "@/server/services/provider-request";
 
 export type NormalizedEmailMessage = {
   providerMessageId: string;
@@ -270,9 +274,11 @@ async function gmailMessages(accessToken: string, mailbox: string) {
   }
   const list = (await listResponse.json()) as { messages?: { id: string }[] };
 
-  return Promise.all(
-    (list.messages ?? []).map(async ({ id }) => {
-      const response = await fetch(
+  return mapInBatches(
+    list.messages ?? [],
+    5,
+    async ({ id }) => {
+      const response = await fetchProviderWithRetry(
         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`,
         { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
       );
@@ -313,7 +319,7 @@ async function gmailMessages(accessToken: string, mailbox: string) {
           : new Date(Number(message.internalDate ?? Date.now())),
         isRead: !(message.labelIds ?? []).includes("UNREAD"),
       } satisfies NormalizedEmailMessage;
-    }),
+    },
   );
 }
 

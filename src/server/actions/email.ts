@@ -21,7 +21,11 @@ import { synchronizeEmailConnection } from "@/server/services/email-sync";
 
 export async function syncEmailConnection(connectionId: string) {
   const user = await requireWriter("No tienes permisos para sincronizar correo.");
-  await synchronizeEmailConnection(connectionId, user.id);
+  try {
+    await synchronizeEmailConnection(connectionId, user.id);
+  } catch {
+    // The sync service persists a safe operational error for display.
+  }
   revalidatePath("/email");
 }
 
