@@ -17,7 +17,7 @@ const protectedPrefixes = [
 ];
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const isProtected = protectedPrefixes.some((prefix) =>
     pathname.startsWith(prefix),
   );
@@ -26,10 +26,26 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  });
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
+  let token = null;
+  let tokenError: string | null = null;
+  try {
+    token = await getToken({ req: request, secret });
+  } catch (err) {
+    tokenError = err instanceof Error ? err.message : String(err);
+  }
+
+  if (searchParams.get("__authdebug") === "1") {
+    return NextResponse.json({
+      hasSecret: Boolean(secret),
+      secretLength: secret?.length ?? 0,
+      hasCookieHeader: Boolean(request.headers.get("cookie")),
+      cookieNames: request.cookies.getAll().map((c) => c.name),
+      tokenFound: Boolean(token),
+      tokenError,
+    });
+  }
 
   if (token) {
     return NextResponse.next();
