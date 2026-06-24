@@ -10,6 +10,8 @@ import {
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { normalizeName } from "@/lib/normalize";
+import { emailClassificationResolutionSchema } from "@/schemas/crm";
 import { requireWriter } from "@/server/authz";
 import {
   classifyEmailMessage,
@@ -80,7 +82,10 @@ export async function analyzePendingEmails() {
   revalidatePath("/email");
 }
 
-export async function approveEmailClassification(classificationId: string) {
+export async function approveEmailClassification(
+  classificationId: string,
+  formData?: FormData,
+) {
   const user = await requireWriter("No tienes permisos para aprobar correo.");
   const classification = await prisma.emailClassification.findFirst({
     where: {
@@ -97,15 +102,93 @@ export async function approveEmailClassification(classificationId: string) {
     throw new Error("Un correo no comercial debe marcarse como ignorado.");
   }
 
+  const resolution = formData
+    ? emailClassificationResolutionSchema.parse({
+        companyId: formData.get("companyId"),
+        newCompanyName: formData.get("newCompanyName"),
+        contactId: formData.get("contactId"),
+        newContactName: formData.get("newContactName"),
+        newContactEmail: formData.get("newContactEmail"),
+        opportunityId: formData.get("opportunityId"),
+        newOpportunityName: formData.get("newOpportunityName"),
+        newOpportunityServiceId: formData.get("newOpportunityServiceId"),
+      })
+    : null;
+
   await prisma.$transaction(async (tx) => {
+    let companyId = resolution?.companyId ?? classification.matchedCompanyId;
+    let contactId = resolution?.contactId ?? classification.matchedContactId;
+    let opportunityId =
+      resolution?.opportunityId ?? classification.matchedOpportunityId;
+
+    if (!companyId && resolution?.newCompanyName) {
+      const company = await tx.company.create({
+        data: {
+          name: resolution.newCompanyName,
+          normalizedName: normalizeName(resolution.newCompanyName),
+        },
+      });
+      companyId = company.id;
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.CREATE,
+          entityType: "Company",
+          entityId: company.id,
+          actorId: user.id,
+          after: { name: company.name, source: "email-classification" },
+        },
+      });
+    }
+
+    if (!contactId && resolution?.newContactName) {
+      const contact = await tx.contact.create({
+        data: {
+          name: resolution.newContactName,
+          email: resolution.newContactEmail ?? classification.emailMessage.fromAddress,
+          companyId,
+        },
+      });
+      contactId = contact.id;
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.CREATE,
+          entityType: "Contact",
+          entityId: contact.id,
+          actorId: user.id,
+          after: { name: contact.name, source: "email-classification" },
+        },
+      });
+    }
+
+    if (!opportunityId && resolution?.newOpportunityName) {
+      const opportunity = await tx.opportunity.create({
+        data: {
+          name: resolution.newOpportunityName,
+          companyId,
+          primaryContactId: contactId,
+          serviceId: resolution.newOpportunityServiceId,
+        },
+      });
+      opportunityId = opportunity.id;
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.CREATE,
+          entityType: "Opportunity",
+          entityId: opportunity.id,
+          actorId: user.id,
+          after: { name: opportunity.name, source: "email-classification" },
+        },
+      });
+    }
+
     const interaction = await tx.interaction.create({
       data: {
         date: classification.emailMessage.sentAt,
         type: InteractionType.EMAIL,
         content: classification.summary,
-        contactId: classification.matchedContactId,
-        companyId: classification.matchedCompanyId,
-        opportunityId: classification.matchedOpportunityId,
+        contactId,
+        companyId,
+        opportunityId,
         executedById: user.id,
         nextAction: classification.suggestedNextAction,
         nextActionDate: classification.suggestedDueDate,
@@ -121,9 +204,9 @@ export async function approveEmailClassification(classificationId: string) {
           title: classification.suggestedNextAction,
           status: TaskStatus.PENDING,
           dueDate: classification.suggestedDueDate,
-          contactId: classification.matchedContactId,
-          companyId: classification.matchedCompanyId,
-          opportunityId: classification.matchedOpportunityId,
+          contactId,
+          companyId,
+          opportunityId,
           interactionId: interaction.id,
           assignedToId: user.id,
           createdById: user.id,
@@ -140,13 +223,16 @@ export async function approveEmailClassification(classificationId: string) {
         status: EmailClassificationStatus.APPROVED,
         reviewedById: user.id,
         reviewedAt: new Date(),
+        matchedCompanyId: companyId,
+        matchedContactId: contactId,
+        matchedOpportunityId: opportunityId,
       },
     });
     await Promise.all([
-      classification.matchedContactId
+      contactId
         ? tx.contact.updateMany({
             where: {
-              id: classification.matchedContactId,
+              id: contactId,
               OR: [
                 { lastInteraction: null },
                 { lastInteraction: { lt: classification.emailMessage.sentAt } },
@@ -155,10 +241,10 @@ export async function approveEmailClassification(classificationId: string) {
             data: { lastInteraction: classification.emailMessage.sentAt },
           })
         : Promise.resolve(),
-      classification.matchedCompanyId
+      companyId
         ? tx.company.updateMany({
             where: {
-              id: classification.matchedCompanyId,
+              id: companyId,
               OR: [
                 { lastInteraction: null },
                 { lastInteraction: { lt: classification.emailMessage.sentAt } },
@@ -167,10 +253,10 @@ export async function approveEmailClassification(classificationId: string) {
             data: { lastInteraction: classification.emailMessage.sentAt },
           })
         : Promise.resolve(),
-      classification.matchedOpportunityId
+      opportunityId
         ? tx.opportunity.updateMany({
             where: {
-              id: classification.matchedOpportunityId,
+              id: opportunityId,
               OR: [
                 { lastInteraction: null },
                 { lastInteraction: { lt: classification.emailMessage.sentAt } },
@@ -179,9 +265,9 @@ export async function approveEmailClassification(classificationId: string) {
             data: { lastInteraction: classification.emailMessage.sentAt },
           })
         : Promise.resolve(),
-      classification.matchedOpportunityId && classification.suggestedDueDate
+      opportunityId && classification.suggestedDueDate
         ? tx.opportunity.update({
-            where: { id: classification.matchedOpportunityId },
+            where: { id: opportunityId },
             data: { nextActionDate: classification.suggestedDueDate },
           })
         : Promise.resolve(),
@@ -197,6 +283,7 @@ export async function approveEmailClassification(classificationId: string) {
     });
   });
   revalidatePath("/email");
+  revalidatePath(`/email/${classification.emailMessageId}`);
   revalidatePath("/interactions");
   revalidatePath("/tasks");
 }

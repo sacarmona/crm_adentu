@@ -3,29 +3,34 @@ import {
   EmailDiscardRuleType,
   EmailDraftStatus,
   EmailDirection,
+  OpportunityStatus,
   UserRole,
 } from "@prisma/client";
-import { Bot, ChevronLeft, EyeOff, ListFilter, Mail } from "lucide-react";
+import { Bot, Check, ChevronLeft, EyeOff, ListFilter, Mail } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { auth } from "@/auth";
 import { EmailDraftEditor } from "@/components/email/draft-editor";
+import { SelectField, TextField } from "@/components/crm/form-controls";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
 import { emailCommercialIntentLabels, emailDraftStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
+  approveEmailClassification,
   approveEmailDraft,
   createDiscardRuleFromMessage,
   discardEmailMessage,
   discardEmailDraft,
   generateEmailDraft,
+  ignoreEmailClassification,
   restoreDiscardedEmail,
   saveEmailDraft,
 } from "@/server/actions/email";
 import { isActiveProviderConfigured } from "@/server/services/ai-provider";
+import { findCompanyCandidates } from "@/server/services/email-agent";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +59,68 @@ export default async function EmailMessagePage({
     message.direction === EmailDirection.INBOUND &&
     Boolean(message.classification?.isCommercial) &&
     (await isActiveProviderConfigured());
+
+  const classification = message.classification;
+  const needsResolution =
+    canEdit &&
+    classification?.status === EmailClassificationStatus.PROPOSED &&
+    classification.isCommercial &&
+    (!classification.matchedCompanyId ||
+      !classification.matchedContactId ||
+      !classification.matchedOpportunityId);
+
+  type NameOption = { id: string; name: string };
+  let companyCandidates: NameOption[] = [];
+  let companies: NameOption[] = [];
+  let contacts: NameOption[] = [];
+  let opportunities: NameOption[] = [];
+  let services: NameOption[] = [];
+
+  if (needsResolution) {
+    [companyCandidates, companies, contacts, opportunities, services] =
+      await Promise.all([
+        findCompanyCandidates(message.fromAddress),
+        prisma.company.findMany({
+          where: { deletedAt: null },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        }),
+        classification?.matchedCompanyId
+          ? prisma.contact.findMany({
+              where: {
+                deletedAt: null,
+                companyId: classification.matchedCompanyId,
+              },
+              orderBy: { name: "asc" },
+              select: { id: true, name: true },
+            })
+          : prisma.contact.findMany({
+              where: { deletedAt: null },
+              orderBy: { name: "asc" },
+              take: 200,
+              select: { id: true, name: true },
+            }),
+        prisma.opportunity.findMany({
+          where: {
+            deletedAt: null,
+            status: {
+              notIn: [OpportunityStatus.WON, OpportunityStatus.LOST],
+            },
+            ...(classification?.matchedCompanyId
+              ? { companyId: classification.matchedCompanyId }
+              : {}),
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 50,
+          select: { id: true, name: true },
+        }),
+        prisma.service.findMany({
+          where: { deletedAt: null, isActive: true },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, name: true },
+        }),
+      ]);
+  }
 
   return (
     <div className="space-y-5">
@@ -157,6 +224,111 @@ export default async function EmailMessagePage({
             {emailCommercialIntentLabels[message.classification.intent]} ·{" "}
             {Math.round(Number(message.classification.confidence) * 100)}%
           </p>
+        </section>
+      ) : null}
+
+      {canEdit &&
+      classification?.status === EmailClassificationStatus.PROPOSED &&
+      classification.isCommercial ? (
+        <section className="rounded-md border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold">Asociar a CRM y aprobar</h2>
+          {needsResolution ? (
+            <p className="mt-2 text-sm text-slate-600">
+              La IA no encontro coincidencia para algunos campos. Selecciona
+              una existente o crea una nueva antes de aprobar.
+            </p>
+          ) : null}
+          <form
+            action={approveEmailClassification.bind(null, classification.id)}
+            className="mt-4 space-y-5"
+          >
+            {!classification.matchedCompanyId ? (
+              <div className="grid gap-3 rounded-md border border-slate-200 p-4 md:grid-cols-2">
+                <p className="text-sm font-medium text-slate-700 md:col-span-2">
+                  Empresa
+                </p>
+                <SelectField
+                  label="Empresa existente"
+                  name="companyId"
+                  options={companies.map((c) => ({
+                    value: c.id,
+                    label: companyCandidates.some((cand) => cand.id === c.id)
+                      ? `${c.name} (sugerido)`
+                      : c.name,
+                  }))}
+                  placeholder="Sin seleccionar"
+                />
+                <TextField label="O crear nueva empresa" name="newCompanyName" />
+              </div>
+            ) : null}
+
+            {!classification.matchedContactId ? (
+              <div className="grid gap-3 rounded-md border border-slate-200 p-4 md:grid-cols-2">
+                <p className="text-sm font-medium text-slate-700 md:col-span-2">
+                  Contacto
+                </p>
+                <SelectField
+                  label="Contacto existente"
+                  name="contactId"
+                  options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+                  placeholder="Sin seleccionar"
+                />
+                <div className="grid gap-3">
+                  <TextField
+                    defaultValue={message.fromName ?? ""}
+                    label="O crear nuevo contacto: nombre"
+                    name="newContactName"
+                  />
+                  <TextField
+                    defaultValue={message.fromAddress}
+                    label="Correo del nuevo contacto"
+                    name="newContactEmail"
+                    type="email"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {!classification.matchedOpportunityId ? (
+              <div className="grid gap-3 rounded-md border border-slate-200 p-4 md:grid-cols-2">
+                <p className="text-sm font-medium text-slate-700 md:col-span-2">
+                  Oportunidad (opcional)
+                </p>
+                <SelectField
+                  label="Oportunidad existente"
+                  name="opportunityId"
+                  options={opportunities.map((o) => ({
+                    value: o.id,
+                    label: o.name,
+                  }))}
+                  placeholder="Sin seleccionar"
+                />
+                <div className="grid gap-3">
+                  <TextField label="O crear nueva oportunidad" name="newOpportunityName" />
+                  <SelectField
+                    label="Servicio"
+                    name="newOpportunityServiceId"
+                    options={services.map((s) => ({ value: s.id, label: s.name }))}
+                    placeholder="Sin servicio"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <SubmitButton pendingLabel="Aprobando">
+              <Check className="h-4 w-4" aria-hidden />
+              Aprobar y crear interaccion
+            </SubmitButton>
+          </form>
+          <form
+            action={ignoreEmailClassification.bind(null, classification.id)}
+            className="mt-3"
+          >
+            <SubmitButton pendingLabel="Ignorando" variant="ghost">
+              <EyeOff className="h-4 w-4" aria-hidden />
+              Ignorar correo
+            </SubmitButton>
+          </form>
         </section>
       ) : null}
 

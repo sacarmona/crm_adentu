@@ -79,6 +79,17 @@ export const opportunityStageSchema = z.object({
   status: z.nativeEnum(OpportunityStatus),
 });
 
+export const emailClassificationResolutionSchema = z.object({
+  companyId: optionalText,
+  newCompanyName: optionalText,
+  contactId: optionalText,
+  newContactName: optionalText,
+  newContactEmail: optionalEmail,
+  opportunityId: optionalText,
+  newOpportunityName: optionalText,
+  newOpportunityServiceId: optionalText,
+});
+
 export const interactionSchema = z
   .object({
     date: z.string().min(1, "La fecha es obligatoria."),

@@ -469,20 +469,30 @@ export default async function EmailPage({
                         EmailClassificationStatus.PROPOSED ? (
                           <>
                             {message.classification.isCommercial ? (
-                              <form
-                                action={approveEmailClassification.bind(
-                                  null,
-                                  message.classification.id,
-                                )}
-                              >
-                                <SubmitButton
-                                  pendingLabel="Aprobando"
-                                  size="sm"
+                              message.classification.matchedCompanyId ||
+                              message.classification.matchedContactId ? (
+                                <form
+                                  action={approveEmailClassification.bind(
+                                    null,
+                                    message.classification.id,
+                                  )}
                                 >
-                                  <Check className="h-4 w-4" aria-hidden />
-                                  Aprobar
-                                </SubmitButton>
-                              </form>
+                                  <SubmitButton
+                                    pendingLabel="Aprobando"
+                                    size="sm"
+                                  >
+                                    <Check className="h-4 w-4" aria-hidden />
+                                    Aprobar
+                                  </SubmitButton>
+                                </form>
+                              ) : (
+                                <Button asChild size="sm" variant="outline">
+                                  <Link href={`/email/${message.id}`}>
+                                    <Check className="h-4 w-4" aria-hidden />
+                                    Resolver y aprobar
+                                  </Link>
+                                </Button>
+                              )
                             ) : null}
                             <form
                               action={ignoreEmailClassification.bind(

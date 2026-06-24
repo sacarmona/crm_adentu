@@ -20,6 +20,65 @@ function stringArray(value: unknown) {
     : [];
 }
 
+function extractDomain(address: string) {
+  return address.split("@")[1]?.toLowerCase().trim() ?? "";
+}
+
+async function findCompanyByDomain(domain: string) {
+  if (!domain) return null;
+  return prisma.company.findFirst({
+    where: {
+      deletedAt: null,
+      contacts: {
+        some: {
+          deletedAt: null,
+          email: { endsWith: `@${domain}`, mode: "insensitive" },
+        },
+      },
+    },
+  });
+}
+
+async function findActiveOpportunityForCompany(companyId: string) {
+  return prisma.opportunity.findFirst({
+    where: {
+      deletedAt: null,
+      companyId,
+      status: { notIn: [OpportunityStatus.WON, OpportunityStatus.LOST] },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
+/**
+ * Fuzzy candidates (domain or name match) for the manual resolution UI.
+ * Distinct from emailCrmMatch's exact-domain auto-match: these are
+ * suggestions only, never assigned without user confirmation.
+ */
+export async function findCompanyCandidates(fromAddress: string) {
+  const domain = extractDomain(fromAddress);
+  if (!domain) return [];
+  const root = domain.split(".")[0] ?? "";
+  return prisma.company.findMany({
+    where: {
+      deletedAt: null,
+      OR: [
+        {
+          contacts: {
+            some: {
+              deletedAt: null,
+              email: { endsWith: `@${domain}`, mode: "insensitive" },
+            },
+          },
+        },
+        ...(root.length >= 3 ? [{ normalizedName: { contains: root } }] : []),
+      ],
+    },
+    orderBy: { name: "asc" },
+    take: 5,
+  });
+}
+
 async function emailCrmMatch(message: {
   direction: string;
   fromAddress: string;
@@ -36,23 +95,32 @@ async function emailCrmMatch(message: {
     },
     include: { company: true },
   });
-  if (!contact) {
+  if (contact) {
+    const opportunity = await prisma.opportunity.findFirst({
+      where: {
+        deletedAt: null,
+        status: {
+          notIn: [OpportunityStatus.WON, OpportunityStatus.LOST],
+        },
+        OR: [
+          { primaryContactId: contact.id },
+          ...(contact.companyId ? [{ companyId: contact.companyId }] : []),
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    return { contact, company: contact.company, opportunity };
+  }
+
+  const primaryAddress = addresses[0];
+  const company = primaryAddress
+    ? await findCompanyByDomain(extractDomain(primaryAddress))
+    : null;
+  if (!company) {
     return { contact: null, company: null, opportunity: null };
   }
-  const opportunity = await prisma.opportunity.findFirst({
-    where: {
-      deletedAt: null,
-      status: {
-        notIn: [OpportunityStatus.WON, OpportunityStatus.LOST],
-      },
-      OR: [
-        { primaryContactId: contact.id },
-        ...(contact.companyId ? [{ companyId: contact.companyId }] : []),
-      ],
-    },
-    orderBy: { updatedAt: "desc" },
-  });
-  return { contact, company: contact.company, opportunity };
+  const opportunity = await findActiveOpportunityForCompany(company.id);
+  return { contact: null, company, opportunity };
 }
 
 export async function classifyEmailMessage(input: {
