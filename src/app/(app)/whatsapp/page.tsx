@@ -162,8 +162,8 @@ export default async function WhatsAppPage() {
       ) : null}
 
       {canEdit && configured ? (
-        <section className="rounded-md border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold">Enviar mensaje</h2>
+        <details className="group rounded-md border border-slate-200 bg-white p-5">
+          <summary className="cursor-pointer font-semibold">Enviar mensaje</summary>
           <form action={sendWhatsAppReply} className="mt-4 grid gap-3 md:grid-cols-2">
             <TextField label="Numero (con codigo de pais)" name="to" required />
             <SelectField
@@ -204,7 +204,7 @@ export default async function WhatsAppPage() {
               </SubmitButton>
             </div>
           </form>
-        </section>
+        </details>
       ) : null}
 
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
