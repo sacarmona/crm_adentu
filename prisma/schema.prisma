@@ -262,6 +262,7 @@ model EmailMessage {
   ccAddresses       Json?
   subject           String?
   snippet           String?
+  body              String?
   sentAt            DateTime
   isRead            Boolean        @default(false)
   interactionId     String?

@@ -160,7 +160,7 @@ export async function classifyEmailMessage(input: {
     fromAddress: message.fromAddress,
     toAddresses: stringArray(message.toAddresses),
     subject: message.subject,
-    snippet: message.snippet,
+    snippet: message.body ?? message.snippet,
     sentAt: message.sentAt,
     matchedContactName: match.contact?.name,
     matchedCompanyName: match.company?.name,

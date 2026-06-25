@@ -38,7 +38,7 @@ export function buildEmailAnalysisPrompt(input: {
     "Clasifica este correo para el CRM comercial de ADENTU Ingenieria.",
     "Considera comercial solo lo relacionado con clientes, prospectos, proyectos, propuestas, negociaciones, reuniones o seguimiento de oportunidades.",
     "No inventes hechos, compromisos ni fechas. Si no existe una fecha explicita o claramente inferible, suggestedDueDate debe ser null.",
-    "El resumen debe ser breve y basado exclusivamente en asunto y extracto.",
+    "El resumen debe ser breve y basado exclusivamente en asunto y contenido del correo.",
     `Direccion: ${input.direction}`,
     `Fecha: ${input.sentAt.toISOString()}`,
     `Desde: ${input.fromAddress}`,
@@ -47,7 +47,7 @@ export function buildEmailAnalysisPrompt(input: {
     `Empresa CRM coincidente: ${input.matchedCompanyName ?? "Ninguna"}`,
     `Oportunidad CRM coincidente: ${input.matchedOpportunityName ?? "Ninguna"}`,
     `Asunto: ${input.subject ?? "Sin asunto"}`,
-    `Extracto: ${input.snippet ?? "Sin extracto"}`,
+    `Contenido del correo: ${input.snippet ?? "Sin contenido"}`,
   ].join("\n");
 }
 

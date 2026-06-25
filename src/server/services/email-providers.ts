@@ -17,6 +17,7 @@ export type NormalizedEmailMessage = {
   ccAddresses: string[];
   subject?: string;
   snippet?: string;
+  body?: string;
   sentAt: Date;
   isRead: boolean;
 };
@@ -264,6 +265,63 @@ function splitAddresses(value?: string | null) {
     .filter(Boolean);
 }
 
+export function stripHtml(html: string) {
+  return html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export type GmailPart = {
+  mimeType?: string;
+  body?: { data?: string };
+  parts?: GmailPart[];
+};
+
+function decodeGmailBase64Url(data: string) {
+  return Buffer.from(data, "base64url").toString("utf-8");
+}
+
+export function extractGmailBody(payload?: GmailPart): string | undefined {
+  if (!payload) return undefined;
+
+  const collect = (part: GmailPart): { plain?: string; html?: string } => {
+    if (part.parts?.length) {
+      return part.parts.reduce<{ plain?: string; html?: string }>(
+        (acc, child) => {
+          const found = collect(child);
+          return {
+            plain: acc.plain ?? found.plain,
+            html: acc.html ?? found.html,
+          };
+        },
+        {},
+      );
+    }
+    if (!part.body?.data) return {};
+    if (part.mimeType === "text/plain") {
+      return { plain: decodeGmailBase64Url(part.body.data) };
+    }
+    if (part.mimeType === "text/html") {
+      return { html: decodeGmailBase64Url(part.body.data) };
+    }
+    return {};
+  };
+
+  const { plain, html } = collect(payload);
+  if (plain) return plain.trim();
+  if (html) return stripHtml(html);
+  return undefined;
+}
+
 async function gmailMessages(accessToken: string, mailbox: string) {
   const listResponse = await fetch(
     "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=50&q=newer_than%3A90d",
@@ -279,7 +337,7 @@ async function gmailMessages(accessToken: string, mailbox: string) {
     5,
     async ({ id }) => {
       const response = await fetchProviderWithRetry(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`,
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
         { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
       );
       if (!response.ok) {
@@ -291,7 +349,7 @@ async function gmailMessages(accessToken: string, mailbox: string) {
         snippet?: string;
         internalDate?: string;
         labelIds?: string[];
-        payload?: { headers?: { name: string; value: string }[] };
+        payload?: GmailPart & { headers?: { name: string; value: string }[] };
       };
       const headers = new Map(
         (message.payload?.headers ?? []).map((header) => [
@@ -314,6 +372,7 @@ async function gmailMessages(accessToken: string, mailbox: string) {
         ccAddresses: splitAddresses(headers.get("cc")),
         subject: headers.get("subject"),
         snippet: message.snippet,
+        body: extractGmailBody(message.payload),
         sentAt: sentAtValue
           ? new Date(sentAtValue)
           : new Date(Number(message.internalDate ?? Date.now())),
@@ -328,7 +387,7 @@ async function microsoftMessages(accessToken: string, mailbox: string) {
   url.searchParams.set("$top", "50");
   url.searchParams.set(
     "$select",
-    "id,conversationId,from,toRecipients,ccRecipients,subject,bodyPreview,receivedDateTime,sentDateTime,isRead",
+    "id,conversationId,from,toRecipients,ccRecipients,subject,bodyPreview,body,receivedDateTime,sentDateTime,isRead",
   );
   url.searchParams.set("$orderby", "receivedDateTime desc");
   const response = await fetch(url, {
@@ -347,6 +406,7 @@ async function microsoftMessages(accessToken: string, mailbox: string) {
       ccRecipients?: Array<{ emailAddress?: { address?: string } }>;
       subject?: string;
       bodyPreview?: string;
+      body?: { contentType?: string; content?: string };
       receivedDateTime?: string;
       sentDateTime?: string;
       isRead?: boolean;
@@ -372,6 +432,11 @@ async function microsoftMessages(accessToken: string, mailbox: string) {
         .filter((value): value is string => Boolean(value)),
       subject: message.subject,
       snippet: message.bodyPreview,
+      body: message.body?.content
+        ? message.body.contentType === "html"
+          ? stripHtml(message.body.content)
+          : message.body.content.trim()
+        : undefined,
       sentAt: new Date(
         message.receivedDateTime ?? message.sentDateTime ?? Date.now(),
       ),

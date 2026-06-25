@@ -153,8 +153,14 @@ export default async function EmailMessagePage({
           </span>
         </div>
         <p className="mt-5 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-          {message.snippet ?? "El proveedor no entrego un extracto."}
+          {message.body ?? message.snippet ?? "El proveedor no entrego contenido."}
         </p>
+        {!message.body && message.snippet ? (
+          <p className="mt-3 text-xs text-slate-500">
+            Solo se sincronizo un extracto corto de este mensaje. Sincroniza el
+            buzon nuevamente para intentar recuperar el contenido completo.
+          </p>
+        ) : null}
       </section>
 
       {canEdit ? (
