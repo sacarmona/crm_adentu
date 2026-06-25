@@ -7,6 +7,20 @@ const USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
 const EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/calendar.events"];
 
+// El resto del CRM trata el reloj almacenado en UTC como si fuera la hora
+// local de Chile (ver lib/format.ts APP_TIME_ZONE). Reproducimos la misma
+// convencion aqui para que el evento muestre la misma hora que el usuario
+// ingreso, en lugar de la hora UTC real.
+const APP_TIME_ZONE = "Etc/GMT+4";
+
+function toAppLocalDateTime(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return (
+    `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}` +
+    `T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`
+  );
+}
+
 export function isGoogleCalendarConfigured() {
   return Boolean(env.GMAIL_CLIENT_ID && env.GMAIL_CLIENT_SECRET);
 }
@@ -162,8 +176,8 @@ export async function createCalendarEvent(
     body: JSON.stringify({
       summary: input.summary,
       description: input.description,
-      start: { dateTime: input.start.toISOString() },
-      end: { dateTime: end.toISOString() },
+      start: { dateTime: toAppLocalDateTime(input.start), timeZone: APP_TIME_ZONE },
+      end: { dateTime: toAppLocalDateTime(end), timeZone: APP_TIME_ZONE },
     }),
     cache: "no-store",
   });
@@ -189,8 +203,8 @@ export async function updateCalendarEvent(
     body: JSON.stringify({
       summary: input.summary,
       description: input.description,
-      start: { dateTime: input.start.toISOString() },
-      end: { dateTime: end.toISOString() },
+      start: { dateTime: toAppLocalDateTime(input.start), timeZone: APP_TIME_ZONE },
+      end: { dateTime: toAppLocalDateTime(end), timeZone: APP_TIME_ZONE },
     }),
     cache: "no-store",
   });
