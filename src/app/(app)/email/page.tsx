@@ -32,6 +32,7 @@ import {
   analyzeEmailMessage,
   analyzePendingEmails,
   approveEmailClassification,
+  deleteRuleDiscardedEmails,
   disconnectEmailConnection,
   ignoreEmailClassification,
   restoreDiscardedEmail,
@@ -62,6 +63,7 @@ export default async function EmailPage({
     connected?: string;
     error?: string;
     classification?: string;
+    hideDiscarded?: string;
   }>;
 }) {
   const session = await auth();
@@ -69,7 +71,9 @@ export default async function EmailPage({
   const userId = session?.user.id;
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canAnalyze = canEdit && (await isActiveProviderConfigured());
+  const isAdmin = session?.user.role === UserRole.ADMIN;
   const classificationFilter = params?.classification;
+  const hideDiscarded = params?.hideDiscarded === "1";
   const connections = userId
     ? await prisma.emailConnection.findMany({
         where: { userId },
@@ -83,12 +87,15 @@ export default async function EmailPage({
       : classificationFilter
         ? { classification: { status: classificationFilter as EmailClassificationStatus } }
         : {};
+  const hideDiscardedWhere: Prisma.EmailMessageWhereInput = hideDiscarded
+    ? { NOT: { classification: { status: EmailClassificationStatus.IGNORED } } }
+    : {};
   const messages =
     connections.length > 0
       ? await prisma.emailMessage.findMany({
           where: {
             connectionId: { in: connections.map(({ id }) => id) },
-            ...classificationWhere,
+            AND: [classificationWhere, hideDiscardedWhere],
           },
           include: {
             connection: true,
@@ -99,6 +106,18 @@ export default async function EmailPage({
           take: 100,
         })
       : [];
+  const ruleDiscardedCount =
+    isAdmin && connections.length > 0
+      ? await prisma.emailMessage.count({
+          where: {
+            connectionId: { in: connections.map(({ id }) => id) },
+            classification: {
+              status: EmailClassificationStatus.IGNORED,
+              discardRuleId: { not: null },
+            },
+          },
+        })
+      : 0;
   const classifications = messages
     .map((message) => message.classification)
     .filter((value) => value !== null);
@@ -276,7 +295,7 @@ export default async function EmailPage({
                 Revisa las propuestas antes de incorporarlas al historial comercial.
               </p>
             </div>
-            <form className="flex items-center gap-2" method="get">
+            <form className="flex flex-wrap items-center gap-2" method="get">
               <select
                 className="h-9 rounded-md border border-slate-300 bg-white px-2 text-xs"
                 defaultValue={classificationFilter ?? ""}
@@ -290,12 +309,32 @@ export default async function EmailPage({
                   </option>
                 ))}
               </select>
+              <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                <input
+                  defaultChecked={hideDiscarded}
+                  name="hideDiscarded"
+                  type="checkbox"
+                  value="1"
+                />
+                Ocultar descartados
+              </label>
               <button className="h-9 rounded-md bg-slate-950 px-3 text-xs font-medium text-white">
                 Filtrar
               </button>
             </form>
             {canAnalyze ? (
               <div className="flex gap-2">
+                {isAdmin && ruleDiscardedCount > 0 ? (
+                  <form action={deleteRuleDiscardedEmails}>
+                    <SubmitButton
+                      pendingLabel="Eliminando"
+                      size="sm"
+                      variant="outline"
+                    >
+                      Eliminar descartados por reglas ({ruleDiscardedCount})
+                    </SubmitButton>
+                  </form>
+                ) : null}
                 <Button asChild size="sm" variant="outline">
                   <Link href="/email/rules">
                     <ListFilter className="h-4 w-4" aria-hidden />

@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { normalizeName } from "@/lib/normalize";
 import { emailClassificationResolutionSchema } from "@/schemas/crm";
-import { requireWriter } from "@/server/authz";
+import { requireAdmin, requireWriter } from "@/server/authz";
 import {
   classifyEmailMessage,
   classifyPendingEmails,
@@ -682,6 +682,47 @@ export async function restoreDiscardedEmail(messageId: string) {
   });
   revalidatePath("/email");
   revalidatePath(`/email/${messageId}`);
+}
+
+export async function deleteRuleDiscardedEmails() {
+  const user = await requireAdmin(
+    "Solo ADMIN puede eliminar correos descartados de forma permanente.",
+  );
+  const connections = await prisma.emailConnection.findMany({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+  const where = {
+    connectionId: { in: connections.map((connection) => connection.id) },
+    classification: {
+      status: EmailClassificationStatus.IGNORED,
+      discardRuleId: { not: null },
+    },
+  };
+  const toDelete = await prisma.emailMessage.findMany({
+    where,
+    select: { id: true },
+  });
+  if (toDelete.length === 0) {
+    revalidatePath("/email");
+    return;
+  }
+
+  const deleted = await prisma.emailMessage.deleteMany({ where });
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.SOFT_DELETE,
+      entityType: "EmailMessage",
+      entityId: "bulk",
+      actorId: user.id,
+      after: {
+        deleted: deleted.count,
+        reason: "rule-discarded",
+        messageIds: toDelete.map((message) => message.id),
+      },
+    },
+  });
+  revalidatePath("/email");
 }
 
 export async function toggleDiscardRule(ruleId: string) {
