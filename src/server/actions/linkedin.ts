@@ -9,6 +9,7 @@ import { linkedInCaptureSchema } from "@/schemas/crm";
 import { requireWriter } from "@/server/authz";
 import { parseLocalDateTime } from "@/server/services/activity";
 import { linkedinInteractionContent } from "@/server/services/linkedin-capture";
+import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 
 export async function createLinkedInCapture(formData: FormData) {
   const user = await requireWriter(
@@ -40,22 +41,22 @@ export async function createLinkedInCapture(formData: FormData) {
         nextActionStatus: data.nextAction ? TaskStatus.PENDING : null,
       },
     });
-    if (data.nextAction) {
-      await tx.task.create({
-        data: {
-          title: data.nextAction,
-          status: TaskStatus.PENDING,
-          dueDate: nextActionDate,
-          companyId: data.companyId,
-          contactId: data.contactId,
-          opportunityId: data.opportunityId,
-          interactionId: created.id,
-          serviceId: data.serviceId,
-          assignedToId: user.id,
-          createdById: user.id,
-        },
-      });
-    }
+    const nextActionTask = data.nextAction
+      ? await tx.task.create({
+          data: {
+            title: data.nextAction,
+            status: TaskStatus.PENDING,
+            dueDate: nextActionDate,
+            companyId: data.companyId,
+            contactId: data.contactId,
+            opportunityId: data.opportunityId,
+            interactionId: created.id,
+            serviceId: data.serviceId,
+            assignedToId: user.id,
+            createdById: user.id,
+          },
+        })
+      : null;
     await Promise.all([
       data.companyId
         ? tx.company.updateMany({
@@ -105,11 +106,15 @@ export async function createLinkedInCapture(formData: FormData) {
         },
       },
     });
-    return created;
+    return { created, nextActionTaskId: nextActionTask?.id };
   });
+
+  if (interaction.nextActionTaskId) {
+    await syncTaskCalendarEvent(interaction.nextActionTaskId);
+  }
 
   revalidatePath("/linkedin");
   revalidatePath("/interactions");
   revalidatePath("/tasks");
-  redirect(`/linkedin?created=${interaction.id}`);
+  redirect(`/linkedin?created=${interaction.created.id}`);
 }

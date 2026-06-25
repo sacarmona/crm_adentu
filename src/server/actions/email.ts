@@ -25,6 +25,7 @@ import {
   emailDiscardRuleSchema,
 } from "@/server/services/email-discard-rules";
 import { synchronizeEmailConnection } from "@/server/services/email-sync";
+import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 
 export async function syncEmailConnection(connectionId: string) {
   const user = await requireWriter("No tienes permisos para sincronizar correo.");
@@ -115,7 +116,7 @@ export async function approveEmailClassification(
       })
     : null;
 
-  await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     let companyId = resolution?.companyId ?? classification.matchedCompanyId;
     let contactId = resolution?.contactId ?? classification.matchedContactId;
     let opportunityId =
@@ -217,21 +218,21 @@ export async function approveEmailClassification(
           : null,
       },
     });
-    if (classification.suggestedNextAction) {
-      await tx.task.create({
-        data: {
-          title: classification.suggestedNextAction,
-          status: TaskStatus.PENDING,
-          dueDate: classification.suggestedDueDate,
-          contactId,
-          companyId,
-          opportunityId,
-          interactionId: interaction.id,
-          assignedToId: user.id,
-          createdById: user.id,
-        },
-      });
-    }
+    const task = classification.suggestedNextAction
+      ? await tx.task.create({
+          data: {
+            title: classification.suggestedNextAction,
+            status: TaskStatus.PENDING,
+            dueDate: classification.suggestedDueDate,
+            contactId,
+            companyId,
+            opportunityId,
+            interactionId: interaction.id,
+            assignedToId: user.id,
+            createdById: user.id,
+          },
+        })
+      : null;
     await tx.emailMessage.update({
       where: { id: classification.emailMessageId },
       data: { interactionId: interaction.id },
@@ -300,7 +301,13 @@ export async function approveEmailClassification(
         after: { interactionId: interaction.id },
       },
     });
+    return { taskId: task?.id };
   });
+
+  if (result.taskId) {
+    await syncTaskCalendarEvent(result.taskId);
+  }
+
   revalidatePath("/email");
   revalidatePath(`/email/${classification.emailMessageId}`);
   revalidatePath("/interactions");

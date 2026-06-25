@@ -7,6 +7,7 @@ import { normalizeName } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import { emailClassificationResolutionSchema } from "@/schemas/crm";
 import { requireWriter } from "@/server/authz";
+import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 import { analyzeWhatsAppThread } from "@/server/services/whatsapp-agent";
 import { sendWhatsAppTextMessage } from "@/server/services/whatsapp-client";
 
@@ -388,7 +389,7 @@ export async function confirmWhatsAppTask(phoneNumber: string) {
     throw new Error("El analisis no sugiere una proxima accion.");
   }
 
-  await prisma.$transaction(async (tx) => {
+  const taskId = await prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
       data: {
         title: analysis.suggestedNextAction!,
@@ -416,7 +417,11 @@ export async function confirmWhatsAppTask(phoneNumber: string) {
         after: { taskId: task.id },
       },
     });
+
+    return task.id;
   });
+
+  await syncTaskCalendarEvent(taskId);
 
   revalidatePath("/whatsapp");
   revalidatePath("/tasks");
