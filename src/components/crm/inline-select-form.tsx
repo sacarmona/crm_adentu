@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 
 export function InlineSelectForm({
   action,
@@ -16,6 +16,13 @@ export function InlineSelectForm({
   placeholder: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [value, setValue] = useState(defaultValue);
+  const [trackedDefault, setTrackedDefault] = useState(defaultValue);
+
+  if (defaultValue !== trackedDefault) {
+    setTrackedDefault(defaultValue);
+    setValue(defaultValue);
+  }
 
   return (
     <form
@@ -23,10 +30,13 @@ export function InlineSelectForm({
     >
       <select
         className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-xs disabled:opacity-60"
-        defaultValue={defaultValue}
         disabled={isPending}
         name={name}
-        onChange={(event) => event.currentTarget.form?.requestSubmit()}
+        onChange={(event) => {
+          setValue(event.currentTarget.value);
+          event.currentTarget.form?.requestSubmit();
+        }}
+        value={value}
       >
         <option value="">{placeholder}</option>
         {options.map((option) => (

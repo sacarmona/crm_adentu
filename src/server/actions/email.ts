@@ -122,42 +122,61 @@ export async function approveEmailClassification(
       resolution?.opportunityId ?? classification.matchedOpportunityId;
 
     if (!companyId && resolution?.newCompanyName) {
-      const company = await tx.company.create({
-        data: {
-          name: resolution.newCompanyName,
-          normalizedName: normalizeName(resolution.newCompanyName),
-        },
+      const normalizedName = normalizeName(resolution.newCompanyName);
+      const existingCompany = await tx.company.findFirst({
+        where: { deletedAt: null, normalizedName },
       });
-      companyId = company.id;
-      await tx.auditLog.create({
-        data: {
-          action: AuditAction.CREATE,
-          entityType: "Company",
-          entityId: company.id,
-          actorId: user.id,
-          after: { name: company.name, source: "email-classification" },
-        },
-      });
+      companyId = existingCompany
+        ? existingCompany.id
+        : (
+            await tx.company.create({
+              data: { name: resolution.newCompanyName, normalizedName },
+            })
+          ).id;
+      if (!existingCompany) {
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.CREATE,
+            entityType: "Company",
+            entityId: companyId,
+            actorId: user.id,
+            after: { name: resolution.newCompanyName, source: "email-classification" },
+          },
+        });
+      }
     }
 
     if (!contactId && resolution?.newContactName) {
-      const contact = await tx.contact.create({
-        data: {
-          name: resolution.newContactName,
-          email: resolution.newContactEmail ?? classification.emailMessage.fromAddress,
-          companyId,
+      const newContactEmail =
+        resolution.newContactEmail ?? classification.emailMessage.fromAddress;
+      const existingContact = await tx.contact.findFirst({
+        where: {
+          deletedAt: null,
+          email: { equals: newContactEmail, mode: "insensitive" },
+          ...(companyId ? { companyId } : {}),
         },
       });
-      contactId = contact.id;
-      await tx.auditLog.create({
-        data: {
-          action: AuditAction.CREATE,
-          entityType: "Contact",
-          entityId: contact.id,
-          actorId: user.id,
-          after: { name: contact.name, source: "email-classification" },
-        },
-      });
+      if (existingContact) {
+        contactId = existingContact.id;
+      } else {
+        const contact = await tx.contact.create({
+          data: {
+            name: resolution.newContactName,
+            email: newContactEmail,
+            companyId,
+          },
+        });
+        contactId = contact.id;
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.CREATE,
+            entityType: "Contact",
+            entityId: contact.id,
+            actorId: user.id,
+            after: { name: contact.name, source: "email-classification" },
+          },
+        });
+      }
     }
 
     if (!opportunityId && resolution?.newOpportunityName) {
