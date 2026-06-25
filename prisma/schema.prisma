@@ -223,6 +223,7 @@ model User {
   commercialMilestones         CommercialMilestone[] @relation("MilestoneOwner")
   aiSettingsUpdates            AiSettings[]
   emailConnections             EmailConnection[]
+  reviewedWhatsAppMessages     WhatsAppMessage[]     @relation("WhatsAppMessageReviewer")
 
   @@index([email])
   @@index([role])
@@ -347,6 +348,47 @@ model EmailDiscardRule {
   @@unique([userId, type, value, direction])
   @@index([userId, isActive])
   @@index([type])
+}
+
+enum WhatsAppDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WhatsAppMessageStatus {
+  PENDING
+  LINKED
+  IGNORED
+}
+
+model WhatsAppMessage {
+  id                   String                @id @default(uuid())
+  waMessageId          String                @unique
+  direction            WhatsAppDirection
+  fromNumber           String
+  toNumber             String
+  contactName          String?
+  body                 String?
+  mediaType            String?
+  mediaId              String?
+  timestamp            DateTime
+  status               WhatsAppMessageStatus @default(PENDING)
+  matchedContactId     String?
+  matchedCompanyId     String?
+  matchedOpportunityId String?
+  interactionId        String?
+  reviewedById         String?
+  reviewedAt           DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  interaction Interaction? @relation(fields: [interactionId], references: [id])
+  reviewedBy  User?        @relation("WhatsAppMessageReviewer", fields: [reviewedById], references: [id])
+
+  @@index([fromNumber])
+  @@index([timestamp])
+  @@index([status])
+  @@index([interactionId])
 }
 
 model Account {
@@ -528,15 +570,16 @@ model Interaction {
   updatedAt         DateTime        @updatedAt
   deletedAt         DateTime?
 
-  contact       Contact?       @relation(fields: [contactId], references: [id])
-  opportunity   Opportunity?   @relation(fields: [opportunityId], references: [id])
-  company       Company?       @relation(fields: [companyId], references: [id])
-  executedBy    User?          @relation("InteractionExecutor", fields: [executedById], references: [id])
-  service       Service?       @relation(fields: [serviceId], references: [id])
-  tasks         Task[]
-  aiInsights    AiInsight[]
-  attachments   Attachment[]
-  emailMessages EmailMessage[]
+  contact          Contact?          @relation(fields: [contactId], references: [id])
+  opportunity      Opportunity?      @relation(fields: [opportunityId], references: [id])
+  company          Company?          @relation(fields: [companyId], references: [id])
+  executedBy       User?             @relation("InteractionExecutor", fields: [executedById], references: [id])
+  service          Service?          @relation(fields: [serviceId], references: [id])
+  tasks            Task[]
+  aiInsights       AiInsight[]
+  attachments      Attachment[]
+  emailMessages    EmailMessage[]
+  whatsAppMessages WhatsAppMessage[]
 
   @@index([companyId])
   @@index([contactId])

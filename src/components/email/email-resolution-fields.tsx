@@ -18,6 +18,7 @@ export function EmailResolutionFields({
   showOpportunity,
   opportunities,
   services,
+  showContactEmailField = true,
 }: {
   showCompany: boolean;
   companies: Option[];
@@ -29,6 +30,7 @@ export function EmailResolutionFields({
   showOpportunity: boolean;
   opportunities: ScopedOption[];
   services: Option[];
+  showContactEmailField?: boolean;
 }) {
   const [companyId, setCompanyId] = useState("");
 
@@ -103,12 +105,14 @@ export function EmailResolutionFields({
               label="O crear nuevo contacto: nombre"
               name="newContactName"
             />
-            <TextField
-              defaultValue={defaultContactEmail}
-              label="Correo del nuevo contacto"
-              name="newContactEmail"
-              type="email"
-            />
+            {showContactEmailField ? (
+              <TextField
+                defaultValue={defaultContactEmail}
+                label="Correo del nuevo contacto"
+                name="newContactEmail"
+                type="email"
+              />
+            ) : null}
           </div>
         </div>
       ) : null}

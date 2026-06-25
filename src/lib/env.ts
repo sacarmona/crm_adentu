@@ -30,6 +30,12 @@ const envSchema = z.object({
   MICROSOFT_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_TENANT_ID: z.string().default("common"),
   CRON_SECRET: z.string().optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_APP_SECRET: z.string().optional(),
+  WHATSAPP_API_VERSION: z.string().default("v21.0"),
   EMAIL_AUTO_CLASSIFY: z.preprocess(
     (value) => {
       const normalized = unquote(value);
@@ -62,6 +68,12 @@ export const env = envSchema.parse({
   MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET,
   MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID,
   CRON_SECRET: process.env.CRON_SECRET,
+  WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN,
+  WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
+  WHATSAPP_BUSINESS_ACCOUNT_ID: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
+  WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
+  WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET,
+  WHATSAPP_API_VERSION: process.env.WHATSAPP_API_VERSION,
   EMAIL_AUTO_CLASSIFY: process.env.EMAIL_AUTO_CLASSIFY,
   EMAIL_AUTO_CLASSIFY_LIMIT: process.env.EMAIL_AUTO_CLASSIFY_LIMIT,
 });
