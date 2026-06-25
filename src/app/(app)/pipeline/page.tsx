@@ -17,7 +17,12 @@ export default async function PipelinePage({
 }) {
   const session = await auth();
   const params = await searchParams;
-  const responsibleId = params?.responsibleId || undefined;
+  const hasFilters = Boolean(
+    params && ("responsibleId" in params || "serviceId" in params),
+  );
+  const responsibleId = hasFilters
+    ? params?.responsibleId || undefined
+    : session?.user.id;
   const serviceId = params?.serviceId || undefined;
   const canEdit =
     session?.user.role === UserRole.ADMIN ||

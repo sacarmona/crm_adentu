@@ -72,8 +72,11 @@ export default async function EmailPage({
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canAnalyze = canEdit && (await isActiveProviderConfigured());
   const isAdmin = session?.user.role === UserRole.ADMIN;
-  const classificationFilter = params?.classification;
-  const hideDiscarded = params?.hideDiscarded === "1";
+  const hasSyncFilters = Boolean(
+    params && ("classification" in params || "hideDiscarded" in params),
+  );
+  const classificationFilter = hasSyncFilters ? params?.classification : "NONE";
+  const hideDiscarded = hasSyncFilters ? params?.hideDiscarded === "1" : true;
   const connections = userId
     ? await prisma.emailConnection.findMany({
         where: { userId },

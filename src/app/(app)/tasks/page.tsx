@@ -38,9 +38,15 @@ export default async function TasksPage({
 }) {
   const session = await auth();
   const params = await searchParams;
-  const status = params?.status as TaskStatus | undefined;
+  const hasFilters = Boolean(
+    params && ("status" in params || "assignedToId" in params || "scope" in params),
+  );
+  const status = (hasFilters ? params?.status : TaskStatus.PENDING) as
+    | TaskStatus
+    | undefined;
+  const scope = hasFilters ? params?.scope : "mine";
   const assignedToId =
-    params?.scope === "mine" ? session?.user.id : params?.assignedToId;
+    scope === "mine" ? session?.user.id : params?.assignedToId;
   const [tasks, users] = await Promise.all([
     prisma.task.findMany({
       where: {
@@ -101,7 +107,7 @@ export default async function TasksPage({
         </select>
         <select
           className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
-          defaultValue={params?.scope ?? ""}
+          defaultValue={scope ?? ""}
           name="scope"
         >
           <option value="">Todo el equipo</option>
