@@ -4,12 +4,13 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { InlineSelectForm } from "@/components/crm/inline-select-form";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { taskStatusLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
-import { changeTaskStatus } from "@/server/actions/activity";
+import { changeTaskStatus, updateTaskAssignee } from "@/server/actions/activity";
 import { isOverdueTask } from "@/server/services/activity";
 
 export const dynamic = "force-dynamic";
@@ -129,10 +130,22 @@ export default async function TasksPage({
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Limite: {formatDateTime(task.dueDate)} · Responsable:{" "}
-                    {task.assignedTo?.name ?? "Sin asignar"}
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                    <span>Limite: {formatDateTime(task.dueDate)} · Responsable:</span>
+                    {canEdit ? (
+                      <div className="w-44">
+                        <InlineSelectForm
+                          action={updateTaskAssignee.bind(null, task.id)}
+                          defaultValue={task.assignedToId ?? ""}
+                          name="assignedToId"
+                          options={users.map((user) => ({ value: user.id, label: user.name }))}
+                          placeholder="Sin asignar"
+                        />
+                      </div>
+                    ) : (
+                      <span>{task.assignedTo?.name ?? "Sin asignar"}</span>
+                    )}
+                  </div>
                   {task.description ? (
                     <p className="mt-2 text-sm text-slate-700">
                       {task.description}

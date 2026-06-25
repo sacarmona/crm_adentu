@@ -314,6 +314,31 @@ export async function changeTaskStatus(formData: FormData) {
   activityPaths(before).forEach((path) => revalidatePath(path));
 }
 
+export async function updateTaskAssignee(id: string, formData: FormData) {
+  const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
+  const assignedToId = (formData.get("assignedToId") as string) || null;
+  const before = await prisma.task.findFirst({
+    where: { id, deletedAt: null },
+  });
+  if (!before) throw new Error("La tarea ya no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.task.update({ where: { id }, data: { assignedToId } }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "Task",
+        entityId: id,
+        actorId: user.id,
+        before: { assignedToId: before.assignedToId },
+        after: { assignedToId },
+      },
+    }),
+  ]);
+
+  revalidatePath("/tasks");
+}
+
 export async function deleteInteraction(id: string) {
   const user = await requireAdmin("Solo ADMIN puede eliminar interacciones.");
   const before = await prisma.interaction.findFirst({
