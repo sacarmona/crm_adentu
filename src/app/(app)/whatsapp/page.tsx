@@ -4,21 +4,27 @@ import {
   WhatsAppDirection,
   WhatsAppMessageStatus,
 } from "@prisma/client";
-import { Check, EyeOff, MessageCircle, Send } from "lucide-react";
+import { Bot, Check, EyeOff, ListFilter, MessageCircle, Send, ShieldOff } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { SelectField, TextField } from "@/components/crm/form-controls";
 import { EmailResolutionFields } from "@/components/email/email-resolution-fields";
+import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
+import { commercialSentimentLabels, emailCommercialIntentLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
+  analyzeWhatsAppConversation,
   approveWhatsAppMessage,
+  confirmWhatsAppTask,
+  discardWhatsAppNumber,
   ignoreWhatsAppMessage,
   sendWhatsAppReply,
 } from "@/server/actions/whatsapp";
+import { isActiveProviderConfigured } from "@/server/services/ai-provider";
 import { isWhatsAppConfigured } from "@/server/services/whatsapp-client";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +80,7 @@ function groupIntoThreads(messages: WhatsAppMessageRow[]) {
 export default async function WhatsAppPage() {
   const session = await auth();
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const canAnalyze = canEdit && (await isActiveProviderConfigured());
   const configured = isWhatsAppConfigured();
 
   const messages = configured
@@ -87,6 +94,13 @@ export default async function WhatsAppPage() {
   const pendingMessages = messages.filter(
     (message) => message.status === WhatsAppMessageStatus.PENDING,
   );
+
+  const threadAnalyses = threads.length
+    ? await prisma.whatsAppThreadAnalysis.findMany({
+        where: { phoneNumber: { in: threads.map((thread) => thread.phone) } },
+      })
+    : [];
+  const analysisByPhone = new Map(threadAnalyses.map((analysis) => [analysis.phoneNumber, analysis]));
 
   const [companies, contacts, opportunities, services] = canEdit
     ? await Promise.all([
@@ -194,11 +208,21 @@ export default async function WhatsAppPage() {
       ) : null}
 
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3">
-          <h2 className="font-semibold">Conversaciones</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            {pendingMessages.length} mensajes pendientes de vincular a una empresa, contacto u oportunidad.
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div>
+            <h2 className="font-semibold">Conversaciones</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {pendingMessages.length} mensajes pendientes de vincular a una empresa, contacto u oportunidad.
+            </p>
+          </div>
+          {canEdit ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/whatsapp/rules">
+                <ListFilter className="h-4 w-4" aria-hidden />
+                Numeros descartados
+              </Link>
+            </Button>
+          ) : null}
         </div>
         <div className="divide-y divide-slate-100">
           {threads.map((thread) => (
@@ -209,12 +233,73 @@ export default async function WhatsAppPage() {
                   {thread.contactName ?? thread.phone}
                   <span className="text-xs font-normal text-slate-500">{thread.phone}</span>
                 </p>
-                {thread.pendingCount > 0 ? (
-                  <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
-                    {thread.pendingCount} {thread.pendingCount === 1 ? "pendiente" : "pendientes"}
-                  </span>
-                ) : null}
+                <div className="flex items-center gap-2">
+                  {thread.pendingCount > 0 ? (
+                    <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+                      {thread.pendingCount} {thread.pendingCount === 1 ? "pendiente" : "pendientes"}
+                    </span>
+                  ) : null}
+                  {canAnalyze ? (
+                    <form action={analyzeWhatsAppConversation.bind(null, thread.phone)}>
+                      <SubmitButton pendingLabel="Analizando" size="sm" variant="outline">
+                        <Bot className="h-4 w-4" aria-hidden />
+                        Analizar con IA
+                      </SubmitButton>
+                    </form>
+                  ) : null}
+                </div>
               </div>
+
+              {(() => {
+                const analysis = analysisByPhone.get(thread.phone);
+                if (!analysis) return null;
+                return (
+                  <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span
+                        className={`rounded-md px-2 py-1 font-semibold ${
+                          analysis.isCommercial
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {analysis.isCommercial ? "Comercial" : "No comercial"}
+                      </span>
+                      <span className="text-slate-500">
+                        {emailCommercialIntentLabels[analysis.intent]} ·{" "}
+                        {commercialSentimentLabels[analysis.sentiment]} ·{" "}
+                        {Math.round(Number(analysis.confidence) * 100)}%
+                      </span>
+                    </div>
+                    <p className="mt-2 text-slate-700">{analysis.summary}</p>
+                    {analysis.suggestedNextAction ? (
+                      <div className="mt-3 border-t border-slate-200 pt-3">
+                        <p className="text-xs text-slate-500">
+                          Proxima accion sugerida
+                          {analysis.suggestedDueDate
+                            ? ` · ${formatDateTime(analysis.suggestedDueDate)}`
+                            : ""}
+                        </p>
+                        <p className="mt-1 font-medium text-slate-800">
+                          {analysis.suggestedNextAction}
+                        </p>
+                        {analysis.taskCreatedId ? (
+                          <p className="mt-2 text-xs font-medium text-emerald-700">
+                            Tarea creada. <Link className="underline" href="/tasks">Ver tareas</Link>
+                          </p>
+                        ) : canEdit ? (
+                          <form action={confirmWhatsAppTask.bind(null, thread.phone)} className="mt-2">
+                            <SubmitButton pendingLabel="Creando" size="sm">
+                              <Check className="h-4 w-4" aria-hidden />
+                              Confirmar y crear tarea
+                            </SubmitButton>
+                          </form>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
 
               {thread.matchedCompanyId || thread.matchedContactId || thread.matchedOpportunityId ? (
                 <details className="mt-2">
@@ -295,12 +380,20 @@ export default async function WhatsAppPage() {
                                 Vincular y aprobar
                               </SubmitButton>
                             </form>
-                            <form action={ignoreWhatsAppMessage.bind(null, message.id)}>
-                              <SubmitButton pendingLabel="Ignorando" size="sm" variant="ghost">
-                                <EyeOff className="h-4 w-4" aria-hidden />
-                                Ignorar
-                              </SubmitButton>
-                            </form>
+                            <div className="flex flex-wrap gap-2">
+                              <form action={ignoreWhatsAppMessage.bind(null, message.id)}>
+                                <SubmitButton pendingLabel="Ignorando" size="sm" variant="ghost">
+                                  <EyeOff className="h-4 w-4" aria-hidden />
+                                  Ignorar
+                                </SubmitButton>
+                              </form>
+                              <form action={discardWhatsAppNumber.bind(null, message.fromNumber)}>
+                                <SubmitButton pendingLabel="Descartando" size="sm" variant="ghost">
+                                  <ShieldOff className="h-4 w-4" aria-hidden />
+                                  Descartar numero (no comercial)
+                                </SubmitButton>
+                              </form>
+                            </div>
                           </div>
                         </details>
                       ) : null}

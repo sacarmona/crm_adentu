@@ -33,12 +33,18 @@ export function buildEmailAnalysisPrompt(input: {
   matchedContactName?: string | null;
   matchedCompanyName?: string | null;
   matchedOpportunityName?: string | null;
+  channel?: "email" | "whatsapp";
 }) {
-  return [
-    "Clasifica este correo para el CRM comercial de ADENTU Ingenieria.",
+  const channel = input.channel ?? "email";
+  const lines = [
+    channel === "whatsapp"
+      ? "Clasifica esta conversacion de WhatsApp para el CRM comercial de ADENTU Ingenieria."
+      : "Clasifica este correo para el CRM comercial de ADENTU Ingenieria.",
     "Considera comercial solo lo relacionado con clientes, prospectos, proyectos, propuestas, negociaciones, reuniones o seguimiento de oportunidades.",
     "No inventes hechos, compromisos ni fechas. Si no existe una fecha explicita o claramente inferible, suggestedDueDate debe ser null.",
-    "El resumen debe ser breve y basado exclusivamente en asunto y contenido del correo.",
+    channel === "whatsapp"
+      ? "El resumen debe ser breve y basado exclusivamente en los mensajes de la conversacion."
+      : "El resumen debe ser breve y basado exclusivamente en asunto y contenido del correo.",
     `Direccion: ${input.direction}`,
     `Fecha: ${input.sentAt.toISOString()}`,
     `Desde: ${input.fromAddress}`,
@@ -46,9 +52,16 @@ export function buildEmailAnalysisPrompt(input: {
     `Contacto CRM coincidente: ${input.matchedContactName ?? "Ninguno"}`,
     `Empresa CRM coincidente: ${input.matchedCompanyName ?? "Ninguna"}`,
     `Oportunidad CRM coincidente: ${input.matchedOpportunityName ?? "Ninguna"}`,
-    `Asunto: ${input.subject ?? "Sin asunto"}`,
-    `Contenido del correo: ${input.snippet ?? "Sin contenido"}`,
-  ].join("\n");
+  ];
+  if (channel !== "whatsapp") {
+    lines.push(`Asunto: ${input.subject ?? "Sin asunto"}`);
+  }
+  lines.push(
+    channel === "whatsapp"
+      ? `Conversacion:\n${input.snippet ?? "Sin contenido"}`
+      : `Contenido del correo: ${input.snippet ?? "Sin contenido"}`,
+  );
+  return lines.join("\n");
 }
 
 export function parsedSuggestedDueDate(value: string | null) {

@@ -207,23 +207,25 @@ model User {
 
   accounts                     Account[]
   sessions                     Session[]
-  responsibleCompanies         Company[]             @relation("CompanyResponsible")
-  responsibleContacts          Contact[]             @relation("ContactResponsible")
-  responsibleOpportunities     Opportunity[]         @relation("OpportunityResponsible")
-  executedInteractions         Interaction[]         @relation("InteractionExecutor")
-  assignedTasks                Task[]                @relation("TaskAssignee")
-  createdTasks                 Task[]                @relation("TaskCreator")
-  importBatches                ImportBatch[]         @relation("ImportBatchCreator")
-  auditLogs                    AuditLog[]            @relation("AuditActor")
-  approvedAiInsights           AiInsight[]           @relation("AiInsightApprover")
-  reviewedEmailClassifications EmailClassification[] @relation("EmailClassificationReviewer")
-  reviewedEmailDrafts          EmailDraft[]          @relation("EmailDraftReviewer")
+  responsibleCompanies         Company[]                @relation("CompanyResponsible")
+  responsibleContacts          Contact[]                @relation("ContactResponsible")
+  responsibleOpportunities     Opportunity[]            @relation("OpportunityResponsible")
+  executedInteractions         Interaction[]            @relation("InteractionExecutor")
+  assignedTasks                Task[]                   @relation("TaskAssignee")
+  createdTasks                 Task[]                   @relation("TaskCreator")
+  importBatches                ImportBatch[]            @relation("ImportBatchCreator")
+  auditLogs                    AuditLog[]               @relation("AuditActor")
+  approvedAiInsights           AiInsight[]              @relation("AiInsightApprover")
+  reviewedEmailClassifications EmailClassification[]    @relation("EmailClassificationReviewer")
+  reviewedEmailDrafts          EmailDraft[]             @relation("EmailDraftReviewer")
   emailDiscardRules            EmailDiscardRule[]
-  createdPlaybooks             Playbook[]            @relation("PlaybookCreator")
-  commercialMilestones         CommercialMilestone[] @relation("MilestoneOwner")
+  createdPlaybooks             Playbook[]               @relation("PlaybookCreator")
+  commercialMilestones         CommercialMilestone[]    @relation("MilestoneOwner")
   aiSettingsUpdates            AiSettings[]
   emailConnections             EmailConnection[]
-  reviewedWhatsAppMessages     WhatsAppMessage[]     @relation("WhatsAppMessageReviewer")
+  reviewedWhatsAppMessages     WhatsAppMessage[]        @relation("WhatsAppMessageReviewer")
+  whatsAppDiscardRules         WhatsAppDiscardRule[]
+  whatsAppThreadAnalyses       WhatsAppThreadAnalysis[]
 
   @@index([email])
   @@index([role])
@@ -377,18 +379,58 @@ model WhatsAppMessage {
   matchedCompanyId     String?
   matchedOpportunityId String?
   interactionId        String?
+  discardRuleId        String?
   reviewedById         String?
   reviewedAt           DateTime?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
-  interaction Interaction? @relation(fields: [interactionId], references: [id])
-  reviewedBy  User?        @relation("WhatsAppMessageReviewer", fields: [reviewedById], references: [id])
+  interaction Interaction?         @relation(fields: [interactionId], references: [id])
+  discardRule WhatsAppDiscardRule? @relation(fields: [discardRuleId], references: [id])
+  reviewedBy  User?                @relation("WhatsAppMessageReviewer", fields: [reviewedById], references: [id])
 
   @@index([fromNumber])
   @@index([timestamp])
   @@index([status])
   @@index([interactionId])
+}
+
+model WhatsAppDiscardRule {
+  id          String   @id @default(uuid())
+  phoneNumber String   @unique
+  isActive    Boolean  @default(true)
+  matchCount  Int      @default(0)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User              @relation(fields: [createdById], references: [id])
+  messages  WhatsAppMessage[]
+
+  @@index([isActive])
+}
+
+model WhatsAppThreadAnalysis {
+  id                   String                @id @default(uuid())
+  phoneNumber          String                @unique
+  isCommercial         Boolean
+  confidence           Decimal               @db.Decimal(5, 4)
+  summary              String
+  intent               EmailCommercialIntent
+  sentiment            CommercialSentiment
+  suggestedNextAction  String?
+  suggestedDueDate     DateTime?
+  matchedContactId     String?
+  matchedCompanyId     String?
+  matchedOpportunityId String?
+  taskCreatedId        String?               @unique
+  analyzedById         String
+  analyzedAt           DateTime              @default(now())
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  analyzedBy  User  @relation(fields: [analyzedById], references: [id])
+  taskCreated Task? @relation(fields: [taskCreatedId], references: [id])
 }
 
 model Account {
@@ -608,13 +650,14 @@ model Task {
   updatedAt     DateTime   @updatedAt
   deletedAt     DateTime?
 
-  company     Company?     @relation(fields: [companyId], references: [id])
-  contact     Contact?     @relation(fields: [contactId], references: [id])
-  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
-  interaction Interaction? @relation(fields: [interactionId], references: [id])
-  service     Service?     @relation(fields: [serviceId], references: [id])
-  assignedTo  User?        @relation("TaskAssignee", fields: [assignedToId], references: [id])
-  createdBy   User?        @relation("TaskCreator", fields: [createdById], references: [id])
+  company                Company?                 @relation(fields: [companyId], references: [id])
+  contact                Contact?                 @relation(fields: [contactId], references: [id])
+  opportunity            Opportunity?             @relation(fields: [opportunityId], references: [id])
+  interaction            Interaction?             @relation(fields: [interactionId], references: [id])
+  service                Service?                 @relation(fields: [serviceId], references: [id])
+  assignedTo             User?                    @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdBy              User?                    @relation("TaskCreator", fields: [createdById], references: [id])
+  whatsAppThreadAnalyses WhatsAppThreadAnalysis[]
 
   @@index([dueDate])
   @@index([status])

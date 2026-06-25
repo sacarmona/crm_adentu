@@ -1,12 +1,13 @@
 "use server";
 
-import { AuditAction, InteractionType, WhatsAppMessageStatus } from "@prisma/client";
+import { AuditAction, InteractionType, TaskStatus, WhatsAppMessageStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { normalizeName } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import { emailClassificationResolutionSchema } from "@/schemas/crm";
 import { requireWriter } from "@/server/authz";
+import { analyzeWhatsAppThread } from "@/server/services/whatsapp-agent";
 import { sendWhatsAppTextMessage } from "@/server/services/whatsapp-client";
 
 export async function approveWhatsAppMessage(
@@ -297,4 +298,126 @@ export async function sendWhatsAppReply(formData: FormData) {
 
   revalidatePath("/whatsapp");
   revalidatePath("/interactions");
+}
+
+export async function discardWhatsAppNumber(phoneNumber: string) {
+  const user = await requireWriter("No tienes permisos para crear reglas de WhatsApp.");
+
+  const rule = await prisma.whatsAppDiscardRule.upsert({
+    where: { phoneNumber },
+    create: { phoneNumber, createdById: user.id },
+    update: { isActive: true },
+  });
+
+  const pendingMessages = await prisma.whatsAppMessage.findMany({
+    where: { fromNumber: phoneNumber, status: WhatsAppMessageStatus.PENDING },
+    select: { id: true },
+  });
+
+  await prisma.$transaction([
+    prisma.whatsAppMessage.updateMany({
+      where: { id: { in: pendingMessages.map((message) => message.id) } },
+      data: {
+        status: WhatsAppMessageStatus.IGNORED,
+        discardRuleId: rule.id,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+      },
+    }),
+    prisma.whatsAppDiscardRule.update({
+      where: { id: rule.id },
+      data: { matchCount: { increment: pendingMessages.length } },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.CREATE,
+        entityType: "WhatsAppDiscardRule",
+        entityId: rule.id,
+        actorId: user.id,
+        after: { phoneNumber, discardedMessages: pendingMessages.length },
+      },
+    }),
+  ]);
+
+  revalidatePath("/whatsapp");
+  revalidatePath("/whatsapp/rules");
+}
+
+export async function toggleWhatsAppDiscardRule(ruleId: string) {
+  const user = await requireWriter("No tienes permisos para modificar reglas de WhatsApp.");
+  const rule = await prisma.whatsAppDiscardRule.findFirst({ where: { id: ruleId } });
+  if (!rule) throw new Error("La regla no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.whatsAppDiscardRule.update({
+      where: { id: rule.id },
+      data: { isActive: !rule.isActive },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "WhatsAppDiscardRule",
+        entityId: rule.id,
+        actorId: user.id,
+        after: { isActive: !rule.isActive },
+      },
+    }),
+  ]);
+
+  revalidatePath("/whatsapp/rules");
+}
+
+export async function analyzeWhatsAppConversation(phoneNumber: string) {
+  const user = await requireWriter("No tienes permisos para analizar WhatsApp.");
+  await analyzeWhatsAppThread({ phoneNumber, actorId: user.id });
+  revalidatePath("/whatsapp");
+}
+
+export async function confirmWhatsAppTask(phoneNumber: string) {
+  const user = await requireWriter("No tienes permisos para crear tareas.");
+  const analysis = await prisma.whatsAppThreadAnalysis.findUnique({
+    where: { phoneNumber },
+  });
+  if (!analysis) {
+    throw new Error("No hay un analisis disponible para esta conversacion.");
+  }
+  if (analysis.taskCreatedId) {
+    throw new Error("Ya se creo una tarea para esta conversacion.");
+  }
+  if (!analysis.suggestedNextAction) {
+    throw new Error("El analisis no sugiere una proxima accion.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.create({
+      data: {
+        title: analysis.suggestedNextAction!,
+        status: TaskStatus.PENDING,
+        dueDate: analysis.suggestedDueDate,
+        companyId: analysis.matchedCompanyId,
+        contactId: analysis.matchedContactId,
+        opportunityId: analysis.matchedOpportunityId,
+        assignedToId: user.id,
+        createdById: user.id,
+      },
+    });
+
+    await tx.whatsAppThreadAnalysis.update({
+      where: { id: analysis.id },
+      data: { taskCreatedId: task.id },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.AI_SUGGESTION_APPROVAL,
+        entityType: "WhatsAppThreadAnalysis",
+        entityId: analysis.id,
+        actorId: user.id,
+        after: { taskId: task.id },
+      },
+    });
+  });
+
+  revalidatePath("/whatsapp");
+  revalidatePath("/tasks");
 }

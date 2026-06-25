@@ -1,6 +1,8 @@
-import { WhatsAppDirection } from "@prisma/client";
+import { WhatsAppDirection, WhatsAppMessageStatus } from "@prisma/client";
 
+import { digitsOnly } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
+import { findMatchingDiscardRule } from "@/server/services/whatsapp-discard-rules";
 
 type WhatsAppWebhookMessage = {
   id: string;
@@ -32,10 +34,6 @@ type WhatsAppWebhookPayload = {
     }>;
   }>;
 };
-
-function digitsOnly(value: string) {
-  return value.replace(/[^0-9]/g, "");
-}
 
 export async function matchContactByPhone(rawNumber: string) {
   const digits = digitsOnly(rawNumber);
@@ -122,7 +120,10 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
         if (existing) continue;
 
         const { body, mediaType, mediaId } = extractMessageContent(message);
-        const match = await matchContactByPhone(message.from);
+        const [match, discardRule] = await Promise.all([
+          matchContactByPhone(message.from),
+          findMatchingDiscardRule(message.from),
+        ]);
 
         await prisma.whatsAppMessage.create({
           data: {
@@ -137,8 +138,21 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
             timestamp: new Date(Number(message.timestamp) * 1000),
             matchedContactId: match?.id ?? null,
             matchedCompanyId: match?.companyId ?? null,
+            ...(discardRule
+              ? {
+                  status: WhatsAppMessageStatus.IGNORED,
+                  discardRuleId: discardRule.id,
+                  reviewedAt: new Date(),
+                }
+              : {}),
           },
         });
+        if (discardRule) {
+          await prisma.whatsAppDiscardRule.update({
+            where: { id: discardRule.id },
+            data: { matchCount: { increment: 1 } },
+          });
+        }
         processed += 1;
       }
     }
