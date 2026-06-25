@@ -3,14 +3,20 @@ import { Check, Circle, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { localDateTimeValue } from "@/components/activity/forms";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { InlineDateForm } from "@/components/crm/inline-date-form";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { taskStatusLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
-import { changeTaskStatus, updateTaskAssignee } from "@/server/actions/activity";
+import {
+  changeTaskStatus,
+  updateTaskAssignee,
+  updateTaskDueDate,
+} from "@/server/actions/activity";
 import { isOverdueTask } from "@/server/services/activity";
 
 export const dynamic = "force-dynamic";
@@ -131,7 +137,17 @@ export default async function TasksPage({
                     ) : null}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                    <span>Limite: {formatDateTime(task.dueDate)} · Responsable:</span>
+                    <span>Limite:</span>
+                    {canEdit ? (
+                      <InlineDateForm
+                        action={updateTaskDueDate.bind(null, task.id)}
+                        defaultValue={localDateTimeValue(task.dueDate ?? new Date())}
+                        name="dueDate"
+                      />
+                    ) : (
+                      <span>{formatDateTime(task.dueDate)}</span>
+                    )}
+                    <span>· Responsable:</span>
                     {canEdit ? (
                       <div className="w-44">
                         <InlineSelectForm
