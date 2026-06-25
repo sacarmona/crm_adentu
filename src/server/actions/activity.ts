@@ -15,6 +15,7 @@ import {
   taskExecutionFields,
 } from "@/server/services/activity";
 import { requireAdmin, requireWriter } from "@/server/authz";
+import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 
 async function assertNoActiveDependents(
   entityLabel: string,
@@ -78,22 +79,22 @@ export async function createInteraction(formData: FormData) {
       },
     });
 
-    if (data.nextAction) {
-      await tx.task.create({
-        data: {
-          title: data.nextAction,
-          status: TaskStatus.PENDING,
-          dueDate: nextActionDate,
-          companyId: data.companyId,
-          contactId: data.contactId,
-          opportunityId: data.opportunityId,
-          interactionId: created.id,
-          serviceId: data.serviceId,
-          assignedToId: user.id,
-          createdById: user.id,
-        },
-      });
-    }
+    const nextActionTask = data.nextAction
+      ? await tx.task.create({
+          data: {
+            title: data.nextAction,
+            status: TaskStatus.PENDING,
+            dueDate: nextActionDate,
+            companyId: data.companyId,
+            contactId: data.contactId,
+            opportunityId: data.opportunityId,
+            interactionId: created.id,
+            serviceId: data.serviceId,
+            assignedToId: user.id,
+            createdById: user.id,
+          },
+        })
+      : null;
 
     await Promise.all([
       data.companyId
@@ -145,11 +146,15 @@ export async function createInteraction(formData: FormData) {
       },
     });
 
-    return created;
+    return { created, nextActionTaskId: nextActionTask?.id };
   });
 
+  if (interaction.nextActionTaskId) {
+    await syncTaskCalendarEvent(interaction.nextActionTaskId);
+  }
+
   activityPaths(data).forEach((path) => revalidatePath(path));
-  redirect(`/interactions?created=${interaction.id}`);
+  redirect(`/interactions?created=${interaction.created.id}`);
 }
 
 export async function updateInteraction(id: string, formData: FormData) {
@@ -269,6 +274,8 @@ export async function createTask(formData: FormData) {
     },
   });
 
+  await syncTaskCalendarEvent(task.id);
+
   activityPaths(data).forEach((path) => revalidatePath(path));
   redirect(`/tasks?created=${task.id}`);
 }
@@ -336,6 +343,7 @@ export async function updateTaskAssignee(id: string, formData: FormData) {
     }),
   ]);
 
+  await syncTaskCalendarEvent(id);
   revalidatePath("/tasks");
 }
 
@@ -363,6 +371,7 @@ export async function updateTaskDueDate(id: string, formData: FormData) {
     }),
   ]);
 
+  await syncTaskCalendarEvent(id);
   revalidatePath("/tasks");
 }
 

@@ -1,0 +1,211 @@
+import { env } from "@/lib/env";
+import { decryptEmailToken, encryptEmailToken } from "@/server/services/email-crypto";
+
+const AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
+const EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/calendar.events"];
+
+export function isGoogleCalendarConfigured() {
+  return Boolean(env.GMAIL_CLIENT_ID && env.GMAIL_CLIENT_SECRET);
+}
+
+export function calendarAuthorizationUrl(input: { redirectUri: string; state: string }) {
+  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET) {
+    throw new Error("Google Calendar no esta configurado.");
+  }
+  const url = new URL(AUTHORIZATION_URL);
+  url.searchParams.set("client_id", env.GMAIL_CLIENT_ID);
+  url.searchParams.set("redirect_uri", input.redirectUri);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", SCOPES.join(" "));
+  url.searchParams.set("state", input.state);
+  url.searchParams.set("access_type", "offline");
+  url.searchParams.set("prompt", "consent");
+  return url;
+}
+
+export async function exchangeCalendarAuthorizationCode(input: {
+  code: string;
+  redirectUri: string;
+}) {
+  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET) {
+    throw new Error("Google Calendar no esta configurado.");
+  }
+
+  const response = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GMAIL_CLIENT_ID,
+      client_secret: env.GMAIL_CLIENT_SECRET,
+      code: input.code,
+      grant_type: "authorization_code",
+      redirect_uri: input.redirectUri,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`OAuth rechazo el codigo (${response.status}).`);
+  }
+
+  const token = (await response.json()) as {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+    scope?: string;
+  };
+  if (!token.access_token) {
+    throw new Error("OAuth no devolvio un token de acceso.");
+  }
+
+  return {
+    accessToken: token.access_token,
+    accessTokenEncrypted: encryptEmailToken(token.access_token),
+    refreshTokenEncrypted: token.refresh_token
+      ? encryptEmailToken(token.refresh_token)
+      : undefined,
+    tokenExpiresAt: token.expires_in
+      ? new Date(Date.now() + token.expires_in * 1000)
+      : undefined,
+    scope: token.scope,
+  };
+}
+
+export async function emailAddressForCalendarToken(accessToken: string) {
+  const response = await fetch(USERINFO_URL, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`No fue posible identificar la cuenta (${response.status}).`);
+  }
+  const profile = (await response.json()) as { email?: string };
+  if (!profile.email) {
+    throw new Error("Google no devolvio el correo de la cuenta.");
+  }
+  return profile.email.toLowerCase();
+}
+
+async function refreshCalendarAccessToken(refreshTokenEncrypted: string) {
+  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET) {
+    throw new Error("Google Calendar no esta configurado.");
+  }
+
+  const response = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GMAIL_CLIENT_ID,
+      client_secret: env.GMAIL_CLIENT_SECRET,
+      refresh_token: decryptEmailToken(refreshTokenEncrypted),
+      grant_type: "refresh_token",
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`No fue posible renovar el acceso (${response.status}).`);
+  }
+
+  const token = (await response.json()) as {
+    access_token: string;
+    expires_in?: number;
+  };
+  if (!token.access_token) {
+    throw new Error("Google no devolvio un token renovado.");
+  }
+
+  return {
+    accessToken: token.access_token,
+    accessTokenEncrypted: encryptEmailToken(token.access_token),
+    tokenExpiresAt: token.expires_in
+      ? new Date(Date.now() + token.expires_in * 1000)
+      : undefined,
+  };
+}
+
+export async function usableCalendarAccessToken(connection: {
+  accessTokenEncrypted: string;
+  refreshTokenEncrypted: string | null;
+  tokenExpiresAt: Date | null;
+}) {
+  const stillValid =
+    !connection.tokenExpiresAt ||
+    connection.tokenExpiresAt.getTime() > Date.now() + 60_000;
+
+  if (stillValid) {
+    return { accessToken: decryptEmailToken(connection.accessTokenEncrypted), refreshed: null };
+  }
+
+  if (!connection.refreshTokenEncrypted) {
+    throw new Error("La autorizacion de calendario expiro. Vuelve a conectarlo.");
+  }
+
+  const refreshed = await refreshCalendarAccessToken(connection.refreshTokenEncrypted);
+  return { accessToken: refreshed.accessToken, refreshed };
+}
+
+export async function createCalendarEvent(
+  accessToken: string,
+  input: { summary: string; description?: string; start: Date },
+) {
+  const end = new Date(input.start.getTime() + 30 * 60 * 1000);
+  const response = await fetch(EVENTS_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      summary: input.summary,
+      description: input.description,
+      start: { dateTime: input.start.toISOString() },
+      end: { dateTime: end.toISOString() },
+    }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Google Calendar rechazo la creacion del evento (${response.status}).`);
+  }
+  const event = (await response.json()) as { id: string };
+  return event.id;
+}
+
+export async function updateCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  input: { summary: string; description?: string; start: Date },
+) {
+  const end = new Date(input.start.getTime() + 30 * 60 * 1000);
+  const response = await fetch(`${EVENTS_URL}/${eventId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      summary: input.summary,
+      description: input.description,
+      start: { dateTime: input.start.toISOString() },
+      end: { dateTime: end.toISOString() },
+    }),
+    cache: "no-store",
+  });
+  if (!response.ok && response.status !== 404 && response.status !== 410) {
+    throw new Error(`Google Calendar rechazo la actualizacion del evento (${response.status}).`);
+  }
+}
+
+export async function deleteCalendarEvent(accessToken: string, eventId: string) {
+  const response = await fetch(`${EVENTS_URL}/${eventId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok && response.status !== 404 && response.status !== 410 && response.status !== 204) {
+    throw new Error(`Google Calendar rechazo la eliminacion del evento (${response.status}).`);
+  }
+}

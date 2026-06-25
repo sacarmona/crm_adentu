@@ -1,12 +1,14 @@
 import { AiProvider, UserRole } from "@prisma/client";
-import { BookOpen, Power, Settings2, Wrench } from "lucide-react";
+import { BookOpen, CalendarDays, Power, Settings2, Wrench } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
 import { userRoleLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { disconnectCalendarConnection } from "@/server/actions/calendar";
 import {
   toggleDictionaryValue,
   toggleService,
@@ -16,6 +18,7 @@ import { toggleUserActive } from "@/server/actions/users";
 import { getActiveAiProvider } from "@/server/services/ai-provider";
 import { isAiConfigured } from "@/server/services/openai";
 import { isAnthropicConfigured } from "@/server/services/anthropic";
+import { isGoogleCalendarConfigured } from "@/server/services/google-calendar";
 import { groupDictionaryCounts } from "@/server/services/settings";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +37,14 @@ export default async function SettingsPage({
         ? "ai"
         : params?.view === "users"
           ? "users"
-          : "services";
+          : params?.view === "calendar"
+            ? "calendar"
+            : "services";
   const canEdit = session?.user.role === UserRole.ADMIN;
+  const canConnectCalendar = session?.user.role !== UserRole.LECTURA;
+  const calendarConnection = session?.user
+    ? await prisma.calendarConnection.findUnique({ where: { userId: session.user.id } })
+    : null;
   const [services, dictionaryValues, activeProvider, users] = await Promise.all([
     prisma.service.findMany({
       where: { deletedAt: null },
@@ -132,6 +141,12 @@ export default async function SettingsPage({
         >
           Inteligencia Comercial
         </Link>
+        <Link
+          className={`px-4 py-2 text-sm font-medium ${view === "calendar" ? "border-b-2 border-slate-950" : "text-slate-500"}`}
+          href="/settings?view=calendar"
+        >
+          Calendario
+        </Link>
         {canEdit ? (
           <Link
             className={`px-4 py-2 text-sm font-medium ${view === "users" ? "border-b-2 border-slate-950" : "text-slate-500"}`}
@@ -178,6 +193,49 @@ export default async function SettingsPage({
             <p className="mt-4 text-sm text-slate-500">
               Solo ADMIN puede cambiar el proveedor activo.
             </p>
+          )}
+        </section>
+      ) : null}
+
+      {view === "calendar" ? (
+        <section className="max-w-xl rounded-md border border-slate-200 bg-white p-5">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-emerald-700" aria-hidden />
+            <h2 className="font-semibold">Google Calendar</h2>
+          </div>
+          <p className="mt-1 text-sm text-slate-600">
+            Conecta tu cuenta para que las tareas del CRM con fecha limite se
+            creen automaticamente como eventos en tu calendario personal.
+          </p>
+          {!isGoogleCalendarConfigured() ? (
+            <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Google Calendar no esta configurado. Define GMAIL_CLIENT_ID y
+              GMAIL_CLIENT_SECRET (mismo proyecto de Google usado para Correo,
+              habilitando la API de Calendar).
+            </p>
+          ) : !canConnectCalendar ? (
+            <p className="mt-4 text-sm text-slate-500">
+              Tu rol no permite conectar un calendario.
+            </p>
+          ) : calendarConnection ? (
+            <div className="mt-4 flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">{calendarConnection.emailAddress}</p>
+                <p className="text-xs text-emerald-700">Conectado</p>
+                {calendarConnection.lastError ? (
+                  <p className="mt-1 text-xs text-rose-700">{calendarConnection.lastError}</p>
+                ) : null}
+              </div>
+              <form action={disconnectCalendarConnection}>
+                <SubmitButton pendingLabel="Desconectando" size="sm" variant="outline">
+                  Desconectar
+                </SubmitButton>
+              </form>
+            </div>
+          ) : (
+            <Button asChild className="mt-4">
+              <a href="/api/calendar/oauth/google/start">Conectar Google Calendar</a>
+            </Button>
           )}
         </section>
       ) : null}
