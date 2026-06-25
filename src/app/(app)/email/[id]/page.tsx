@@ -12,7 +12,7 @@ import { notFound } from "next/navigation";
 
 import { auth } from "@/auth";
 import { EmailDraftEditor } from "@/components/email/draft-editor";
-import { SelectField, TextField } from "@/components/crm/form-controls";
+import { EmailResolutionFields } from "@/components/email/email-resolution-fields";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
@@ -70,10 +70,11 @@ export default async function EmailMessagePage({
       !classification.matchedOpportunityId);
 
   type NameOption = { id: string; name: string };
+  type ScopedOption = NameOption & { companyId: string | null };
   let companyCandidates: NameOption[] = [];
   let companies: NameOption[] = [];
-  let contacts: NameOption[] = [];
-  let opportunities: NameOption[] = [];
+  let contacts: ScopedOption[] = [];
+  let opportunities: ScopedOption[] = [];
   let services: NameOption[] = [];
 
   if (needsResolution) {
@@ -92,13 +93,12 @@ export default async function EmailMessagePage({
                 companyId: classification.matchedCompanyId,
               },
               orderBy: { name: "asc" },
-              select: { id: true, name: true },
+              select: { id: true, name: true, companyId: true },
             })
           : prisma.contact.findMany({
               where: { deletedAt: null },
               orderBy: { name: "asc" },
-              take: 200,
-              select: { id: true, name: true },
+              select: { id: true, name: true, companyId: true },
             }),
         prisma.opportunity.findMany({
           where: {
@@ -111,8 +111,7 @@ export default async function EmailMessagePage({
               : {}),
           },
           orderBy: { updatedAt: "desc" },
-          take: 50,
-          select: { id: true, name: true },
+          select: { id: true, name: true, companyId: true },
         }),
         prisma.service.findMany({
           where: { deletedAt: null, isActive: true },
@@ -248,78 +247,18 @@ export default async function EmailMessagePage({
             action={approveEmailClassification.bind(null, classification.id)}
             className="mt-4 space-y-5"
           >
-            {!classification.matchedCompanyId ? (
-              <div className="grid gap-3 rounded-md border border-slate-200 p-4 md:grid-cols-2">
-                <p className="text-sm font-medium text-slate-700 md:col-span-2">
-                  Empresa
-                </p>
-                <SelectField
-                  label="Empresa existente"
-                  name="companyId"
-                  options={companies.map((c) => ({
-                    value: c.id,
-                    label: companyCandidates.some((cand) => cand.id === c.id)
-                      ? `${c.name} (sugerido)`
-                      : c.name,
-                  }))}
-                  placeholder="Sin seleccionar"
-                />
-                <TextField label="O crear nueva empresa" name="newCompanyName" />
-              </div>
-            ) : null}
-
-            {!classification.matchedContactId ? (
-              <div className="grid gap-3 rounded-md border border-slate-200 p-4 md:grid-cols-2">
-                <p className="text-sm font-medium text-slate-700 md:col-span-2">
-                  Contacto
-                </p>
-                <SelectField
-                  label="Contacto existente"
-                  name="contactId"
-                  options={contacts.map((c) => ({ value: c.id, label: c.name }))}
-                  placeholder="Sin seleccionar"
-                />
-                <div className="grid gap-3">
-                  <TextField
-                    defaultValue={message.fromName ?? ""}
-                    label="O crear nuevo contacto: nombre"
-                    name="newContactName"
-                  />
-                  <TextField
-                    defaultValue={message.fromAddress}
-                    label="Correo del nuevo contacto"
-                    name="newContactEmail"
-                    type="email"
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            {!classification.matchedOpportunityId ? (
-              <div className="grid gap-3 rounded-md border border-slate-200 p-4 md:grid-cols-2">
-                <p className="text-sm font-medium text-slate-700 md:col-span-2">
-                  Oportunidad (opcional)
-                </p>
-                <SelectField
-                  label="Oportunidad existente"
-                  name="opportunityId"
-                  options={opportunities.map((o) => ({
-                    value: o.id,
-                    label: o.name,
-                  }))}
-                  placeholder="Sin seleccionar"
-                />
-                <div className="grid gap-3">
-                  <TextField label="O crear nueva oportunidad" name="newOpportunityName" />
-                  <SelectField
-                    label="Servicio"
-                    name="newOpportunityServiceId"
-                    options={services.map((s) => ({ value: s.id, label: s.name }))}
-                    placeholder="Sin servicio"
-                  />
-                </div>
-              </div>
-            ) : null}
+            <EmailResolutionFields
+              companies={companies}
+              contacts={contacts}
+              defaultContactEmail={message.fromAddress}
+              defaultContactName={message.fromName ?? ""}
+              opportunities={opportunities}
+              services={services}
+              showCompany={!classification.matchedCompanyId}
+              showContact={!classification.matchedContactId}
+              showOpportunity={!classification.matchedOpportunityId}
+              suggestedCompanyIds={companyCandidates.map((candidate) => candidate.id)}
+            />
 
             <SubmitButton pendingLabel="Aprobando">
               <Check className="h-4 w-4" aria-hidden />
