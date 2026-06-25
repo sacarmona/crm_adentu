@@ -8,12 +8,14 @@ export function InlineSelectForm({
   defaultValue,
   options,
   placeholder,
+  includeBlankOption = true,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   name: string;
   defaultValue: string;
   options: { value: string; label: string }[];
-  placeholder: string;
+  placeholder?: string;
+  includeBlankOption?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(defaultValue);
@@ -38,7 +40,7 @@ export function InlineSelectForm({
         }}
         value={value}
       >
-        <option value="">{placeholder}</option>
+        {includeBlankOption ? <option value="">{placeholder}</option> : null}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

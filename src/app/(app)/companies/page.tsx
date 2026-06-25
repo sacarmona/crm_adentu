@@ -9,7 +9,7 @@ import { Pagination } from "@/components/crm/pagination";
 import { formatDate } from "@/lib/format";
 import { companyStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { updateCompanyResponsible } from "@/server/actions/crm";
+import { updateCompanyResponsible, updateCompanyStatus } from "@/server/actions/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -151,7 +151,22 @@ export default async function CompaniesPage({
                     {company.name}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{companyStatusLabels[company.status]}</td>
+                <td className="px-4 py-3">
+                  {canEdit ? (
+                    <InlineSelectForm
+                      action={updateCompanyStatus.bind(null, company.id)}
+                      defaultValue={company.status}
+                      includeBlankOption={false}
+                      name="status"
+                      options={Object.values(CompanyStatus).map((value) => ({
+                        value,
+                        label: companyStatusLabels[value],
+                      }))}
+                    />
+                  ) : (
+                    companyStatusLabels[company.status]
+                  )}
+                </td>
                 <td className="px-4 py-3">{company.industry ?? "-"}</td>
                 <td className="px-4 py-3">
                   {canEdit ? (

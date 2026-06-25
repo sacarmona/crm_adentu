@@ -4,10 +4,12 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { InlineSelectForm } from "@/components/crm/inline-select-form";
 import { Pagination } from "@/components/crm/pagination";
 import { formatDate } from "@/lib/format";
 import { contactStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { updateContactStatus } from "@/server/actions/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,7 @@ export default async function ContactsPage({
 }) {
   const params = await searchParams;
   const session = await auth();
+  const canEdit = session?.user.role !== "LECTURA";
   const q = params?.q?.trim();
   const status = params?.status as ContactStatus | undefined;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
@@ -103,7 +106,22 @@ export default async function ContactsPage({
               <tr key={contact.id}>
                 <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/contacts/${contact.id}`}>{contact.name}</Link></td>
                 <td className="px-4 py-3">{contact.company?.name ?? "-"}</td>
-                <td className="px-4 py-3">{contactStatusLabels[contact.status]}</td>
+                <td className="px-4 py-3">
+                  {canEdit ? (
+                    <InlineSelectForm
+                      action={updateContactStatus.bind(null, contact.id)}
+                      defaultValue={contact.status}
+                      includeBlankOption={false}
+                      name="status"
+                      options={Object.values(ContactStatus).map((value) => ({
+                        value,
+                        label: contactStatusLabels[value],
+                      }))}
+                    />
+                  ) : (
+                    contactStatusLabels[contact.status]
+                  )}
+                </td>
                 <td className="px-4 py-3">{contact.email ?? "-"}</td>
                 <td className="px-4 py-3"><CompletenessIndicator score={contact.completeness} /></td>
                 <td className="px-4 py-3">{formatDate(contact.lastInteraction)}</td>

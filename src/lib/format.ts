@@ -29,6 +29,18 @@ export function formatDateTime(value?: Date | string | null) {
   }).format(new Date(value));
 }
 
+export function formatTime(value?: Date | string | null) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: APP_TIME_ZONE,
+  }).format(new Date(value));
+}
+
 export function formatCurrency(value: number | string, currency = "CLP") {
   const amount = Number(value);
 

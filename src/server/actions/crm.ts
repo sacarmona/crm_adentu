@@ -1,8 +1,9 @@
 "use server";
 
-import { AuditAction } from "@prisma/client";
+import { AuditAction, CompanyStatus, ContactStatus, OpportunityStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { normalizeName, nullableDate } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
@@ -132,6 +133,82 @@ export async function updateCompanyResponsible(id: string, formData: FormData) {
 
   revalidatePath("/companies");
   revalidatePath(`/companies/${id}`);
+}
+
+export async function updateCompanyStatus(id: string, formData: FormData) {
+  const user = await requireWriter();
+  const status = z.nativeEnum(CompanyStatus).parse(formData.get("status"));
+  const before = await prisma.company.findUnique({ where: { id } });
+  if (!before) throw new Error("La empresa ya no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.company.update({ where: { id }, data: { status } }),
+    prisma.auditLog.create({
+      data: {
+        action: "UPDATE",
+        entityType: "Company",
+        entityId: id,
+        actorId: user.id,
+        before: { status: before.status },
+        after: { status },
+      },
+    }),
+  ]);
+
+  revalidatePath("/companies");
+  revalidatePath(`/companies/${id}`);
+}
+
+export async function updateContactStatus(id: string, formData: FormData) {
+  const user = await requireWriter();
+  const status = z.nativeEnum(ContactStatus).parse(formData.get("status"));
+  const before = await prisma.contact.findUnique({ where: { id } });
+  if (!before) throw new Error("El contacto ya no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.contact.update({ where: { id }, data: { status } }),
+    prisma.auditLog.create({
+      data: {
+        action: "UPDATE",
+        entityType: "Contact",
+        entityId: id,
+        actorId: user.id,
+        before: { status: before.status },
+        after: { status },
+      },
+    }),
+  ]);
+
+  revalidatePath("/contacts");
+  revalidatePath(`/contacts/${id}`);
+}
+
+export async function updateOpportunityStatus(id: string, formData: FormData) {
+  const user = await requireWriter(
+    "No tienes permisos para modificar el pipeline.",
+  );
+  const status = z.nativeEnum(OpportunityStatus).parse(formData.get("status"));
+  const before = await prisma.opportunity.findUnique({ where: { id } });
+  if (!before) throw new Error("La oportunidad ya no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.opportunity.update({ where: { id }, data: { status } }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.STAGE_CHANGE,
+        entityType: "Opportunity",
+        entityId: id,
+        actorId: user.id,
+        before: { name: before.name, status: before.status },
+        after: { name: before.name, status },
+        metadata: { source: "opportunities-list" },
+      },
+    }),
+  ]);
+
+  revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${id}`);
+  revalidatePath("/pipeline");
 }
 
 export async function deleteCompany(id: string) {

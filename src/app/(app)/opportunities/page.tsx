@@ -3,10 +3,12 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { InlineSelectForm } from "@/components/crm/inline-select-form";
 import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { updateOpportunityStatus } from "@/server/actions/crm";
 import {
   FOLLOW_UP_NORMAL_DAYS,
   FOLLOW_UP_STALLED_DAYS,
@@ -72,6 +74,7 @@ export default async function OpportunitiesPage({
 }) {
   const params = await searchParams;
   const session = await auth();
+  const canEdit = session?.user.role !== "LECTURA";
   const q = params?.q?.trim();
   const status = params?.status as OpportunityStatus | undefined;
   const followUp = ["normal", "watch", "stalled", "closed"].includes(
@@ -165,7 +168,22 @@ export default async function OpportunitiesPage({
                 <tr key={opportunity.id}>
                   <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/opportunities/${opportunity.id}`}>{opportunity.name}</Link></td>
                   <td className="px-4 py-3">{opportunity.company?.name ?? "-"}</td>
-                  <td className="px-4 py-3">{opportunityStatusLabels[opportunity.status]}</td>
+                  <td className="px-4 py-3">
+                    {canEdit ? (
+                      <InlineSelectForm
+                        action={updateOpportunityStatus.bind(null, opportunity.id)}
+                        defaultValue={opportunity.status}
+                        includeBlankOption={false}
+                        name="status"
+                        options={Object.values(OpportunityStatus).map((value) => ({
+                          value,
+                          label: opportunityStatusLabels[value],
+                        }))}
+                      />
+                    ) : (
+                      opportunityStatusLabels[opportunity.status]
+                    )}
+                  </td>
                   <td className="px-4 py-3">{formatPercent(opportunity.probability.toString())}</td>
                   <td className="px-4 py-3">{formatCurrency(opportunity.totalAmount.toString())}</td>
                   <td className="px-4 py-3">
