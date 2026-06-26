@@ -53,6 +53,37 @@ export type MeetArtifactCandidate = {
   documentId?: string;
 };
 
+function stripHtml(value: string) {
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+export async function exportedArtifactText(accessToken: string, exportUri: string) {
+  const response = await fetch(exportUri, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Google Meet rechazo la descarga del artefacto (${response.status}).`);
+  }
+  const text = await response.text();
+  const contentType = response.headers.get("content-type") ?? "";
+  return contentType.includes("html") ? stripHtml(text) : text.trim();
+}
 function meetingCodeFor(meeting: Pick<CalendarMeeting, "conferenceId" | "meetingUri">) {
   if (meeting.conferenceId) return meeting.conferenceId;
   const match = meeting.meetingUri?.match(/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);

@@ -9,8 +9,10 @@ import {
   InteractionType,
   TaskStatus,
 } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+import { normalizeName } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import { requireWriter } from "@/server/authz";
 import {
@@ -20,7 +22,14 @@ import {
 import { parseLocalDateTime } from "@/server/services/activity";
 import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 import { analyzeInteractionWithActiveProvider } from "@/server/services/ai-provider";
-import { conferenceRecordForMeeting, listMeetArtifacts, transcriptText } from "@/server/services/google-meet";
+import {
+  conferenceRecordForMeeting,
+  exportedArtifactText,
+  listMeetArtifacts,
+  transcriptText,
+} from "@/server/services/google-meet";
+
+const DEFAULT_MEETING_NEXT_ACTION = "Revisar estado de Oportunidad y actualizar si fuese necesario";
 
 export async function disconnectCalendarConnection() {
   const user = await requireWriter("No tienes permisos para desconectar el calendario.");
@@ -51,6 +60,69 @@ function optionalText(value: FormDataEntryValue | null) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+function listSection(title: string, items: string[]) {
+  if (!items.length) return `${title}:\n- Sin evidencia registrada`;
+  return `${title}:\n${items.map((item) => `- ${item}`).join("\n")}`;
+}
+
+function minutesFromAnalysis(analysis: Awaited<ReturnType<typeof analyzeInteractionWithActiveProvider>>) {
+  return [
+    `Resumen:\n${analysis.summary}`,
+    listSection("Intereses / dolores detectados", analysis.customerInterests),
+    listSection("Acuerdos y compromisos", analysis.commitments),
+    listSection("Objeciones", analysis.objections),
+    listSection("Riesgos", analysis.risks),
+    listSection("Proximos pasos sugeridos", analysis.suggestedNextSteps),
+  ].join("\n\n");
+}
+
+async function resolveMeetingRelations(
+  tx: Prisma.TransactionClient,
+  input: {
+    companyId?: string | null;
+    contactId?: string | null;
+    opportunityId?: string | null;
+    serviceId?: string | null;
+    newCompanyName?: string | null;
+    newContactName?: string | null;
+    newOpportunityName?: string | null;
+  },
+) {
+  let companyId = input.companyId ?? null;
+  let contactId = input.contactId ?? null;
+  let opportunityId = input.opportunityId ?? null;
+
+  if (!companyId && input.newCompanyName) {
+    const normalizedName = normalizeName(input.newCompanyName);
+    const existing = await tx.company.findFirst({ where: { deletedAt: null, normalizedName } });
+    companyId = existing
+      ? existing.id
+      : (await tx.company.create({ data: { name: input.newCompanyName, normalizedName } })).id;
+  }
+
+  if (!contactId && input.newContactName) {
+    contactId = (
+      await tx.contact.create({
+        data: { name: input.newContactName, companyId },
+      })
+    ).id;
+  }
+
+  if (!opportunityId && input.newOpportunityName) {
+    opportunityId = (
+      await tx.opportunity.create({
+        data: {
+          name: input.newOpportunityName,
+          companyId,
+          primaryContactId: contactId,
+          serviceId: input.serviceId ?? undefined,
+        },
+      })
+    ).id;
+  }
+
+  return { companyId, contactId, opportunityId };
 }
 
 async function calendarAccessForUser(userId: string) {
@@ -150,18 +222,30 @@ export async function updateMeetingContext(meetingId: string, formData: FormData
   });
   if (!meeting) throw new Error("La reunion no esta disponible.");
 
-  await prisma.calendarMeeting.update({
-    where: { id: meeting.id },
-    data: {
+  await prisma.$transaction(async (tx) => {
+    const serviceId = optionalText(formData.get("serviceId"));
+    const relations = await resolveMeetingRelations(tx, {
       companyId: optionalText(formData.get("companyId")),
       contactId: optionalText(formData.get("contactId")),
       opportunityId: optionalText(formData.get("opportunityId")),
-      serviceId: optionalText(formData.get("serviceId")),
-      minutes: optionalText(formData.get("minutes")),
-      status: optionalText(formData.get("minutes"))
-        ? CalendarMeetingStatus.MINUTES_PENDING
-        : CalendarMeetingStatus.COMPLETED,
-    },
+      serviceId,
+      newCompanyName: optionalText(formData.get("newCompanyName")),
+      newContactName: optionalText(formData.get("newContactName")),
+      newOpportunityName: optionalText(formData.get("newOpportunityName")),
+    });
+    const minutes = optionalText(formData.get("minutes"));
+
+    await tx.calendarMeeting.update({
+      where: { id: meeting.id },
+      data: {
+        companyId: relations.companyId,
+        contactId: relations.contactId,
+        opportunityId: relations.opportunityId,
+        serviceId,
+        minutes,
+        status: minutes ? CalendarMeetingStatus.MINUTES_PENDING : CalendarMeetingStatus.COMPLETED,
+      },
+    });
   });
 
   revalidatePath("/meetings");
@@ -200,15 +284,28 @@ export async function createInteractionFromMeeting(meetingId: string, formData: 
     throw new Error("Esta reunion ya fue importada como interaccion.");
   }
 
-  const companyId = optionalText(formData.get("companyId")) ?? meeting.companyId;
-  const contactId = optionalText(formData.get("contactId")) ?? meeting.contactId;
-  const opportunityId = optionalText(formData.get("opportunityId")) ?? meeting.opportunityId;
   const serviceId = optionalText(formData.get("serviceId")) ?? meeting.serviceId;
   const minutes = optionalText(formData.get("minutes")) ?? meeting.minutes;
-  const nextAction = optionalText(formData.get("nextAction"));
+  const nextAction = optionalText(formData.get("nextAction")) ?? DEFAULT_MEETING_NEXT_ACTION;
   const nextActionDate = parseLocalDateTime(optionalText(formData.get("nextActionDate")));
+  const relationInput = {
+    companyId: optionalText(formData.get("companyId")) ?? meeting.companyId,
+    contactId: optionalText(formData.get("contactId")) ?? meeting.contactId,
+    opportunityId: optionalText(formData.get("opportunityId")) ?? meeting.opportunityId,
+    serviceId,
+    newCompanyName: optionalText(formData.get("newCompanyName")),
+    newContactName: optionalText(formData.get("newContactName")),
+    newOpportunityName: optionalText(formData.get("newOpportunityName")),
+  };
 
-  if (!companyId && !contactId && !opportunityId) {
+  if (
+    !relationInput.companyId &&
+    !relationInput.contactId &&
+    !relationInput.opportunityId &&
+    !relationInput.newCompanyName &&
+    !relationInput.newContactName &&
+    !relationInput.newOpportunityName
+  ) {
     throw new Error("Asocia la reunion a una empresa, contacto u oportunidad antes de importarla.");
   }
   if (!minutes) {
@@ -225,6 +322,7 @@ export async function createInteractionFromMeeting(meetingId: string, formData: 
     .join("\n\n");
 
   const result = await prisma.$transaction(async (tx) => {
+    const { companyId, contactId, opportunityId } = await resolveMeetingRelations(tx, relationInput);
     const interaction = await tx.interaction.create({
       data: {
         date: meeting.startsAt,
@@ -374,28 +472,64 @@ export async function discoverMeetingArtifacts(meetingId: string) {
   revalidatePath("/meetings");
 }
 
-export async function importMeetingTranscript(artifactId: string) {
-  const user = await requireWriter("No tienes permisos para importar transcripciones.");
+export async function importMeetingArtifactText(artifactId: string) {
+  const user = await requireWriter("No tienes permisos para importar artefactos de reuniones.");
   const artifact = await prisma.calendarMeetingArtifact.findFirst({
     where: {
       id: artifactId,
-      type: CalendarMeetingArtifactType.TRANSCRIPT,
+      type: { in: [CalendarMeetingArtifactType.TRANSCRIPT, CalendarMeetingArtifactType.SMART_NOTES] },
       meeting: { userId: user.id },
     },
-    include: { meeting: true },
+    include: {
+      meeting: {
+        include: {
+          company: true,
+          contact: true,
+          opportunity: true,
+          service: true,
+        },
+      },
+    },
   });
-  if (!artifact) throw new Error("La transcripcion no esta disponible.");
+  if (!artifact) throw new Error("El artefacto no esta disponible.");
 
   const accessToken = await calendarAccessForUser(user.id);
   try {
-    const text = await transcriptText(accessToken, artifact.sourceName);
-    if (!text.trim()) throw new Error("Google Meet devolvio una transcripcion vacia.");
+    const rawText =
+      artifact.type === CalendarMeetingArtifactType.TRANSCRIPT
+        ? await transcriptText(accessToken, artifact.sourceName)
+        : artifact.exportUri
+          ? await exportedArtifactText(accessToken, artifact.exportUri)
+          : null;
+    if (!rawText?.trim()) throw new Error("Google Meet devolvio un artefacto vacio.");
+
+    let minutes = rawText.trim();
+    let analysisSummary: string | null = null;
+
+    if (artifact.type === CalendarMeetingArtifactType.TRANSCRIPT) {
+      const analysis = await analyzeInteractionWithActiveProvider({
+        interactionType: "Reunion Google Meet",
+        interactionDate: artifact.meeting.startsAt,
+        content: rawText,
+        companyName: artifact.meeting.company?.name,
+        contactName: artifact.meeting.contact?.name,
+        opportunityName: artifact.meeting.opportunity?.name,
+        opportunityStatus: artifact.meeting.opportunity?.status,
+        opportunityProbability: artifact.meeting.opportunity
+          ? Number(artifact.meeting.opportunity.probability)
+          : null,
+        serviceName: artifact.meeting.service?.name,
+      });
+      minutes = minutesFromAnalysis(analysis);
+      analysisSummary = analysis.summary;
+    }
 
     await prisma.$transaction([
       prisma.calendarMeetingArtifact.update({
         where: { id: artifact.id },
         data: {
-          textContent: text,
+          textContent: rawText,
+          summary: analysisSummary,
           status: CalendarMeetingArtifactStatus.IMPORTED,
           fetchedAt: new Date(),
           lastError: null,
@@ -404,7 +538,7 @@ export async function importMeetingTranscript(artifactId: string) {
       prisma.calendarMeeting.update({
         where: { id: artifact.meetingId },
         data: {
-          minutes: text,
+          minutes,
           status: CalendarMeetingStatus.MINUTES_PENDING,
         },
       }),
@@ -421,6 +555,10 @@ export async function importMeetingTranscript(artifactId: string) {
   }
 
   revalidatePath("/meetings");
+}
+
+export async function importMeetingTranscript(artifactId: string) {
+  return importMeetingArtifactText(artifactId);
 }
 
 export async function analyzeMeetingWithAi(meetingId: string) {

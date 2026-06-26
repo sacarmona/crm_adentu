@@ -2,6 +2,8 @@ import { CalendarMeetingArtifactType, CalendarMeetingStatus, UserRole } from "@p
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { MeetingContextForm } from "@/components/meetings/meeting-context-form";
+import { MeetingInteractionForm } from "@/components/meetings/meeting-interaction-form";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
@@ -12,12 +14,14 @@ import {
   deleteMeeting,
   discoverMeetingArtifacts,
   ignoreMeeting,
-  importMeetingTranscript,
+  importMeetingArtifactText,
   syncMeetMeetings,
   updateMeetingContext,
 } from "@/server/actions/calendar";
 
 export const dynamic = "force-dynamic";
+
+const DEFAULT_MEETING_NEXT_ACTION = "Revisar estado de Oportunidad y actualizar si fuese necesario";
 
 const statusLabels: Record<CalendarMeetingStatus, string> = {
   SCHEDULED: "Programada",
@@ -245,8 +249,10 @@ export default async function MeetingsPage({
                             </a>
                           </Button>
                         ) : null}
-                        {canEdit && artifact.type === CalendarMeetingArtifactType.TRANSCRIPT ? (
-                          <form action={importMeetingTranscript.bind(null, artifact.id)}>
+                        {canEdit &&
+                        (artifact.type === CalendarMeetingArtifactType.TRANSCRIPT ||
+                          artifact.type === CalendarMeetingArtifactType.SMART_NOTES) ? (
+                          <form action={importMeetingArtifactText.bind(null, artifact.id)}>
                             <SubmitButton pendingLabel="Importando" size="sm" variant="outline">
                               Importar texto
                             </SubmitButton>
@@ -259,78 +265,34 @@ export default async function MeetingsPage({
               </div>
             ) : null}
 
-            <form
+            <MeetingContextForm
               action={updateMeetingContext.bind(null, meeting.id)}
-              className="mt-4 grid gap-3 lg:grid-cols-4"
-            >
-              <SelectBox
-                defaultValue={meeting.companyId}
-                label="Empresa"
-                name="companyId"
-                options={companies}
-              />
-              <SelectBox
-                defaultValue={meeting.contactId}
-                label="Contacto"
-                name="contactId"
-                options={contacts}
-              />
-              <SelectBox
-                defaultValue={meeting.opportunityId}
-                label="Oportunidad"
-                name="opportunityId"
-                options={opportunities}
-              />
-              <SelectBox
-                defaultValue={meeting.serviceId}
-                label="Servicio"
-                name="serviceId"
-                options={services}
-              />
-              <label className="lg:col-span-4">
-                <span className="text-xs font-medium text-slate-600">Minuta</span>
-                <textarea
-                  className="mt-1 min-h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  defaultValue={meeting.minutes ?? ""}
-                  name="minutes"
-                  placeholder="Acuerdos, necesidades detectadas, objeciones, proximos pasos..."
-                />
-              </label>
-              {canEdit && !meeting.importedInteractionId ? (
-                <div className="flex flex-wrap gap-2 lg:col-span-4">
-                  <SubmitButton pendingLabel="Guardando" size="sm" variant="outline">
-                    Guardar minuta
-                  </SubmitButton>
-                </div>
-              ) : null}
-            </form>
+              canEdit={canEdit && !meeting.importedInteractionId}
+              companies={companies}
+              contacts={contacts}
+              defaults={{
+                companyId: meeting.companyId,
+                contactId: meeting.contactId,
+                opportunityId: meeting.opportunityId,
+                serviceId: meeting.serviceId,
+                minutes: meeting.minutes,
+              }}
+              opportunities={opportunities}
+              services={services}
+            />
 
             {canEdit && !meeting.importedInteractionId ? (
               meeting.minutes && (meeting.companyId || meeting.contactId || meeting.opportunityId) ? (
-                <form
+                <MeetingInteractionForm
                   action={createInteractionFromMeeting.bind(null, meeting.id)}
-                  className="mt-3 grid gap-3 border-t border-slate-100 pt-3 lg:grid-cols-[1fr_220px_auto_auto]"
-                >
-                  <input type="hidden" name="companyId" value={meeting.companyId ?? ""} />
-                  <input type="hidden" name="contactId" value={meeting.contactId ?? ""} />
-                  <input type="hidden" name="opportunityId" value={meeting.opportunityId ?? ""} />
-                  <input type="hidden" name="serviceId" value={meeting.serviceId ?? ""} />
-                  <input type="hidden" name="minutes" value={meeting.minutes ?? ""} />
-                  <input
-                    className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-                    name="nextAction"
-                    placeholder="Proxima accion opcional"
-                  />
-                  <input
-                    className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-                    name="nextActionDate"
-                    type="datetime-local"
-                  />
-                  <SubmitButton pendingLabel="Importando">Crear interaccion</SubmitButton>
-                  <Button formAction={ignoreMeeting.bind(null, meeting.id)} type="submit" variant="outline">
-                    Descartar
-                  </Button>
-                </form>
+                  companyId={meeting.companyId}
+                  contactId={meeting.contactId}
+                  defaultNextAction={DEFAULT_MEETING_NEXT_ACTION}
+                  ignoreAction={ignoreMeeting.bind(null, meeting.id)}
+                  minutes={meeting.minutes}
+                  opportunityId={meeting.opportunityId}
+                  serviceId={meeting.serviceId}
+                />
               ) : (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
                   <p>
@@ -358,32 +320,3 @@ export default async function MeetingsPage({
   );
 }
 
-function SelectBox({
-  label,
-  name,
-  defaultValue,
-  options,
-}: {
-  label: string;
-  name: string;
-  defaultValue?: string | null;
-  options: { id: string; name: string }[];
-}) {
-  return (
-    <label>
-      <span className="text-xs font-medium text-slate-600">{label}</span>
-      <select
-        className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-        defaultValue={defaultValue ?? ""}
-        name={name}
-      >
-        <option value="">Sin asociar</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}

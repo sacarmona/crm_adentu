@@ -248,19 +248,7 @@ export async function sendWhatsAppReply(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    const interaction = await tx.interaction.create({
-      data: {
-        date: now,
-        type: InteractionType.WHATSAPP,
-        content: body,
-        contactId,
-        companyId,
-        opportunityId,
-        executedById: user.id,
-      },
-    });
-
-    await tx.whatsAppMessage.create({
+    const message = await tx.whatsAppMessage.create({
       data: {
         waMessageId: sent.waMessageId,
         direction: "OUTBOUND",
@@ -268,50 +256,30 @@ export async function sendWhatsAppReply(formData: FormData) {
         toNumber: to,
         body,
         timestamp: now,
-        status: WhatsAppMessageStatus.LINKED,
+        status: WhatsAppMessageStatus.PENDING,
         matchedCompanyId: companyId,
         matchedContactId: contactId,
         matchedOpportunityId: opportunityId,
-        interactionId: interaction.id,
-        reviewedById: user.id,
-        reviewedAt: now,
       },
     });
-
-    await Promise.all([
-      contactId
-        ? tx.contact.updateMany({
-            where: { id: contactId, OR: [{ lastInteraction: null }, { lastInteraction: { lt: now } }] },
-            data: { lastInteraction: now },
-          })
-        : Promise.resolve(),
-      companyId
-        ? tx.company.updateMany({
-            where: { id: companyId, OR: [{ lastInteraction: null }, { lastInteraction: { lt: now } }] },
-            data: { lastInteraction: now },
-          })
-        : Promise.resolve(),
-      opportunityId
-        ? tx.opportunity.updateMany({
-            where: { id: opportunityId, OR: [{ lastInteraction: null }, { lastInteraction: { lt: now } }] },
-            data: { lastInteraction: now },
-          })
-        : Promise.resolve(),
-    ]);
 
     await tx.auditLog.create({
       data: {
         action: AuditAction.CREATE,
         entityType: "WhatsAppMessage",
-        entityId: interaction.id,
+        entityId: message.id,
         actorId: user.id,
-        after: { to, source: "whatsapp-reply" },
+        after: {
+          to,
+          source: "whatsapp-reply",
+          status: WhatsAppMessageStatus.PENDING,
+          requiresInteractionConfirmation: true,
+        },
       },
     });
   });
 
   revalidatePath("/whatsapp");
-  revalidatePath("/interactions");
 }
 
 export async function discardWhatsAppNumber(phoneNumber: string) {
