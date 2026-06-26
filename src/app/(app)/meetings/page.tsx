@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import {
   analyzeMeetingWithAi,
   createInteractionFromMeeting,
+  deleteMeeting,
   discoverMeetingArtifacts,
   ignoreMeeting,
   importMeetingTranscript,
@@ -30,7 +31,7 @@ const statusLabels: Record<CalendarMeetingStatus, string> = {
 export default async function MeetingsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ status?: string }>;
+  searchParams?: Promise<{ status?: string; showIgnored?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
@@ -39,6 +40,7 @@ export default async function MeetingsPage({
   )
     ? (params?.status as CalendarMeetingStatus)
     : undefined;
+  const showIgnored = params?.showIgnored === "on";
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const userId = session?.user.id;
   const [calendarConnection, meetings, companies, contacts, opportunities, services] =
@@ -50,7 +52,11 @@ export default async function MeetingsPage({
         ? prisma.calendarMeeting.findMany({
             where: {
               userId,
-              ...(selectedStatus ? { status: selectedStatus } : {}),
+              ...(selectedStatus
+                ? { status: selectedStatus }
+                : !showIgnored
+                  ? { status: { not: CalendarMeetingStatus.IGNORED } }
+                  : {}),
             },
             include: {
               company: true,
@@ -112,7 +118,7 @@ export default async function MeetingsPage({
         </section>
       ) : null}
 
-      <form className="flex flex-wrap gap-3 rounded-md border border-slate-200 bg-white p-4">
+      <form className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 bg-white p-4">
         <select
           className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
           defaultValue={selectedStatus ?? ""}
@@ -125,6 +131,10 @@ export default async function MeetingsPage({
             </option>
           ))}
         </select>
+        <label className="flex h-10 items-center gap-2 rounded-md border border-slate-300 px-3 text-sm">
+          <input defaultChecked={showIgnored} name="showIgnored" type="checkbox" />
+          Mostrar descartadas
+        </label>
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">
           Filtrar
         </button>
@@ -167,6 +177,23 @@ export default async function MeetingsPage({
                 </Button>
               ) : null}
             </div>
+
+            {meeting.status === CalendarMeetingStatus.IGNORED ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {canEdit ? (
+                  <form action={deleteMeeting.bind(null, meeting.id)}>
+                    <SubmitButton pendingLabel="Eliminando" size="sm" variant="outline">
+                      Eliminar
+                    </SubmitButton>
+                  </form>
+                ) : null}
+              </div>
+            ) : null}
+
+            <details className="mt-3 group">
+              <summary className="cursor-pointer text-sm font-medium text-teal-700">
+                Completar datos de la reunion
+              </summary>
 
             <div className="mt-3 flex flex-wrap gap-2">
               {canEdit ? (
@@ -308,6 +335,7 @@ export default async function MeetingsPage({
                 </Button>
               </form>
             ) : null}
+            </details>
           </article>
         ))}
         {meetings.length === 0 ? (

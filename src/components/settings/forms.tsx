@@ -146,6 +146,10 @@ export function UserForm({
         required
       />
       <TextField
+        label="Telefono (opcional, para reconocer sus mensajes de WhatsApp)"
+        name="phone"
+      />
+      <TextField
         label="Contrasena inicial"
         name="password"
         required
@@ -154,6 +158,28 @@ export function UserForm({
       <div className="md:col-span-2">
         <Button type="submit">Crear usuario</Button>
       </div>
+    </form>
+  );
+}
+
+export function UserPhoneForm({
+  action,
+  phone,
+}: {
+  action: (formData: FormData) => void | Promise<void>;
+  phone: string | null;
+}) {
+  return (
+    <form action={action} className="flex items-center gap-2">
+      <input
+        className="h-9 rounded-md border border-slate-300 px-2 text-xs"
+        defaultValue={phone ?? ""}
+        name="phone"
+        placeholder="+56912345678"
+      />
+      <button className="text-xs font-medium hover:underline" type="submit">
+        Guardar
+      </button>
     </form>
   );
 }

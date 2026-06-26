@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import {
   createUserSchema,
   resetUserPasswordSchema,
+  updateUserPhoneSchema,
   updateUserRoleSchema,
 } from "@/schemas/auth";
 import { requireAdmin } from "@/server/authz";
@@ -34,6 +35,7 @@ export async function createUserAccount(formData: FormData) {
       name: data.name,
       email: data.email,
       role: data.role,
+      phone: data.phone,
       passwordHash,
     },
   });
@@ -70,6 +72,29 @@ export async function updateUserRole(id: string, formData: FormData) {
         actorId: actor.id,
         before: { role: before.role },
         after: { role: data.role },
+      },
+    }),
+  ]);
+  revalidatePath("/settings");
+}
+
+export async function updateUserPhone(id: string, formData: FormData) {
+  const actor = await requireAdmin("Solo ADMIN puede modificar el telefono de un usuario.");
+  const data = updateUserPhoneSchema.parse(parseForm(formData));
+
+  const before = await prisma.user.findUnique({ where: { id } });
+  if (!before) throw new Error("El usuario ya no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.user.update({ where: { id }, data: { phone: data.phone ?? null } }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "User",
+        entityId: id,
+        actorId: actor.id,
+        before: { phone: before.phone },
+        after: { phone: data.phone ?? null },
       },
     }),
   ]);

@@ -52,6 +52,23 @@ export async function matchContactByPhone(rawNumber: string) {
   return match ?? null;
 }
 
+export async function matchUserByPhone(rawNumber: string) {
+  const digits = digitsOnly(rawNumber);
+  if (digits.length < 6) return null;
+  const suffix = digits.slice(-8);
+
+  const users = await prisma.user.findMany({
+    where: { deletedAt: null, phone: { not: null } },
+    select: { id: true, name: true, phone: true },
+  });
+
+  const match = users.find(
+    (user) => user.phone && digitsOnly(user.phone).endsWith(suffix),
+  );
+
+  return match ?? null;
+}
+
 function extractMessageContent(message: WhatsAppWebhookMessage) {
   switch (message.type) {
     case "text":
@@ -120,8 +137,9 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
         if (existing) continue;
 
         const { body, mediaType, mediaId } = extractMessageContent(message);
-        const [match, discardRule] = await Promise.all([
+        const [match, matchedUser, discardRule] = await Promise.all([
           matchContactByPhone(message.from),
+          matchUserByPhone(message.from),
           findMatchingDiscardRule(message.from),
         ]);
 
@@ -131,7 +149,7 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
             direction: WhatsAppDirection.INBOUND,
             fromNumber: message.from,
             toNumber: businessNumber,
-            contactName,
+            contactName: !match && matchedUser ? `${matchedUser.name} (equipo interno)` : contactName,
             body,
             mediaType,
             mediaId,

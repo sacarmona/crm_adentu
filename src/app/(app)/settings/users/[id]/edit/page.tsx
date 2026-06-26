@@ -3,13 +3,14 @@ import { notFound, redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
-import { ResetPasswordForm, UserRoleForm } from "@/components/settings/forms";
+import { ResetPasswordForm, UserPhoneForm, UserRoleForm } from "@/components/settings/forms";
 import { formatDateTime } from "@/lib/format";
 import { userRoleLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   resetUserPassword,
   toggleUserActive,
+  updateUserPhone,
   updateUserRole,
 } from "@/server/actions/users";
 
@@ -50,6 +51,16 @@ export default async function EditUserPage({
                 role={user.role}
               />
             )}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-4">
+          <h2 className="font-semibold">Telefono</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Permite reconocer mensajes de WhatsApp enviados desde el numero de este usuario.
+          </p>
+          <div className="mt-3">
+            <UserPhoneForm action={updateUserPhone.bind(null, user.id)} phone={user.phone} />
           </div>
         </div>
 

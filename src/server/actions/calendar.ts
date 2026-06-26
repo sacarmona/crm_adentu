@@ -176,6 +176,20 @@ export async function ignoreMeeting(meetingId: string) {
   revalidatePath("/meetings");
 }
 
+export async function deleteMeeting(meetingId: string) {
+  const user = await requireWriter("No tienes permisos para eliminar reuniones.");
+  const meeting = await prisma.calendarMeeting.findFirst({
+    where: { id: meetingId, userId: user.id },
+  });
+  if (!meeting) throw new Error("La reunion ya no esta disponible.");
+  if (meeting.status !== CalendarMeetingStatus.IGNORED) {
+    throw new Error("Solo se pueden eliminar reuniones descartadas.");
+  }
+
+  await prisma.calendarMeeting.delete({ where: { id: meeting.id } });
+  revalidatePath("/meetings");
+}
+
 export async function createInteractionFromMeeting(meetingId: string, formData: FormData) {
   const user = await requireWriter("No tienes permisos para crear interacciones.");
   const meeting = await prisma.calendarMeeting.findFirst({
