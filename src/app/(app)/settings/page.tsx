@@ -19,6 +19,7 @@ import { getActiveAiProvider } from "@/server/services/ai-provider";
 import { isAiConfigured } from "@/server/services/openai";
 import { isAnthropicConfigured } from "@/server/services/anthropic";
 import { isGoogleCalendarConfigured } from "@/server/services/google-calendar";
+import { meetingArtifactScopesGranted } from "@/server/services/google-meet";
 import { groupDictionaryCounts } from "@/server/services/settings";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,7 @@ export default async function SettingsPage({
   const calendarConnection = session?.user
     ? await prisma.calendarConnection.findUnique({ where: { userId: session.user.id } })
     : null;
+  const calendarHasMeetArtifacts = meetingArtifactScopesGranted(calendarConnection?.scope);
   const [services, dictionaryValues, activeProvider, users] = await Promise.all([
     prisma.service.findMany({
       where: { deletedAt: null },
@@ -222,6 +224,9 @@ export default async function SettingsPage({
               <div>
                 <p className="text-sm font-medium">{calendarConnection.emailAddress}</p>
                 <p className="text-xs text-emerald-700">Conectado</p>
+                {!calendarHasMeetArtifacts ? (
+                  <p className="mt-1 text-xs text-amber-700">Reconecta para habilitar artefactos Meet/Drive.</p>
+                ) : null}
                 {calendarConnection.lastError ? (
                   <p className="mt-1 text-xs text-rose-700">{calendarConnection.lastError}</p>
                 ) : null}
@@ -231,6 +236,11 @@ export default async function SettingsPage({
                   Desconectar
                 </SubmitButton>
               </form>
+              {!calendarHasMeetArtifacts ? (
+                <Button asChild size="sm">
+                  <a href="/api/calendar/oauth/google/start">Reconectar</a>
+                </Button>
+              ) : null}
             </div>
           ) : (
             <Button asChild className="mt-4">

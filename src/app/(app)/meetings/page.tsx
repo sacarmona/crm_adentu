@@ -1,4 +1,4 @@
-import { CalendarMeetingStatus, UserRole } from "@prisma/client";
+import { CalendarMeetingArtifactType, CalendarMeetingStatus, UserRole } from "@prisma/client";
 import Link from "next/link";
 
 import { auth } from "@/auth";
@@ -7,8 +7,11 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import {
+  analyzeMeetingWithAi,
   createInteractionFromMeeting,
+  discoverMeetingArtifacts,
   ignoreMeeting,
+  importMeetingTranscript,
   syncMeetMeetings,
   updateMeetingContext,
 } from "@/server/actions/calendar";
@@ -18,6 +21,8 @@ export const dynamic = "force-dynamic";
 const statusLabels: Record<CalendarMeetingStatus, string> = {
   SCHEDULED: "Programada",
   COMPLETED: "Realizada",
+  MINUTES_PENDING: "Minuta pendiente",
+  ANALYZED: "Analizada",
   IMPORTED: "Importada",
   IGNORED: "Descartada",
 };
@@ -53,6 +58,7 @@ export default async function MeetingsPage({
               opportunity: true,
               service: true,
               importedInteraction: true,
+              artifacts: true,
             },
             orderBy: { startsAt: "desc" },
             take: 50,
@@ -161,6 +167,64 @@ export default async function MeetingsPage({
                 </Button>
               ) : null}
             </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {canEdit ? (
+                <form action={discoverMeetingArtifacts.bind(null, meeting.id)}>
+                  <SubmitButton pendingLabel="Buscando" size="sm" variant="outline">
+                    Buscar artefactos Meet
+                  </SubmitButton>
+                </form>
+              ) : null}
+              {canEdit && meeting.minutes && meeting.status !== CalendarMeetingStatus.ANALYZED ? (
+                <form action={analyzeMeetingWithAi.bind(null, meeting.id)}>
+                  <SubmitButton pendingLabel="Analizando" size="sm" variant="outline">
+                    Analizar con IA
+                  </SubmitButton>
+                </form>
+              ) : null}
+            </div>
+
+            {meeting.artifacts.length ? (
+              <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-500">Artefactos Meet</p>
+                <div className="mt-2 space-y-2">
+                  {meeting.artifacts.map((artifact) => (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2 text-sm" key={artifact.id}>
+                      <div>
+                        <p className="font-medium">
+                          {artifact.type === CalendarMeetingArtifactType.TRANSCRIPT
+                            ? "Transcripcion"
+                            : artifact.type === CalendarMeetingArtifactType.SMART_NOTES
+                              ? "Smart notes"
+                              : "Grabacion"}
+                        </p>
+                        <p className="text-xs text-slate-500">{artifact.status}</p>
+                        {artifact.lastError ? (
+                          <p className="mt-1 text-xs text-rose-700">{artifact.lastError}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {artifact.exportUri ? (
+                          <Button asChild size="sm" variant="outline">
+                            <a href={artifact.exportUri} rel="noreferrer" target="_blank">
+                              Abrir
+                            </a>
+                          </Button>
+                        ) : null}
+                        {canEdit && artifact.type === CalendarMeetingArtifactType.TRANSCRIPT ? (
+                          <form action={importMeetingTranscript.bind(null, artifact.id)}>
+                            <SubmitButton pendingLabel="Importando" size="sm" variant="outline">
+                              Importar texto
+                            </SubmitButton>
+                          </form>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <form
               action={updateMeetingContext.bind(null, meeting.id)}

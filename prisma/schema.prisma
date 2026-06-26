@@ -122,8 +122,22 @@ enum EmailDiscardRuleType {
 enum CalendarMeetingStatus {
   SCHEDULED
   COMPLETED
+  MINUTES_PENDING
+  ANALYZED
   IMPORTED
   IGNORED
+}
+
+enum CalendarMeetingArtifactType {
+  TRANSCRIPT
+  RECORDING
+  SMART_NOTES
+}
+
+enum CalendarMeetingArtifactStatus {
+  FOUND
+  IMPORTED
+  FAILED
 }
 
 enum TaskStatus {
@@ -279,34 +293,35 @@ model CalendarConnection {
 }
 
 model CalendarMeeting {
-  id                   String                @id @default(uuid())
-  userId               String
-  providerEventId      String
-  summary              String
-  description          String?
-  meetingUri           String?
-  conferenceId         String?
-  startsAt             DateTime
-  endsAt               DateTime?
-  attendees            Json?
-  organizerEmail       String?
-  status               CalendarMeetingStatus @default(SCHEDULED)
-  minutes              String?
+  id                    String                @id @default(uuid())
+  userId                String
+  providerEventId       String
+  summary               String
+  description           String?
+  meetingUri            String?
+  conferenceId          String?
+  startsAt              DateTime
+  endsAt                DateTime?
+  attendees             Json?
+  organizerEmail        String?
+  status                CalendarMeetingStatus @default(SCHEDULED)
+  minutes               String?
   importedInteractionId String?               @unique
-  companyId            String?
-  contactId            String?
-  opportunityId        String?
-  serviceId            String?
-  lastSyncedAt         DateTime              @default(now())
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  companyId             String?
+  contactId             String?
+  opportunityId         String?
+  serviceId             String?
+  lastSyncedAt          DateTime              @default(now())
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
 
-  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  importedInteraction Interaction? @relation(fields: [importedInteractionId], references: [id])
-  company             Company?     @relation(fields: [companyId], references: [id])
-  contact             Contact?     @relation(fields: [contactId], references: [id])
-  opportunity         Opportunity? @relation(fields: [opportunityId], references: [id])
-  service             Service?     @relation(fields: [serviceId], references: [id])
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importedInteraction Interaction?              @relation(fields: [importedInteractionId], references: [id])
+  company             Company?                  @relation(fields: [companyId], references: [id])
+  contact             Contact?                  @relation(fields: [contactId], references: [id])
+  opportunity         Opportunity?              @relation(fields: [opportunityId], references: [id])
+  service             Service?                  @relation(fields: [serviceId], references: [id])
+  artifacts           CalendarMeetingArtifact[]
 
   @@unique([userId, providerEventId])
   @@index([startsAt])
@@ -314,6 +329,30 @@ model CalendarMeeting {
   @@index([companyId])
   @@index([contactId])
   @@index([opportunityId])
+}
+
+model CalendarMeetingArtifact {
+  id          String                        @id @default(uuid())
+  meetingId   String
+  type        CalendarMeetingArtifactType
+  status      CalendarMeetingArtifactStatus @default(FOUND)
+  sourceName  String
+  exportUri   String?
+  driveFileId String?
+  documentId  String?
+  textContent String?
+  summary     String?
+  lastError   String?
+  fetchedAt   DateTime?
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  meeting CalendarMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, sourceName])
+  @@index([meetingId])
+  @@index([type])
+  @@index([status])
 }
 
 model EmailMessage {
@@ -593,9 +632,9 @@ model Contact {
   notes           String?
   deletedAt       DateTime?
 
-  company              Company?      @relation(fields: [companyId], references: [id])
-  responsible          User?         @relation("ContactResponsible", fields: [responsibleId], references: [id])
-  primaryOpportunities Opportunity[] @relation("OpportunityPrimaryContact")
+  company              Company?          @relation(fields: [companyId], references: [id])
+  responsible          User?             @relation("ContactResponsible", fields: [responsibleId], references: [id])
+  primaryOpportunities Opportunity[]     @relation("OpportunityPrimaryContact")
   interactions         Interaction[]
   tasks                Task[]
   attachments          Attachment[]
@@ -640,14 +679,14 @@ model Opportunity {
   notes              String?
   deletedAt          DateTime?
 
-  primaryContact Contact?      @relation("OpportunityPrimaryContact", fields: [primaryContactId], references: [id])
-  company        Company?      @relation(fields: [companyId], references: [id])
-  service        Service?      @relation(fields: [serviceId], references: [id])
-  responsible    User?         @relation("OpportunityResponsible", fields: [responsibleId], references: [id])
-  interactions   Interaction[]
-  tasks          Task[]
-  aiInsights     AiInsight[]
-  attachments    Attachment[]
+  primaryContact   Contact?          @relation("OpportunityPrimaryContact", fields: [primaryContactId], references: [id])
+  company          Company?          @relation(fields: [companyId], references: [id])
+  service          Service?          @relation(fields: [serviceId], references: [id])
+  responsible      User?             @relation("OpportunityResponsible", fields: [responsibleId], references: [id])
+  interactions     Interaction[]
+  tasks            Task[]
+  aiInsights       AiInsight[]
+  attachments      Attachment[]
   calendarMeetings CalendarMeeting[]
 
   @@index([status])
@@ -796,11 +835,11 @@ model Service {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  opportunities Opportunity[]
-  interactions  Interaction[]
-  tasks         Task[]
-  marketAssets  MarketAsset[]
-  playbooks     Playbook[]
+  opportunities    Opportunity[]
+  interactions     Interaction[]
+  tasks            Task[]
+  marketAssets     MarketAsset[]
+  playbooks        Playbook[]
   calendarMeetings CalendarMeeting[]
 
   @@index([slug])

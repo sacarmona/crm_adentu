@@ -1,7 +1,10 @@
 "use server";
 
 import {
+  AiInsightType,
   AuditAction,
+  CalendarMeetingArtifactStatus,
+  CalendarMeetingArtifactType,
   CalendarMeetingStatus,
   InteractionType,
   TaskStatus,
@@ -16,6 +19,8 @@ import {
 } from "@/server/services/google-calendar";
 import { parseLocalDateTime } from "@/server/services/activity";
 import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
+import { analyzeInteractionWithActiveProvider } from "@/server/services/ai-provider";
+import { conferenceRecordForMeeting, listMeetArtifacts, transcriptText } from "@/server/services/google-meet";
 
 export async function disconnectCalendarConnection() {
   const user = await requireWriter("No tienes permisos para desconectar el calendario.");
@@ -78,7 +83,7 @@ export async function syncMeetMeetings() {
   for (const event of events) {
     const status =
       event.endsAt && event.endsAt.getTime() < now.getTime()
-        ? CalendarMeetingStatus.COMPLETED
+        ? CalendarMeetingStatus.MINUTES_PENDING
         : CalendarMeetingStatus.SCHEDULED;
     const existing = await prisma.calendarMeeting.findUnique({
       where: {
@@ -153,6 +158,9 @@ export async function updateMeetingContext(meetingId: string, formData: FormData
       opportunityId: optionalText(formData.get("opportunityId")),
       serviceId: optionalText(formData.get("serviceId")),
       minutes: optionalText(formData.get("minutes")),
+      status: optionalText(formData.get("minutes"))
+        ? CalendarMeetingStatus.MINUTES_PENDING
+        : CalendarMeetingStatus.COMPLETED,
     },
   });
 
@@ -272,4 +280,188 @@ export async function createInteractionFromMeeting(meetingId: string, formData: 
 
   revalidatePath("/meetings");
   revalidatePath("/interactions");
+}
+
+
+export async function discoverMeetingArtifacts(meetingId: string) {
+  const user = await requireWriter("No tienes permisos para buscar artefactos de reuniones.");
+  const meeting = await prisma.calendarMeeting.findFirst({
+    where: { id: meetingId, userId: user.id },
+    include: { artifacts: true },
+  });
+  if (!meeting) throw new Error("La reunion no esta disponible.");
+
+  const accessToken = await calendarAccessForUser(user.id);
+  const conferenceRecordName = await conferenceRecordForMeeting(accessToken, meeting);
+  if (!conferenceRecordName) {
+    throw new Error("Google Meet aun no devuelve un registro de conferencia para esta reunion.");
+  }
+
+  const artifacts = await listMeetArtifacts(accessToken, conferenceRecordName);
+  for (const artifact of artifacts) {
+    await prisma.calendarMeetingArtifact.upsert({
+      where: {
+        meetingId_sourceName: {
+          meetingId: meeting.id,
+          sourceName: artifact.sourceName,
+        },
+      },
+      update: {
+        type: artifact.type,
+        exportUri: artifact.exportUri,
+        driveFileId: artifact.driveFileId,
+        documentId: artifact.documentId,
+        lastError: null,
+      },
+      create: {
+        meetingId: meeting.id,
+        type: artifact.type,
+        sourceName: artifact.sourceName,
+        exportUri: artifact.exportUri,
+        driveFileId: artifact.driveFileId,
+        documentId: artifact.documentId,
+      },
+    });
+  }
+
+  if (meeting.status === CalendarMeetingStatus.COMPLETED) {
+    await prisma.calendarMeeting.update({
+      where: { id: meeting.id },
+      data: { status: CalendarMeetingStatus.MINUTES_PENDING },
+    });
+  }
+
+  revalidatePath("/meetings");
+}
+
+export async function importMeetingTranscript(artifactId: string) {
+  const user = await requireWriter("No tienes permisos para importar transcripciones.");
+  const artifact = await prisma.calendarMeetingArtifact.findFirst({
+    where: {
+      id: artifactId,
+      type: CalendarMeetingArtifactType.TRANSCRIPT,
+      meeting: { userId: user.id },
+    },
+    include: { meeting: true },
+  });
+  if (!artifact) throw new Error("La transcripcion no esta disponible.");
+
+  const accessToken = await calendarAccessForUser(user.id);
+  try {
+    const text = await transcriptText(accessToken, artifact.sourceName);
+    if (!text.trim()) throw new Error("Google Meet devolvio una transcripcion vacia.");
+
+    await prisma.$transaction([
+      prisma.calendarMeetingArtifact.update({
+        where: { id: artifact.id },
+        data: {
+          textContent: text,
+          status: CalendarMeetingArtifactStatus.IMPORTED,
+          fetchedAt: new Date(),
+          lastError: null,
+        },
+      }),
+      prisma.calendarMeeting.update({
+        where: { id: artifact.meetingId },
+        data: {
+          minutes: text,
+          status: CalendarMeetingStatus.MINUTES_PENDING,
+        },
+      }),
+    ]);
+  } catch (error) {
+    await prisma.calendarMeetingArtifact.update({
+      where: { id: artifact.id },
+      data: {
+        status: CalendarMeetingArtifactStatus.FAILED,
+        lastError: error instanceof Error ? error.message : "Error desconocido.",
+      },
+    });
+    throw error;
+  }
+
+  revalidatePath("/meetings");
+}
+
+export async function analyzeMeetingWithAi(meetingId: string) {
+  const user = await requireWriter("No tienes permisos para analizar reuniones.");
+  const meeting = await prisma.calendarMeeting.findFirst({
+    where: { id: meetingId, userId: user.id },
+    include: {
+      company: true,
+      contact: true,
+      opportunity: true,
+      service: true,
+      artifacts: true,
+    },
+  });
+  if (!meeting) throw new Error("La reunion no esta disponible.");
+
+  const sourceText =
+    meeting.minutes ??
+    meeting.artifacts.find((artifact) => artifact.textContent)?.textContent ??
+    null;
+  if (!sourceText) {
+    throw new Error("Agrega una minuta o importa una transcripcion antes de analizar.");
+  }
+
+  const analysis = await analyzeInteractionWithActiveProvider({
+    interactionType: "Reunion Google Meet",
+    interactionDate: meeting.startsAt,
+    content: sourceText,
+    companyName: meeting.company?.name,
+    contactName: meeting.contact?.name,
+    opportunityName: meeting.opportunity?.name,
+    opportunityStatus: meeting.opportunity?.status,
+    opportunityProbability: meeting.opportunity ? Number(meeting.opportunity.probability) : null,
+    serviceName: meeting.service?.name,
+  });
+
+  const nextAction = analysis.suggestedChanges.nextAction ?? analysis.suggestedNextSteps[0] ?? null;
+  await prisma.$transaction(async (tx) => {
+    await tx.aiInsight.create({
+      data: {
+        type: AiInsightType.INTERACTION_ANALYSIS,
+        status: "PROPOSED",
+        companyId: meeting.companyId,
+        contactId: meeting.contactId,
+        opportunityId: meeting.opportunityId,
+        summary: analysis.summary,
+        customerInterests: analysis.customerInterests,
+        objections: analysis.objections,
+        commitments: analysis.commitments,
+        risks: analysis.risks,
+        suggestedNextSteps: analysis.suggestedNextSteps,
+        mentionedServices: analysis.mentionedServices,
+        sentiment: analysis.sentiment,
+        suggestedAdvanceProbability: analysis.suggestedAdvanceProbability,
+        suggestedChanges: analysis.suggestedChanges,
+      },
+    });
+
+    if (nextAction) {
+      await tx.task.create({
+        data: {
+          title: nextAction,
+          description: `Sugerida por IA desde reunion Meet: ${meeting.summary}`,
+          status: TaskStatus.PENDING,
+          companyId: meeting.companyId,
+          contactId: meeting.contactId,
+          opportunityId: meeting.opportunityId,
+          serviceId: meeting.serviceId,
+          assignedToId: user.id,
+          createdById: user.id,
+        },
+      });
+    }
+
+    await tx.calendarMeeting.update({
+      where: { id: meeting.id },
+      data: { status: CalendarMeetingStatus.ANALYZED },
+    });
+  });
+
+  revalidatePath("/meetings");
+  revalidatePath("/intelligence");
+  revalidatePath("/tasks");
 }
