@@ -185,6 +185,12 @@ export default async function MeetingsPage({
               ) : null}
             </div>
 
+            {meeting.lastDiscoveryError ? (
+              <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {meeting.lastDiscoveryError}
+              </p>
+            ) : null}
+
             {meeting.artifacts.length ? (
               <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-semibold uppercase text-slate-500">Artefactos Meet</p>

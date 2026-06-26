@@ -292,10 +292,36 @@ export async function discoverMeetingArtifacts(meetingId: string) {
   if (!meeting) throw new Error("La reunion no esta disponible.");
 
   const accessToken = await calendarAccessForUser(user.id);
-  const conferenceRecordName = await conferenceRecordForMeeting(accessToken, meeting);
-  if (!conferenceRecordName) {
-    throw new Error("Google Meet aun no devuelve un registro de conferencia para esta reunion.");
+
+  let conferenceRecordName: string | null;
+  try {
+    conferenceRecordName = await conferenceRecordForMeeting(accessToken, meeting);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error desconocido al consultar Google Meet.";
+    await prisma.calendarMeeting.update({
+      where: { id: meeting.id },
+      data: { lastDiscoveryError: message },
+    });
+    revalidatePath("/meetings");
+    return;
   }
+
+  if (!conferenceRecordName) {
+    await prisma.calendarMeeting.update({
+      where: { id: meeting.id },
+      data: {
+        lastDiscoveryError:
+          "Google Meet aun no genero un registro para esta reunion. Esto pasa si no se activo grabacion o notas con Gemini durante la llamada, o si todavia esta procesando (puede tardar hasta un par de horas tras finalizar).",
+      },
+    });
+    revalidatePath("/meetings");
+    return;
+  }
+
+  await prisma.calendarMeeting.update({
+    where: { id: meeting.id },
+    data: { lastDiscoveryError: null },
+  });
 
   const artifacts = await listMeetArtifacts(accessToken, conferenceRecordName);
   for (const artifact of artifacts) {

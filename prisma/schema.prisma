@@ -306,6 +306,7 @@ model CalendarMeeting {
   organizerEmail        String?
   status                CalendarMeetingStatus @default(SCHEDULED)
   minutes               String?
+  lastDiscoveryError    String?
   importedInteractionId String?               @unique
   companyId             String?
   contactId             String?
