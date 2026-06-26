@@ -1,9 +1,8 @@
 import { UserRole } from "@prisma/client";
-import { ChevronLeft, ListFilter } from "lucide-react";
-import Link from "next/link";
+import { ListFilter } from "lucide-react";
 
 import { auth } from "@/auth";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/ui/back-link";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { prisma } from "@/lib/prisma";
 import { toggleWhatsAppDiscardRule } from "@/server/actions/whatsapp";
@@ -19,12 +18,7 @@ export default async function WhatsAppRulesPage() {
 
   return (
     <div className="space-y-5">
-      <Button asChild size="sm" variant="ghost">
-        <Link href="/whatsapp">
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-          Volver a WhatsApp
-        </Link>
-      </Button>
+      <BackLink fallbackHref="/whatsapp" label="Volver a WhatsApp" />
       <div>
         <div className="flex items-center gap-2">
           <ListFilter className="h-5 w-5 text-emerald-700" aria-hidden />

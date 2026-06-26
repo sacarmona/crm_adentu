@@ -6,14 +6,13 @@ import {
   OpportunityStatus,
   UserRole,
 } from "@prisma/client";
-import { Bot, Check, ChevronLeft, EyeOff, ListFilter, Mail } from "lucide-react";
-import Link from "next/link";
+import { Bot, Check, EyeOff, ListFilter, Mail } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { auth } from "@/auth";
 import { EmailDraftEditor } from "@/components/email/draft-editor";
 import { EmailResolutionFields } from "@/components/email/email-resolution-fields";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/ui/back-link";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
 import { emailCommercialIntentLabels, emailDraftStatusLabels } from "@/lib/labels";
@@ -123,12 +122,7 @@ export default async function EmailMessagePage({
 
   return (
     <div className="space-y-5">
-      <Button asChild size="sm" variant="ghost">
-        <Link href="/email">
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-          Volver a correo
-        </Link>
-      </Button>
+      <BackLink fallbackHref="/email" label="Volver a correo" />
 
       <section className="rounded-md border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
