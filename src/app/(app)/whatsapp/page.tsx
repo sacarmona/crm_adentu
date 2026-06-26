@@ -4,7 +4,7 @@ import {
   WhatsAppDirection,
   WhatsAppMessageStatus,
 } from "@prisma/client";
-import { Bot, Check, EyeOff, ListFilter, MessageCircle, ShieldOff } from "lucide-react";
+import { Bot, Check, EyeOff, ListFilter, MessageCircle, ShieldOff, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
@@ -20,6 +20,8 @@ import {
   analyzeWhatsAppConversation,
   approveWhatsAppMessage,
   confirmWhatsAppTask,
+  deleteWhatsAppMessage,
+  deleteWhatsAppThread,
   discardWhatsAppNumber,
   ignoreWhatsAppMessage,
   sendWhatsAppReply,
@@ -252,12 +254,20 @@ export default async function WhatsAppPage({
                       </SubmitButton>
                     </form>
                   ) : null}
+                  {canEdit ? (
+                    <form action={deleteWhatsAppThread.bind(null, thread.phone)}>
+                      <SubmitButton pendingLabel="Eliminando" size="sm" variant="outline">
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                        Eliminar chat
+                      </SubmitButton>
+                    </form>
+                  ) : null}
                 </div>
               </div>
 
               <details className="mt-3">
                 <summary className="cursor-pointer text-xs font-medium text-emerald-700">
-                  Ver conversación ({thread.messages.length}{" "}
+                  Ver conversaciÃƒÆ’Ã‚Â³n ({thread.messages.length}{" "}
                   {thread.messages.length === 1 ? "mensaje" : "mensajes"})
                 </summary>
 
@@ -277,8 +287,8 @@ export default async function WhatsAppPage({
                         {analysis.isCommercial ? "Comercial" : "No comercial"}
                       </span>
                       <span className="text-slate-500">
-                        {emailCommercialIntentLabels[analysis.intent]} ·{" "}
-                        {commercialSentimentLabels[analysis.sentiment]} ·{" "}
+                        {emailCommercialIntentLabels[analysis.intent]} Ãƒâ€šÃ‚Â·{" "}
+                        {commercialSentimentLabels[analysis.sentiment]} Ãƒâ€šÃ‚Â·{" "}
                         {Math.round(Number(analysis.confidence) * 100)}%
                       </span>
                     </div>
@@ -288,7 +298,7 @@ export default async function WhatsAppPage({
                         <p className="text-xs text-slate-500">
                           Proxima accion sugerida
                           {analysis.suggestedDueDate
-                            ? ` · ${formatDateTime(analysis.suggestedDueDate)}`
+                            ? ` Ãƒâ€šÃ‚Â· ${formatDateTime(analysis.suggestedDueDate)}`
                             : ""}
                         </p>
                         <p className="mt-1 font-medium text-slate-800">
@@ -361,15 +371,23 @@ export default async function WhatsAppPage({
                       </div>
                       <p className="mt-1 text-[11px] text-slate-400">
                         {formatDateTime(message.timestamp)}
-                        {message.status === WhatsAppMessageStatus.IGNORED ? " · Ignorado" : ""}
+                        {message.status === WhatsAppMessageStatus.IGNORED ? " Ãƒâ€šÃ‚Â· Ignorado" : ""}
                         {isOutbound && message.deliveryStatus
-                          ? ` · ${deliveryStatusLabels[message.deliveryStatus] ?? message.deliveryStatus}`
+                          ? ` Ãƒâ€šÃ‚Â· ${deliveryStatusLabels[message.deliveryStatus] ?? message.deliveryStatus}`
                           : ""}
                       </p>
                       {isOutbound && message.deliveryError ? (
                         <p className="mt-1 max-w-md text-[11px] text-rose-700">
                           No entregado: {message.deliveryError}
                         </p>
+                      ) : null}
+                      {canEdit ? (
+                        <form action={deleteWhatsAppMessage.bind(null, message.id)} className="mt-1">
+                          <SubmitButton pendingLabel="Eliminando" size="sm" variant="ghost">
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                            Eliminar mensaje
+                          </SubmitButton>
+                        </form>
                       ) : null}
                       {canEdit && message.status === WhatsAppMessageStatus.PENDING ? (
                         <details className="mt-1 w-full max-w-md">

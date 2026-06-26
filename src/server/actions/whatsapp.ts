@@ -282,6 +282,85 @@ export async function sendWhatsAppReply(formData: FormData) {
   revalidatePath("/whatsapp");
 }
 
+export async function deleteWhatsAppMessage(messageId: string) {
+  const user = await requireWriter("No tienes permisos para eliminar mensajes de WhatsApp.");
+  const message = await prisma.whatsAppMessage.findUnique({ where: { id: messageId } });
+  if (!message) {
+    throw new Error("El mensaje ya no esta disponible.");
+  }
+
+  await prisma.$transaction([
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.SOFT_DELETE,
+        entityType: "WhatsAppMessage",
+        entityId: message.id,
+        actorId: user.id,
+        before: {
+          direction: message.direction,
+          fromNumber: message.fromNumber,
+          toNumber: message.toNumber,
+          timestamp: message.timestamp.toISOString(),
+          status: message.status,
+          interactionId: message.interactionId,
+        },
+      },
+    }),
+    prisma.whatsAppMessage.delete({ where: { id: message.id } }),
+  ]);
+
+  revalidatePath("/whatsapp");
+  if (message.interactionId) revalidatePath("/interactions");
+}
+
+export async function deleteWhatsAppThread(phoneNumber: string) {
+  const user = await requireWriter("No tienes permisos para eliminar conversaciones de WhatsApp.");
+  const messages = await prisma.whatsAppMessage.findMany({
+    where: {
+      OR: [{ fromNumber: phoneNumber }, { toNumber: phoneNumber }],
+    },
+    select: {
+      id: true,
+      interactionId: true,
+      direction: true,
+      timestamp: true,
+      status: true,
+    },
+  });
+  if (!messages.length) {
+    throw new Error("La conversacion ya no esta disponible.");
+  }
+
+  await prisma.$transaction([
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.SOFT_DELETE,
+        entityType: "WhatsAppThread",
+        entityId: phoneNumber,
+        actorId: user.id,
+        before: {
+          phoneNumber,
+          messageCount: messages.length,
+          linkedInteractionCount: messages.filter((message) => message.interactionId).length,
+          firstMessageAt: messages
+            .map((message) => message.timestamp)
+            .sort((a, b) => a.getTime() - b.getTime())[0]
+            ?.toISOString(),
+          statuses: [...new Set(messages.map((message) => message.status))],
+        },
+      },
+    }),
+    prisma.whatsAppThreadAnalysis.deleteMany({ where: { phoneNumber } }),
+    prisma.whatsAppMessage.deleteMany({
+      where: {
+        OR: [{ fromNumber: phoneNumber }, { toNumber: phoneNumber }],
+      },
+    }),
+  ]);
+
+  revalidatePath("/whatsapp");
+  if (messages.some((message) => message.interactionId)) revalidatePath("/interactions");
+}
 export async function discardWhatsAppNumber(phoneNumber: string) {
   const user = await requireWriter("No tienes permisos para crear reglas de WhatsApp.");
 
