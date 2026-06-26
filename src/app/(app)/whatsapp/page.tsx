@@ -267,7 +267,7 @@ export default async function WhatsAppPage({
 
               <details className="mt-3">
                 <summary className="cursor-pointer text-xs font-medium text-emerald-700">
-                  Ver conversaciÃƒÆ’Ã‚Â³n ({thread.messages.length}{" "}
+                  Ver conversacion ({thread.messages.length}{" "}
                   {thread.messages.length === 1 ? "mensaje" : "mensajes"})
                 </summary>
 
@@ -287,8 +287,8 @@ export default async function WhatsAppPage({
                         {analysis.isCommercial ? "Comercial" : "No comercial"}
                       </span>
                       <span className="text-slate-500">
-                        {emailCommercialIntentLabels[analysis.intent]} Ãƒâ€šÃ‚Â·{" "}
-                        {commercialSentimentLabels[analysis.sentiment]} Ãƒâ€šÃ‚Â·{" "}
+                        {emailCommercialIntentLabels[analysis.intent]} - {" "}
+                        {commercialSentimentLabels[analysis.sentiment]} - {" "}
                         {Math.round(Number(analysis.confidence) * 100)}%
                       </span>
                     </div>
@@ -298,7 +298,7 @@ export default async function WhatsAppPage({
                         <p className="text-xs text-slate-500">
                           Proxima accion sugerida
                           {analysis.suggestedDueDate
-                            ? ` Ãƒâ€šÃ‚Â· ${formatDateTime(analysis.suggestedDueDate)}`
+                            ? ` - ${formatDateTime(analysis.suggestedDueDate)}`
                             : ""}
                         </p>
                         <p className="mt-1 font-medium text-slate-800">
@@ -371,9 +371,9 @@ export default async function WhatsAppPage({
                       </div>
                       <p className="mt-1 text-[11px] text-slate-400">
                         {formatDateTime(message.timestamp)}
-                        {message.status === WhatsAppMessageStatus.IGNORED ? " Ãƒâ€šÃ‚Â· Ignorado" : ""}
+                        {message.status === WhatsAppMessageStatus.IGNORED ? " - Ignorado" : ""}
                         {isOutbound && message.deliveryStatus
-                          ? ` Ãƒâ€šÃ‚Â· ${deliveryStatusLabels[message.deliveryStatus] ?? message.deliveryStatus}`
+                          ? ` - ${deliveryStatusLabels[message.deliveryStatus] ?? message.deliveryStatus}`
                           : ""}
                       </p>
                       {isOutbound && message.deliveryError ? (
