@@ -67,6 +67,7 @@ export default async function OpportunitiesPage({
     q?: string;
     status?: string;
     followUp?: string;
+    responsibleId?: string;
     sort?: string;
     dir?: string;
     page?: string;
@@ -82,6 +83,7 @@ export default async function OpportunitiesPage({
   )
     ? (params?.followUp as FollowUpHealth)
     : undefined;
+  const responsibleId = params?.responsibleId;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(params?.page) || 1);
@@ -97,8 +99,10 @@ export default async function OpportunitiesPage({
   }
   if (status) conditions.push({ status });
   if (followUpWhere) conditions.push(followUpWhere);
+  if (responsibleId === "none") conditions.push({ responsibleId: null });
+  else if (responsibleId) conditions.push({ responsibleId });
   const where: Prisma.OpportunityWhereInput = { AND: conditions };
-  const [opportunities, total] = await Promise.all([
+  const [opportunities, total, users] = await Promise.all([
     prisma.opportunity.findMany({
       where,
       include: { company: true, service: true, responsible: true },
@@ -107,12 +111,18 @@ export default async function OpportunitiesPage({
       take: PAGE_SIZE,
     }),
     prisma.opportunity.count({ where }),
+    prisma.user.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
     if (status) qs.set("status", status);
     if (followUp) qs.set("followUp", followUp);
+    if (responsibleId) qs.set("responsibleId", responsibleId);
     qs.set("sort", field);
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/opportunities?${qs.toString()}`;
@@ -126,7 +136,7 @@ export default async function OpportunitiesPage({
         description="Gestiona pipeline, servicios, probabilidad y montos comerciales calculados."
         title="Oportunidades"
       />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_200px_200px_auto]">
+      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_180px_180px_180px_auto]">
         <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={q} name="q" placeholder="Buscar oportunidad o empresa" />
         <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={status ?? ""} name="status">
           <option value="">Todos los estados</option>
@@ -138,6 +148,13 @@ export default async function OpportunitiesPage({
           <option value="">Todo seguimiento</option>
           {(["normal", "watch", "stalled", "closed"] as const).map((value) => (
             <option key={value} value={value}>{followUpHealthLabels[value]}</option>
+          ))}
+        </select>
+        <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={responsibleId ?? ""} name="responsibleId">
+          <option value="">Todos los responsables</option>
+          <option value="none">Sin responsable</option>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>{user.name}</option>
           ))}
         </select>
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">Filtrar</button>
@@ -220,7 +237,7 @@ export default async function OpportunitiesPage({
           basePath="/opportunities"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status, followUp, sort, dir: sort ? dir : undefined }}
+          params={{ q, status, followUp, responsibleId, sort, dir: sort ? dir : undefined }}
           total={total}
         />
       </section>

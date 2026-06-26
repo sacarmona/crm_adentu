@@ -29,6 +29,13 @@ import { isWhatsAppConfigured } from "@/server/services/whatsapp-client";
 
 export const dynamic = "force-dynamic";
 
+const deliveryStatusLabels: Record<string, string> = {
+  sent: "Enviado",
+  delivered: "Entregado",
+  read: "Leido",
+  failed: "Fallo",
+};
+
 type WhatsAppMessageRow = Awaited<
   ReturnType<typeof prisma.whatsAppMessage.findMany>
 >[number];
@@ -355,7 +362,15 @@ export default async function WhatsAppPage({
                       <p className="mt-1 text-[11px] text-slate-400">
                         {formatDateTime(message.timestamp)}
                         {message.status === WhatsAppMessageStatus.IGNORED ? " · Ignorado" : ""}
+                        {isOutbound && message.deliveryStatus
+                          ? ` · ${deliveryStatusLabels[message.deliveryStatus] ?? message.deliveryStatus}`
+                          : ""}
                       </p>
+                      {isOutbound && message.deliveryError ? (
+                        <p className="mt-1 max-w-md text-[11px] text-rose-700">
+                          No entregado: {message.deliveryError}
+                        </p>
+                      ) : null}
                       {canEdit && message.status === WhatsAppMessageStatus.PENDING ? (
                         <details className="mt-1 w-full max-w-md">
                           <summary className="cursor-pointer text-xs font-medium text-emerald-700">

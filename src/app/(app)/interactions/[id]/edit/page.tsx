@@ -2,7 +2,8 @@ import { UserRole } from "@prisma/client";
 import { notFound, redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { InteractionForm, localDateTimeValue } from "@/components/activity/forms";
+import { localDateTimeValue } from "@/components/activity/forms";
+import { InteractionForm } from "@/components/activity/interaction-form";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { prisma } from "@/lib/prisma";
 import { updateInteraction } from "@/server/actions/activity";
@@ -30,12 +31,12 @@ export default async function EditInteractionPage({
       }),
       prisma.contact.findMany({
         where: { deletedAt: null },
-        select: { id: true, name: true },
+        select: { id: true, name: true, companyId: true },
         orderBy: { name: "asc" },
       }),
       prisma.opportunity.findMany({
         where: { deletedAt: null },
-        select: { id: true, name: true },
+        select: { id: true, name: true, companyId: true },
         orderBy: { name: "asc" },
       }),
       prisma.service.findMany({

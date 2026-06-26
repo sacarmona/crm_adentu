@@ -22,6 +22,7 @@ export default async function CompaniesPage({
     q?: string;
     status?: string;
     industry?: string;
+    responsibleId?: string;
     sort?: string;
     dir?: string;
     page?: string;
@@ -32,6 +33,7 @@ export default async function CompaniesPage({
   const q = params?.q?.trim();
   const status = params?.status as CompanyStatus | undefined;
   const industry = params?.industry;
+  const responsibleId = params?.responsibleId;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(params?.page) || 1);
@@ -48,6 +50,11 @@ export default async function CompaniesPage({
       : {}),
     ...(status ? { status } : {}),
     ...(industry ? { industry } : {}),
+    ...(responsibleId === "none"
+      ? { responsibleId: null }
+      : responsibleId
+        ? { responsibleId }
+        : {}),
   };
   const canEdit = session?.user.role !== "LECTURA";
   const [companies, total, users, industries] = await Promise.all([
@@ -59,13 +66,11 @@ export default async function CompaniesPage({
       take: PAGE_SIZE,
     }),
     prisma.company.count({ where }),
-    canEdit
-      ? prisma.user.findMany({
-          where: { deletedAt: null },
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-        })
-      : Promise.resolve([]),
+    prisma.user.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
     prisma.company.findMany({
       where: { deletedAt: null, industry: { not: null } },
       select: { industry: true },
@@ -78,6 +83,7 @@ export default async function CompaniesPage({
     if (q) qs.set("q", q);
     if (status) qs.set("status", status);
     if (industry) qs.set("industry", industry);
+    if (responsibleId) qs.set("responsibleId", responsibleId);
     qs.set("sort", field);
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/companies?${qs.toString()}`;
@@ -91,7 +97,7 @@ export default async function CompaniesPage({
         description="Gestiona cuentas, estados comerciales, responsables y datos base de clientes y prospectos."
         title="Empresas"
       />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_200px_200px_auto]">
+      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_200px_200px_200px_auto]">
         <input
           className="h-10 rounded-md border border-slate-300 px-3 text-sm"
           defaultValue={q}
@@ -119,6 +125,19 @@ export default async function CompaniesPage({
           {industries.map(({ industry: value }) => (
             <option key={value} value={value ?? ""}>
               {value}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          defaultValue={responsibleId ?? ""}
+          name="responsibleId"
+        >
+          <option value="">Todos los responsables</option>
+          <option value="none">Sin responsable</option>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
             </option>
           ))}
         </select>
@@ -200,7 +219,7 @@ export default async function CompaniesPage({
           basePath="/companies"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status, industry, sort, dir: sort ? dir : undefined }}
+          params={{ q, status, industry, responsibleId, sort, dir: sort ? dir : undefined }}
           total={total}
         />
       </section>

@@ -306,34 +306,44 @@ export default async function MeetingsPage({
             </form>
 
             {canEdit && !meeting.importedInteractionId ? (
-              <form
-                action={createInteractionFromMeeting.bind(null, meeting.id)}
-                className="mt-3 grid gap-3 border-t border-slate-100 pt-3 lg:grid-cols-[1fr_220px_auto_auto]"
-              >
-                <input type="hidden" name="companyId" value={meeting.companyId ?? ""} />
-                <input type="hidden" name="contactId" value={meeting.contactId ?? ""} />
-                <input type="hidden" name="opportunityId" value={meeting.opportunityId ?? ""} />
-                <input type="hidden" name="serviceId" value={meeting.serviceId ?? ""} />
-                <input type="hidden" name="minutes" value={meeting.minutes ?? ""} />
-                <input
-                  className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-                  name="nextAction"
-                  placeholder="Proxima accion opcional"
-                />
-                <input
-                  className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-                  name="nextActionDate"
-                  type="datetime-local"
-                />
-                <SubmitButton pendingLabel="Importando">Crear interaccion</SubmitButton>
-                <Button
-                  formAction={ignoreMeeting.bind(null, meeting.id)}
-                  type="submit"
-                  variant="outline"
+              meeting.minutes && (meeting.companyId || meeting.contactId || meeting.opportunityId) ? (
+                <form
+                  action={createInteractionFromMeeting.bind(null, meeting.id)}
+                  className="mt-3 grid gap-3 border-t border-slate-100 pt-3 lg:grid-cols-[1fr_220px_auto_auto]"
                 >
-                  Descartar
-                </Button>
-              </form>
+                  <input type="hidden" name="companyId" value={meeting.companyId ?? ""} />
+                  <input type="hidden" name="contactId" value={meeting.contactId ?? ""} />
+                  <input type="hidden" name="opportunityId" value={meeting.opportunityId ?? ""} />
+                  <input type="hidden" name="serviceId" value={meeting.serviceId ?? ""} />
+                  <input type="hidden" name="minutes" value={meeting.minutes ?? ""} />
+                  <input
+                    className="h-10 rounded-md border border-slate-300 px-3 text-sm"
+                    name="nextAction"
+                    placeholder="Proxima accion opcional"
+                  />
+                  <input
+                    className="h-10 rounded-md border border-slate-300 px-3 text-sm"
+                    name="nextActionDate"
+                    type="datetime-local"
+                  />
+                  <SubmitButton pendingLabel="Importando">Crear interaccion</SubmitButton>
+                  <Button formAction={ignoreMeeting.bind(null, meeting.id)} type="submit" variant="outline">
+                    Descartar
+                  </Button>
+                </form>
+              ) : (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                  <p>
+                    Para crear la interaccion, primero asocia la reunion a una empresa, contacto u
+                    oportunidad y guarda una minuta.
+                  </p>
+                  <form action={ignoreMeeting.bind(null, meeting.id)}>
+                    <SubmitButton pendingLabel="Descartando" size="sm" variant="outline">
+                      Descartar
+                    </SubmitButton>
+                  </form>
+                </div>
+              )
             ) : null}
             </details>
           </article>

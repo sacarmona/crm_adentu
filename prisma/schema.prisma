@@ -479,6 +479,8 @@ model WhatsAppMessage {
   mediaId              String?
   timestamp            DateTime
   status               WhatsAppMessageStatus @default(PENDING)
+  deliveryStatus       String?
+  deliveryError        String?
   matchedContactId     String?
   matchedCompanyId     String?
   matchedOpportunityId String?

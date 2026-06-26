@@ -1,7 +1,6 @@
 import {
   Company,
   Contact,
-  InteractionType,
   Opportunity,
   Service,
   TaskStatus,
@@ -10,7 +9,7 @@ import {
 
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
 import { Button } from "@/components/ui/button";
-import { interactionTypeLabels, taskStatusLabels } from "@/lib/labels";
+import { taskStatusLabels } from "@/lib/labels";
 
 type Option = { id: string; name: string };
 type CompanyOption = Pick<Company, "id" | "name">;
@@ -36,99 +35,6 @@ function enumOptions(
 export function localDateTimeValue(date = new Date()) {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
-}
-
-export function InteractionForm({
-  action,
-  companies,
-  contacts,
-  opportunities,
-  services,
-  defaults,
-  submitLabel = "Registrar interaccion",
-}: {
-  action: (formData: FormData) => void | Promise<void>;
-  companies: CompanyOption[];
-  contacts: ContactOption[];
-  opportunities: OpportunityOption[];
-  services: ServiceOption[];
-  defaults?: {
-    date?: string;
-    type?: InteractionType;
-    companyId?: string;
-    contactId?: string;
-    opportunityId?: string;
-    serviceId?: string;
-    content?: string;
-    nextAction?: string;
-    nextActionDate?: string;
-  };
-  submitLabel?: string;
-}) {
-  return (
-    <form
-      action={action}
-      className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 md:grid-cols-2"
-    >
-      <TextField
-        defaultValue={defaults?.date ?? localDateTimeValue()}
-        label="Fecha y hora"
-        name="date"
-        required
-        type="datetime-local"
-      />
-      <SelectField
-        defaultValue={defaults?.type}
-        label="Tipo"
-        name="type"
-        options={enumOptions(InteractionType, interactionTypeLabels)}
-        required
-      />
-      <SelectField
-        defaultValue={defaults?.companyId}
-        label="Empresa"
-        name="companyId"
-        options={options(companies)}
-      />
-      <SelectField
-        defaultValue={defaults?.contactId}
-        label="Contacto"
-        name="contactId"
-        options={options(contacts)}
-      />
-      <SelectField
-        defaultValue={defaults?.opportunityId}
-        label="Oportunidad"
-        name="opportunityId"
-        options={options(opportunities)}
-      />
-      <SelectField
-        defaultValue={defaults?.serviceId}
-        label="Servicio"
-        name="serviceId"
-        options={options(services)}
-      />
-      <TextArea
-        defaultValue={defaults?.content}
-        label="Contenido de la interaccion"
-        name="content"
-      />
-      <TextField
-        defaultValue={defaults?.nextAction}
-        label="Proxima accion"
-        name="nextAction"
-      />
-      <TextField
-        defaultValue={defaults?.nextActionDate}
-        label="Fecha proxima accion"
-        name="nextActionDate"
-        type="datetime-local"
-      />
-      <div className="self-end">
-        <Button type="submit">{submitLabel}</Button>
-      </div>
-    </form>
-  );
 }
 
 export function TaskForm({

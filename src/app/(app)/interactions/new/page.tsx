@@ -2,7 +2,8 @@ import { UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { InteractionForm } from "@/components/activity/forms";
+import { localDateTimeValue } from "@/components/activity/forms";
+import { InteractionForm } from "@/components/activity/interaction-form";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { prisma } from "@/lib/prisma";
 import { createInteraction } from "@/server/actions/activity";
@@ -20,6 +21,8 @@ export default async function NewInteractionPage({
 }) {
   const session = await auth();
   const defaults = await searchParams;
+  const now = new Date();
+  const nextActionDefault = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
   if (session?.user.role === UserRole.LECTURA) {
     redirect("/interactions");
@@ -33,12 +36,12 @@ export default async function NewInteractionPage({
     }),
     prisma.contact.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true },
+      select: { id: true, name: true, companyId: true },
       orderBy: { name: "asc" },
     }),
     prisma.opportunity.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true },
+      select: { id: true, name: true, companyId: true },
       orderBy: { name: "asc" },
     }),
     prisma.service.findMany({
@@ -58,7 +61,12 @@ export default async function NewInteractionPage({
         action={createInteraction}
         companies={companies}
         contacts={contacts}
-        defaults={defaults}
+        defaults={{
+          date: localDateTimeValue(now),
+          nextAction: "Revisar estado de Oportunidad y actualizar si fuese necesario",
+          nextActionDate: localDateTimeValue(nextActionDefault),
+          ...defaults,
+        }}
         opportunities={opportunities}
         services={services}
       />

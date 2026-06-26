@@ -23,6 +23,12 @@ type WhatsAppWebhookMessage = {
   };
 };
 
+type WhatsAppWebhookStatus = {
+  id: string;
+  status: string;
+  errors?: Array<{ code?: number; title?: string; message?: string }>;
+};
+
 type WhatsAppWebhookPayload = {
   entry?: Array<{
     changes?: Array<{
@@ -30,6 +36,7 @@ type WhatsAppWebhookPayload = {
         metadata?: { display_phone_number?: string };
         contacts?: Array<{ profile?: { name?: string } }>;
         messages?: WhatsAppWebhookMessage[];
+        statuses?: WhatsAppWebhookStatus[];
       };
     }>;
   }>;
@@ -123,6 +130,18 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const value = change.value;
+
+      for (const status of value?.statuses ?? []) {
+        const error = status.errors?.[0];
+        await prisma.whatsAppMessage.updateMany({
+          where: { waMessageId: status.id },
+          data: {
+            deliveryStatus: status.status,
+            deliveryError: error ? `${error.title ?? "Error"}: ${error.message ?? ""}`.trim() : null,
+          },
+        });
+      }
+
       const messages = value?.messages ?? [];
       if (messages.length === 0) continue;
 
