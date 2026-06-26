@@ -77,11 +77,17 @@ function groupIntoThreads(messages: WhatsAppMessageRow[]) {
     .sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime());
 }
 
-export default async function WhatsAppPage() {
+export default async function WhatsAppPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
   const session = await auth();
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canAnalyze = canEdit && (await isActiveProviderConfigured());
   const configured = isWhatsAppConfigured();
+  const params = await searchParams;
+  const query = params?.q?.trim().toLowerCase() ?? "";
 
   const messages = configured
     ? await prisma.whatsAppMessage.findMany({
@@ -90,14 +96,14 @@ export default async function WhatsAppPage() {
       })
     : [];
 
-  const threads = groupIntoThreads(messages);
+  const allThreads = groupIntoThreads(messages);
   const pendingMessages = messages.filter(
     (message) => message.status === WhatsAppMessageStatus.PENDING,
   );
 
-  const threadAnalyses = threads.length
+  const threadAnalyses = allThreads.length
     ? await prisma.whatsAppThreadAnalysis.findMany({
-        where: { phoneNumber: { in: threads.map((thread) => thread.phone) } },
+        where: { phoneNumber: { in: allThreads.map((thread) => thread.phone) } },
       })
     : [];
   const analysisByPhone = new Map(threadAnalyses.map((analysis) => [analysis.phoneNumber, analysis]));
@@ -129,7 +135,7 @@ export default async function WhatsAppPage() {
 
   const matchedIds = [
     ...new Set(
-      threads.flatMap((thread) =>
+      allThreads.flatMap((thread) =>
         [thread.matchedContactId, thread.matchedCompanyId, thread.matchedOpportunityId].filter(
           (id): id is string => Boolean(id),
         ),
@@ -144,6 +150,18 @@ export default async function WhatsAppPage() {
   const contactNames = new Map(matchedContacts.map((item) => [item.id, item.name]));
   const companyNames = new Map(matchedCompanies.map((item) => [item.id, item.name]));
   const opportunityNames = new Map(matchedOpportunities.map((item) => [item.id, item.name]));
+
+  const threads = query
+    ? allThreads.filter((thread) => {
+        const contactName =
+          (thread.matchedContactId && contactNames.get(thread.matchedContactId)) ||
+          thread.contactName ||
+          "";
+        return (
+          contactName.toLowerCase().includes(query) || thread.phone.toLowerCase().includes(query)
+        );
+      })
+    : allThreads;
 
   return (
     <div className="space-y-5">
@@ -181,14 +199,28 @@ export default async function WhatsAppPage() {
               {pendingMessages.length} mensajes pendientes de vincular a una empresa, contacto u oportunidad.
             </p>
           </div>
-          {canEdit ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/whatsapp/rules">
-                <ListFilter className="h-4 w-4" aria-hidden />
-                Numeros descartados
-              </Link>
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            <form className="flex items-center gap-2" method="get">
+              <input
+                className="h-9 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-950"
+                defaultValue={params?.q ?? ""}
+                name="q"
+                placeholder="Buscar por contacto o numero"
+                type="search"
+              />
+              <Button size="sm" type="submit" variant="outline">
+                Buscar
+              </Button>
+            </form>
+            {canEdit ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/whatsapp/rules">
+                  <ListFilter className="h-4 w-4" aria-hidden />
+                  Numeros descartados
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         </div>
         <div className="divide-y divide-slate-100">
           {threads.map((thread) => (
@@ -373,12 +405,50 @@ export default async function WhatsAppPage() {
                   );
                 })}
               </div>
+
+              {canEdit && configured ? (
+                <form
+                  action={sendWhatsAppReply}
+                  className="mt-3 flex items-end gap-2 border-t border-slate-100 pt-3"
+                >
+                  <input name="to" type="hidden" value={thread.phone} />
+                  <input
+                    name="companyId"
+                    type="hidden"
+                    value={thread.matchedCompanyId ?? ""}
+                  />
+                  <input
+                    name="contactId"
+                    type="hidden"
+                    value={thread.matchedContactId ?? ""}
+                  />
+                  <input
+                    name="opportunityId"
+                    type="hidden"
+                    value={thread.matchedOpportunityId ?? ""}
+                  />
+                  <textarea
+                    className="min-h-10 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950"
+                    name="body"
+                    placeholder="Responder en esta conversacion..."
+                    required
+                    rows={1}
+                  />
+                  <SubmitButton pendingLabel="Enviando" size="sm">
+                    Responder
+                  </SubmitButton>
+                </form>
+              ) : null}
               </details>
             </article>
           ))}
           {threads.length === 0 ? (
             <p className="p-8 text-center text-sm text-slate-500">
-              {configured ? "Todavia no hay mensajes de WhatsApp." : "Configura WhatsApp para recibir mensajes."}
+              {query
+                ? "Ninguna conversacion coincide con la busqueda."
+                : configured
+                  ? "Todavia no hay mensajes de WhatsApp."
+                  : "Configura WhatsApp para recibir mensajes."}
             </p>
           ) : null}
         </div>
