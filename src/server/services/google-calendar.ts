@@ -223,3 +223,94 @@ export async function deleteCalendarEvent(accessToken: string, eventId: string) 
     throw new Error(`Google Calendar rechazo la eliminacion del evento (${response.status}).`);
   }
 }
+
+type CalendarEventAttendee = {
+  email?: string;
+  displayName?: string;
+  responseStatus?: string;
+};
+
+type GoogleCalendarEvent = {
+  id?: string;
+  summary?: string;
+  description?: string;
+  hangoutLink?: string;
+  start?: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
+  organizer?: { email?: string };
+  attendees?: CalendarEventAttendee[];
+  conferenceData?: {
+    conferenceId?: string;
+    entryPoints?: { entryPointType?: string; uri?: string }[];
+  };
+};
+
+export type MeetCalendarEvent = {
+  providerEventId: string;
+  summary: string;
+  description?: string;
+  meetingUri?: string;
+  conferenceId?: string;
+  startsAt: Date;
+  endsAt?: Date;
+  organizerEmail?: string;
+  attendees: CalendarEventAttendee[];
+};
+
+function parseCalendarDate(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function meetUriForEvent(event: GoogleCalendarEvent) {
+  const entryUri = event.conferenceData?.entryPoints?.find(
+    (entryPoint) =>
+      entryPoint.entryPointType === "video" &&
+      entryPoint.uri?.includes("meet.google.com"),
+  )?.uri;
+  if (entryUri) return entryUri;
+  return event.hangoutLink?.includes("meet.google.com") ? event.hangoutLink : undefined;
+}
+
+export async function listMeetCalendarEvents(
+  accessToken: string,
+  input: { timeMin: Date; timeMax: Date },
+) {
+  const url = new URL(EVENTS_URL);
+  url.searchParams.set("timeMin", input.timeMin.toISOString());
+  url.searchParams.set("timeMax", input.timeMax.toISOString());
+  url.searchParams.set("singleEvents", "true");
+  url.searchParams.set("orderBy", "startTime");
+  url.searchParams.set("conferenceDataVersion", "1");
+  url.searchParams.set("maxResults", "100");
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Google Calendar rechazo la lectura de eventos (${response.status}).`);
+  }
+
+  const payload = (await response.json()) as { items?: GoogleCalendarEvent[] };
+  return (payload.items ?? []).flatMap((event): MeetCalendarEvent[] => {
+    const meetingUri = meetUriForEvent(event);
+    const startsAt = parseCalendarDate(event.start?.dateTime ?? event.start?.date);
+    if (!event.id || !meetingUri || !startsAt) return [];
+    const endsAt = parseCalendarDate(event.end?.dateTime ?? event.end?.date) ?? undefined;
+    return [
+      {
+        providerEventId: event.id,
+        summary: event.summary?.trim() || "Reunion sin titulo",
+        description: event.description,
+        meetingUri,
+        conferenceId: event.conferenceData?.conferenceId,
+        startsAt,
+        endsAt,
+        organizerEmail: event.organizer?.email,
+        attendees: event.attendees ?? [],
+      },
+    ];
+  });
+}

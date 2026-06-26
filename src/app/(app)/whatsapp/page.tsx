@@ -4,15 +4,15 @@ import {
   WhatsAppDirection,
   WhatsAppMessageStatus,
 } from "@prisma/client";
-import { Bot, Check, EyeOff, ListFilter, MessageCircle, Send, ShieldOff } from "lucide-react";
+import { Bot, Check, EyeOff, ListFilter, MessageCircle, ShieldOff } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
-import { SelectField, TextField } from "@/components/crm/form-controls";
 import { EmailResolutionFields } from "@/components/email/email-resolution-fields";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { WhatsAppComposer } from "@/components/whatsapp/composer";
 import { formatDateTime } from "@/lib/format";
 import { commercialSentimentLabels, emailCommercialIntentLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
@@ -112,7 +112,7 @@ export default async function WhatsAppPage() {
         prisma.contact.findMany({
           where: { deletedAt: null },
           orderBy: { name: "asc" },
-          select: { id: true, name: true, companyId: true },
+          select: { id: true, name: true, companyId: true, phone: true },
         }),
         prisma.opportunity.findMany({
           where: { deletedAt: null, status: { notIn: [OpportunityStatus.WON, OpportunityStatus.LOST] } },
@@ -164,46 +164,12 @@ export default async function WhatsAppPage() {
       {canEdit && configured ? (
         <details className="group rounded-md border border-slate-200 bg-white p-5">
           <summary className="cursor-pointer font-semibold">Enviar mensaje</summary>
-          <form action={sendWhatsAppReply} className="mt-4 grid gap-3 md:grid-cols-2">
-            <TextField label="Numero (con codigo de pais)" name="to" required />
-            <SelectField
-              label="Empresa (opcional)"
-              name="companyId"
-              options={companies.map((company) => ({ value: company.id, label: company.name }))}
-              placeholder="Sin empresa"
-            />
-            <SelectField
-              label="Contacto (opcional)"
-              name="contactId"
-              options={contacts.map((contact) => ({ value: contact.id, label: contact.name }))}
-              placeholder="Sin contacto"
-            />
-            <SelectField
-              label="Oportunidad (opcional)"
-              name="opportunityId"
-              options={opportunities.map((opportunity) => ({
-                value: opportunity.id,
-                label: opportunity.name,
-              }))}
-              placeholder="Sin oportunidad"
-            />
-            <div className="md:col-span-2">
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Mensaje</span>
-                <textarea
-                  className="mt-2 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950"
-                  name="body"
-                  required
-                />
-              </label>
-            </div>
-            <div>
-              <SubmitButton pendingLabel="Enviando">
-                <Send className="h-4 w-4" aria-hidden />
-                Enviar
-              </SubmitButton>
-            </div>
-          </form>
+          <WhatsAppComposer
+            action={sendWhatsAppReply}
+            companies={companies}
+            contacts={contacts}
+            opportunities={opportunities}
+          />
         </details>
       ) : null}
 
@@ -249,6 +215,12 @@ export default async function WhatsAppPage() {
                   ) : null}
                 </div>
               </div>
+
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-medium text-emerald-700">
+                  Ver conversación ({thread.messages.length}{" "}
+                  {thread.messages.length === 1 ? "mensaje" : "mensajes"})
+                </summary>
 
               {(() => {
                 const analysis = analysisByPhone.get(thread.phone);
@@ -401,6 +373,7 @@ export default async function WhatsAppPage() {
                   );
                 })}
               </div>
+              </details>
             </article>
           ))}
           {threads.length === 0 ? (

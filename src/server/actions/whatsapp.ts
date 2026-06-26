@@ -234,6 +234,19 @@ export async function sendWhatsAppReply(formData: FormData) {
   const sent = await sendWhatsAppTextMessage({ to, body });
   const now = new Date();
 
+  if (contactId) {
+    const contact = await prisma.contact.findFirst({
+      where: { id: contactId, deletedAt: null },
+      select: { phone: true },
+    });
+    if (contact && !contact.phone) {
+      await prisma.contact.update({
+        where: { id: contactId },
+        data: { phone: to },
+      });
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     const interaction = await tx.interaction.create({
       data: {
