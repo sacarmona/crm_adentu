@@ -52,6 +52,10 @@ export function LinkedInCaptureForm({
       />
       <TextField label="Persona" name="personName" />
       <TextField label="Organizacion mencionada" name="organizationName" />
+      <p className="md:col-span-2 -mb-2 text-xs text-slate-500">
+        Selecciona al menos una empresa, contacto u oportunidad para poder
+        registrar la captura.
+      </p>
       <SelectField
         label="Empresa CRM"
         name="companyId"
@@ -72,7 +76,12 @@ export function LinkedInCaptureForm({
         name="serviceId"
         options={options(services)}
       />
-      <TextArea label="Contenido relevante" name="content" />
+      <TextArea
+        label="Contenido relevante"
+        minLength={10}
+        name="content"
+        required
+      />
       <TextField label="Proxima accion" name="nextAction" />
       <TextField
         label="Fecha proxima accion"

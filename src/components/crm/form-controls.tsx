@@ -38,18 +38,27 @@ export function TextArea({
   label,
   name,
   defaultValue,
+  minLength,
+  required,
 }: {
   label: string;
   name: string;
   defaultValue?: string | null;
+  minLength?: number;
+  required?: boolean;
 }) {
   return (
     <label className="block md:col-span-2">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-sm font-medium text-slate-700">
+        {label}
+        {required ? " *" : ""}
+      </span>
       <textarea
         className="mt-2 min-h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950"
         defaultValue={defaultValue ?? ""}
+        minLength={minLength}
         name={name}
+        required={required}
       />
     </label>
   );

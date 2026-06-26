@@ -3,6 +3,7 @@
 import { AuditAction, InteractionType, TaskStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ZodError } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { linkedInCaptureSchema } from "@/schemas/crm";
@@ -15,9 +16,15 @@ export async function createLinkedInCapture(formData: FormData) {
   const user = await requireWriter(
     "No tienes permisos para registrar actividad de LinkedIn.",
   );
-  const data = linkedInCaptureSchema.parse(
-    Object.fromEntries(formData.entries()),
-  );
+  let data: ReturnType<typeof linkedInCaptureSchema.parse>;
+  try {
+    data = linkedInCaptureSchema.parse(Object.fromEntries(formData.entries()));
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new Error(error.issues.map((issue) => issue.message).join(" "));
+    }
+    throw error;
+  }
   const date = parseLocalDateTime(data.date);
   const nextActionDate = parseLocalDateTime(data.nextActionDate);
   if (!date) {
