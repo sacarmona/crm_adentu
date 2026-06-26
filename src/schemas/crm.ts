@@ -107,12 +107,14 @@ export const interactionSchema = z
     "La interaccion debe asociarse a una empresa, contacto u oportunidad.",
   );
 
-export const linkedInCaptureSchema = z
-  .object({
-    date: z.string().min(1, "La fecha es obligatoria."),
-    sourceUrl: z
+const optionalLinkedInUrl = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? value : null))
+  .pipe(
+    z
       .string()
-      .trim()
       .url("Ingresa una URL valida.")
       .refine((value) => {
         const url = new URL(value);
@@ -121,7 +123,14 @@ export const linkedInCaptureSchema = z
           url.protocol === "https:" &&
           (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com"))
         );
-      }, "La URL debe ser HTTPS y pertenecer a LinkedIn."),
+      }, "La URL debe ser HTTPS y pertenecer a LinkedIn.")
+      .nullable(),
+  );
+
+export const linkedInCaptureSchema = z
+  .object({
+    date: z.string().min(1, "La fecha es obligatoria."),
+    sourceUrl: optionalLinkedInUrl,
     personName: optionalText,
     organizationName: optionalText,
     content: z.string().trim().min(10, "Registra el contexto relevante."),

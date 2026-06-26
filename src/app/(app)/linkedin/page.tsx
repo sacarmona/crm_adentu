@@ -7,7 +7,11 @@ import { EntityHeader } from "@/components/crm/entity-header";
 import { LinkedInCaptureForm } from "@/components/linkedin/capture-form";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { createLinkedInCapture } from "@/server/actions/linkedin";
+import {
+  analyzeLinkedInProfilePdf,
+  createLinkedInCapture,
+} from "@/server/actions/linkedin";
+import { isActiveProviderConfigured } from "@/server/services/ai-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +28,7 @@ export default async function LinkedInPage({
   const session = await auth();
   const params = await searchParams;
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const aiAvailable = canEdit && (await isActiveProviderConfigured());
   const [companies, contacts, opportunities, services, interactions] =
     await Promise.all([
       prisma.company.findMany({
@@ -72,6 +77,8 @@ export default async function LinkedInPage({
       {canEdit ? (
         <LinkedInCaptureForm
           action={createLinkedInCapture}
+          aiAvailable={aiAvailable}
+          analyzeAction={analyzeLinkedInProfilePdf}
           companies={companies}
           contacts={contacts}
           opportunities={opportunities}

@@ -1,12 +1,12 @@
 export function linkedinInteractionContent(input: {
-  sourceUrl: string;
+  sourceUrl?: string | null;
   personName?: string | null;
   organizationName?: string | null;
   content: string;
 }) {
   return [
     "Captura asistida desde LinkedIn",
-    `Fuente: ${input.sourceUrl}`,
+    input.sourceUrl ? `Fuente: ${input.sourceUrl}` : null,
     input.personName ? `Persona: ${input.personName}` : null,
     input.organizationName ? `Organizacion: ${input.organizationName}` : null,
     "",

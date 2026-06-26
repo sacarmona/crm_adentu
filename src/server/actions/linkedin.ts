@@ -9,8 +9,34 @@ import { prisma } from "@/lib/prisma";
 import { linkedInCaptureSchema } from "@/schemas/crm";
 import { requireWriter } from "@/server/authz";
 import { parseLocalDateTime } from "@/server/services/activity";
+import { extractLinkedInProfileWithActiveProvider } from "@/server/services/ai-provider";
 import { linkedinInteractionContent } from "@/server/services/linkedin-capture";
+import { extractPdfText } from "@/server/services/linkedin-profile";
 import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
+
+const MAX_PROFILE_PDF_BYTES = 5 * 1024 * 1024;
+
+export async function analyzeLinkedInProfilePdf(formData: FormData) {
+  await requireWriter("No tienes permisos para analizar perfiles de LinkedIn.");
+  const file = formData.get("profilePdf");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Adjunta un archivo PDF del perfil.");
+  }
+  if (file.type !== "application/pdf") {
+    throw new Error("El archivo debe ser un PDF.");
+  }
+  if (file.size > MAX_PROFILE_PDF_BYTES) {
+    throw new Error("El PDF supera los 5 MB permitidos.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const profileText = await extractPdfText(buffer);
+  if (!profileText) {
+    throw new Error("No fue posible leer texto del PDF.");
+  }
+
+  return extractLinkedInProfileWithActiveProvider(profileText);
+}
 
 export async function createLinkedInCapture(formData: FormData) {
   const user = await requireWriter(

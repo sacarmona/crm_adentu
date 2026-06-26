@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   analyzeCommercialEmailWithAnthropic,
   analyzeCommercialInteractionWithAnthropic,
+  extractLinkedInProfileWithAnthropic,
   generateCommercialEmailDraftWithAnthropic,
   isAnthropicConfigured,
 } from "@/server/services/anthropic";
@@ -22,9 +23,11 @@ import {
 import {
   analyzeCommercialEmail,
   analyzeCommercialInteraction,
+  extractLinkedInProfile,
   generateCommercialEmailDraft,
   isAiConfigured,
 } from "@/server/services/openai";
+import { LinkedInProfileExtraction } from "@/server/services/linkedin-profile";
 
 const SETTINGS_ID = "default";
 
@@ -69,6 +72,15 @@ export async function isActiveProviderConfigured() {
   return provider === AiProvider.ANTHROPIC
     ? isAnthropicConfigured()
     : isAiConfigured();
+}
+
+export async function extractLinkedInProfileWithActiveProvider(
+  profileText: string,
+): Promise<LinkedInProfileExtraction> {
+  const provider = await getActiveAiProvider();
+  return provider === AiProvider.ANTHROPIC
+    ? extractLinkedInProfileWithAnthropic(profileText)
+    : extractLinkedInProfile(profileText);
 }
 
 export async function analyzeInteractionWithActiveProvider(

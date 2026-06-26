@@ -16,10 +16,16 @@ import {
   EmailDraftSuggestion,
   emailDraftSchema,
 } from "@/server/services/email-draft";
+import {
+  buildLinkedInProfileExtractionPrompt,
+  LinkedInProfileExtraction,
+  linkedInProfileExtractionSchema,
+} from "@/server/services/linkedin-profile";
 
 const ANALYSIS_TOOL_NAME = "submit_commercial_analysis";
 const EMAIL_ANALYSIS_TOOL_NAME = "submit_email_classification";
 const EMAIL_DRAFT_TOOL_NAME = "submit_email_draft";
+const LINKEDIN_PROFILE_TOOL_NAME = "submit_linkedin_profile_extraction";
 
 const analysisToolSchema = {
   name: ANALYSIS_TOOL_NAME,
@@ -135,6 +141,21 @@ const emailDraftToolSchema = {
   },
 };
 
+const linkedInProfileToolSchema = {
+  name: LINKEDIN_PROFILE_TOOL_NAME,
+  description: "Registra los datos extraidos de un perfil de LinkedIn en PDF.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      personName: { type: ["string", "null"] as unknown as "string" },
+      organizationName: { type: ["string", "null"] as unknown as "string" },
+      sourceUrl: { type: ["string", "null"] as unknown as "string" },
+      content: { type: "string" as const },
+    },
+    required: ["personName", "organizationName", "sourceUrl", "content"],
+  },
+};
+
 export function isAnthropicConfigured() {
   return Boolean(env.ANTHROPIC_API_KEY);
 }
@@ -202,6 +223,39 @@ export async function analyzeCommercialEmailWithAnthropic(
   const result = emailCommercialAnalysisSchema.safeParse(toolUse.input);
   if (!result.success) {
     throw new Error("La clasificacion de correo no pudo validarse.");
+  }
+  return result.data;
+}
+
+export async function extractLinkedInProfileWithAnthropic(
+  profileText: string,
+): Promise<LinkedInProfileExtraction> {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY no esta configurada.");
+  }
+
+  const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const response = await anthropic.messages.create({
+    model: env.ANTHROPIC_MODEL,
+    max_tokens: 768,
+    system:
+      "Extraes datos estructurados de perfiles de LinkedIn exportados en PDF. No inventes informacion ausente.",
+    messages: [
+      { role: "user", content: buildLinkedInProfileExtractionPrompt(profileText) },
+    ],
+    tools: [linkedInProfileToolSchema],
+    tool_choice: { type: "tool", name: LINKEDIN_PROFILE_TOOL_NAME },
+  });
+  const toolUse = response.content.find(
+    (block) =>
+      block.type === "tool_use" && block.name === LINKEDIN_PROFILE_TOOL_NAME,
+  );
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("La extraccion del perfil no pudo validarse.");
+  }
+  const result = linkedInProfileExtractionSchema.safeParse(toolUse.input);
+  if (!result.success) {
+    throw new Error("La extraccion del perfil no pudo validarse.");
   }
   return result.data;
 }

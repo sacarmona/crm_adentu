@@ -17,6 +17,11 @@ import {
   EmailDraftSuggestion,
   emailDraftSchema,
 } from "@/server/services/email-draft";
+import {
+  buildLinkedInProfileExtractionPrompt,
+  LinkedInProfileExtraction,
+  linkedInProfileExtractionSchema,
+} from "@/server/services/linkedin-profile";
 
 export function isAiConfigured() {
   return Boolean(env.OPENAI_API_KEY);
@@ -77,6 +82,42 @@ export async function analyzeCommercialEmail(
 
   if (!response.output_parsed) {
     throw new Error("La clasificacion de correo no pudo validarse.");
+  }
+
+  return response.output_parsed;
+}
+
+export async function extractLinkedInProfile(
+  profileText: string,
+): Promise<LinkedInProfileExtraction> {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY no esta configurada.");
+  }
+
+  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const response = await openai.responses.parse({
+    model: env.OPENAI_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "Extraes datos estructurados de perfiles de LinkedIn exportados en PDF. No inventes informacion ausente.",
+      },
+      {
+        role: "user",
+        content: buildLinkedInProfileExtractionPrompt(profileText),
+      },
+    ],
+    text: {
+      format: zodTextFormat(
+        linkedInProfileExtractionSchema,
+        "linkedin_profile_extraction",
+      ),
+    },
+  });
+
+  if (!response.output_parsed) {
+    throw new Error("La extraccion del perfil no pudo validarse.");
   }
 
   return response.output_parsed;
