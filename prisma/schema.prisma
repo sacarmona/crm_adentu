@@ -244,6 +244,8 @@ model User {
   createdPlaybooks             Playbook[]               @relation("PlaybookCreator")
   commercialMilestones         CommercialMilestone[]    @relation("MilestoneOwner")
   aiSettingsUpdates            AiSettings[]
+  whatsAppMediaUploaderFor     WhatsAppSettings[]       @relation("WhatsAppMediaUploader")
+  whatsAppSettingsUpdates      WhatsAppSettings[]       @relation("WhatsAppSettingsUpdater")
   emailConnections             EmailConnection[]
   reviewedWhatsAppMessages     WhatsAppMessage[]        @relation("WhatsAppMessageReviewer")
   whatsAppDiscardRules         WhatsAppDiscardRule[]
@@ -477,6 +479,8 @@ model WhatsAppMessage {
   body                 String?
   mediaType            String?
   mediaId              String?
+  mediaUrl             String?
+  mediaError           String?
   timestamp            DateTime
   status               WhatsAppMessageStatus @default(PENDING)
   deliveryStatus       String?
@@ -765,12 +769,12 @@ model Task {
   calendarSyncedAt DateTime?
   calendarError    String?
 
-  googleTaskOwnerId  String?
-  googleTaskListId   String?
-  googleTaskId       String?
+  googleTaskOwnerId   String?
+  googleTaskListId    String?
+  googleTaskId        String?
   googleTaskUpdatedAt DateTime?
-  googleTaskSyncedAt DateTime?
-  googleTaskWebUrl   String?
+  googleTaskSyncedAt  DateTime?
+  googleTaskWebUrl    String?
 
   company                Company?                 @relation(fields: [companyId], references: [id])
   contact                Contact?                 @relation(fields: [contactId], references: [id])
@@ -781,13 +785,13 @@ model Task {
   createdBy              User?                    @relation("TaskCreator", fields: [createdById], references: [id])
   whatsAppThreadAnalyses WhatsAppThreadAnalysis[]
 
+  @@unique([googleTaskOwnerId, googleTaskListId, googleTaskId])
   @@index([dueDate])
   @@index([status])
   @@index([assignedToId])
   @@index([companyId])
   @@index([opportunityId])
   @@index([googleTaskOwnerId])
-  @@unique([googleTaskOwnerId, googleTaskListId, googleTaskId])
 }
 
 model MarketAsset {
@@ -927,6 +931,24 @@ model AiSettings {
   updatedAt      DateTime   @updatedAt
 
   updatedBy User? @relation(fields: [updatedById], references: [id])
+}
+
+model WhatsAppSettings {
+  id                  String   @id @default("default")
+  mediaUploaderUserId String?
+  rootFolderId        String?
+  updatedById         String?
+  updatedAt           DateTime @updatedAt
+
+  mediaUploaderUser User? @relation("WhatsAppMediaUploader", fields: [mediaUploaderUserId], references: [id])
+  updatedBy         User? @relation("WhatsAppSettingsUpdater", fields: [updatedById], references: [id])
+}
+
+model WhatsAppMediaFolder {
+  id            String   @id @default(uuid())
+  phoneNumber   String   @unique
+  driveFolderId String
+  createdAt     DateTime @default(now())
 }
 
 model AiInsight {

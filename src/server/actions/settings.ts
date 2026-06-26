@@ -187,3 +187,24 @@ export async function updateAiProvider(formData: FormData) {
   });
   revalidatePath("/settings");
 }
+
+export async function updateWhatsAppMediaUploader(formData: FormData) {
+  const user = await requireAdmin("Solo ADMIN puede cambiar el usuario de Drive para WhatsApp.");
+  const mediaUploaderUserId = (formData.get("mediaUploaderUserId") as string | null) || null;
+
+  await prisma.whatsAppSettings.upsert({
+    where: { id: "default" },
+    update: { mediaUploaderUserId, updatedById: user.id },
+    create: { id: "default", mediaUploaderUserId, updatedById: user.id },
+  });
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.UPDATE,
+      entityType: "WhatsAppSettings",
+      entityId: "default",
+      actorId: user.id,
+      after: { mediaUploaderUserId },
+    },
+  });
+  revalidatePath("/settings");
+}

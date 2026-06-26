@@ -13,11 +13,13 @@ import {
   toggleDictionaryValue,
   toggleService,
   updateAiProvider,
+  updateWhatsAppMediaUploader,
 } from "@/server/actions/settings";
 import { toggleUserActive } from "@/server/actions/users";
 import { getActiveAiProvider } from "@/server/services/ai-provider";
 import { isAiConfigured } from "@/server/services/openai";
 import { isAnthropicConfigured } from "@/server/services/anthropic";
+import { googleDriveScopesGranted } from "@/server/services/google-drive";
 import { isGoogleCalendarConfigured } from "@/server/services/google-calendar";
 import { meetingArtifactScopesGranted } from "@/server/services/google-meet";
 import { googleTasksScopesGranted } from "@/server/services/google-tasks";
@@ -49,7 +51,8 @@ export default async function SettingsPage({
     : null;
   const calendarHasMeetArtifacts = meetingArtifactScopesGranted(calendarConnection?.scope);
   const calendarHasGoogleTasks = googleTasksScopesGranted(calendarConnection?.scope);
-  const [services, dictionaryValues, activeProvider, users] = await Promise.all([
+  const [services, dictionaryValues, activeProvider, users, whatsAppSettings, driveConnections] =
+    await Promise.all([
     prisma.service.findMany({
       where: { deletedAt: null },
       include: {
@@ -73,7 +76,18 @@ export default async function SettingsPage({
     canEdit
       ? prisma.user.findMany({ orderBy: [{ name: "asc" }] })
       : Promise.resolve([]),
+    canEdit
+      ? prisma.whatsAppSettings.findUnique({ where: { id: "default" } })
+      : Promise.resolve(null),
+    canEdit
+      ? prisma.calendarConnection.findMany({
+          include: { user: { select: { id: true, name: true } } },
+        })
+      : Promise.resolve([]),
   ]);
+  const driveReadyConnections = driveConnections.filter((connection) =>
+    googleDriveScopesGranted(connection.scope),
+  );
   const openaiReady = isAiConfigured();
   const anthropicReady = isAnthropicConfigured();
   const dictionaryCounts = groupDictionaryCounts(dictionaryValues);
@@ -251,6 +265,39 @@ export default async function SettingsPage({
             <Button asChild className="mt-4">
               <a href="/api/calendar/oauth/google/start">Conectar Google Calendar</a>
             </Button>
+          )}
+        </section>
+      ) : null}
+
+      {view === "calendar" && canEdit ? (
+        <section className="max-w-xl rounded-md border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold">Archivos de WhatsApp en Drive</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Elige que usuario (con Google Calendar/Drive conectado) almacena las imagenes,
+            documentos y audios recibidos por WhatsApp. Se guardan en su Drive, en carpetas por
+            numero de telefono.
+          </p>
+          {driveReadyConnections.length === 0 ? (
+            <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Ningun usuario tiene Google Calendar conectado con el permiso de Drive habilitado.
+              Conecta o reconecta Google Calendar (en esta misma vista) para habilitarlo.
+            </p>
+          ) : (
+            <form action={updateWhatsAppMediaUploader} className="mt-4 flex flex-wrap gap-3">
+              <select
+                className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+                defaultValue={whatsAppSettings?.mediaUploaderUserId ?? ""}
+                name="mediaUploaderUserId"
+              >
+                <option value="">Sin configurar</option>
+                {driveReadyConnections.map((connection) => (
+                  <option key={connection.userId} value={connection.userId}>
+                    {connection.user.name}
+                  </option>
+                ))}
+              </select>
+              <SubmitButton pendingLabel="Guardando">Guardar</SubmitButton>
+            </form>
           )}
         </section>
       ) : null}

@@ -3,6 +3,7 @@ import { WhatsAppDirection, WhatsAppMessageStatus } from "@prisma/client";
 import { digitsOnly } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { findMatchingDiscardRule } from "@/server/services/whatsapp-discard-rules";
+import { fetchAndStoreWhatsAppMedia } from "@/server/services/whatsapp-media";
 
 type WhatsAppWebhookMessage = {
   id: string;
@@ -162,6 +163,11 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
           findMatchingDiscardRule(message.from),
         ]);
 
+        const media =
+          mediaId && mediaType && !discardRule
+            ? await fetchAndStoreWhatsAppMedia({ mediaId, mediaType, phoneNumber: message.from })
+            : {};
+
         await prisma.whatsAppMessage.create({
           data: {
             waMessageId: message.id,
@@ -172,6 +178,8 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
             body,
             mediaType,
             mediaId,
+            mediaUrl: media.mediaUrl,
+            mediaError: media.mediaError,
             timestamp: new Date(Number(message.timestamp) * 1000),
             matchedContactId: match?.id ?? null,
             matchedCompanyId: match?.companyId ?? null,

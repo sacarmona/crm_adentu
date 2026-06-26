@@ -368,6 +368,20 @@ export default async function WhatsAppPage({
                         <p className="whitespace-pre-wrap">
                           {message.body ?? "Mensaje sin contenido de texto."}
                         </p>
+                        {message.mediaUrl ? (
+                          <a
+                            className="mt-1 inline-block text-xs font-medium text-emerald-700 underline"
+                            href={message.mediaUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            Descargar archivo
+                          </a>
+                        ) : message.mediaError ? (
+                          <p className="mt-1 text-xs text-rose-700">
+                            No se pudo guardar el archivo: {message.mediaError}
+                          </p>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-[11px] text-slate-400">
                         {formatDateTime(message.timestamp)}
