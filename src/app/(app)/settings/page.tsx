@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ view?: string; type?: string }>;
+  searchParams?: Promise<{ view?: string; type?: string; saved?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
@@ -277,6 +277,11 @@ export default async function SettingsPage({
             documentos y audios recibidos por WhatsApp. Se guardan en su Drive, en carpetas por
             numero de telefono.
           </p>
+          {params?.saved === "whatsapp" ? (
+            <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              Usuario guardado.
+            </p>
+          ) : null}
           {driveReadyConnections.length === 0 ? (
             <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               Ningun usuario tiene Google Calendar conectado con el permiso de Drive habilitado.

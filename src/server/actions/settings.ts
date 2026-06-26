@@ -207,4 +207,5 @@ export async function updateWhatsAppMediaUploader(formData: FormData) {
     },
   });
   revalidatePath("/settings");
+  redirect("/settings?view=calendar&saved=whatsapp");
 }
