@@ -21,6 +21,7 @@ import {
   updateTaskDueDate,
 } from "@/server/actions/activity";
 import { isOverdueTask } from "@/server/services/activity";
+import { googleTasksScopesGranted } from "@/server/services/google-tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -139,6 +140,7 @@ export default async function TasksPage({
       : Promise.resolve(null),
   ]);
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const canImportGoogleTasks = Boolean(calendarConnection && googleTasksScopesGranted(calendarConnection.scope));
   const interactionOptions = interactions.map((interaction) => ({
     id: interaction.id,
     name: `${formatDateTime(interaction.date)} - ${interaction.content.slice(0, 60)}`,
@@ -155,7 +157,7 @@ export default async function TasksPage({
         />
         {canEdit ? (
           <form action={importGoogleTasks}>
-            <SubmitButton disabled={!calendarConnection} pendingLabel="Importando" variant="outline">
+            <SubmitButton disabled={!canImportGoogleTasks} pendingLabel="Importando" variant="outline">
               Importar Google Tasks
             </SubmitButton>
           </form>
@@ -164,6 +166,16 @@ export default async function TasksPage({
       {!calendarConnection && canEdit ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Conecta Google Calendar/Tasks en Configuracion para importar tareas de Google.
+        </p>
+      ) : null}
+      {calendarConnection && !canImportGoogleTasks && canEdit ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Reconecta Google en Configuracion para autorizar Google Tasks antes de importar.
+        </p>
+      ) : null}
+      {calendarConnection?.lastError ? (
+        <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          {calendarConnection.lastError}
         </p>
       ) : null}
       <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[200px_240px_180px_180px_auto]">

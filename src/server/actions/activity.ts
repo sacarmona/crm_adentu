@@ -17,7 +17,7 @@ import {
 import { requireAdmin, requireWriter } from "@/server/authz";
 import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 import { usableCalendarAccessToken } from "@/server/services/google-calendar";
-import { listAllGoogleTasks } from "@/server/services/google-tasks";
+import { googleTasksScopesGranted, listAllGoogleTasks } from "@/server/services/google-tasks";
 
 async function assertNoActiveDependents(
   entityLabel: string,
@@ -431,10 +431,33 @@ export async function importGoogleTasks() {
   const user = await requireWriter("No tienes permisos para importar tareas de Google.");
   const connection = await prisma.calendarConnection.findUnique({ where: { userId: user.id } });
   if (!connection) {
-    throw new Error("Conecta Google Calendar/Tasks antes de importar tareas.");
+    revalidatePath("/tasks");
+    return;
+  }
+  if (!googleTasksScopesGranted(connection.scope)) {
+    await prisma.calendarConnection.update({
+      where: { id: connection.id },
+      data: { lastError: "Reconecta Google para autorizar la importacion de Google Tasks." },
+    });
+    revalidatePath("/tasks");
+    revalidatePath("/settings");
+    return;
   }
 
-  const { accessToken, refreshed } = await usableCalendarAccessToken(connection);
+  let accessToken: string;
+  let refreshed: Awaited<ReturnType<typeof usableCalendarAccessToken>>["refreshed"];
+  try {
+    const usable = await usableCalendarAccessToken(connection);
+    accessToken = usable.accessToken;
+    refreshed = usable.refreshed;
+  } catch (error) {
+    await prisma.calendarConnection.update({
+      where: { id: connection.id },
+      data: { lastError: error instanceof Error ? error.message : "No fue posible usar la conexion Google." },
+    });
+    revalidatePath("/tasks");
+    return;
+  }
   if (refreshed) {
     await prisma.calendarConnection.update({
       where: { id: connection.id },
@@ -445,7 +468,17 @@ export async function importGoogleTasks() {
     });
   }
 
-  const importedTasks = await listAllGoogleTasks(accessToken);
+  let importedTasks;
+  try {
+    importedTasks = await listAllGoogleTasks(accessToken);
+  } catch (error) {
+    await prisma.calendarConnection.update({
+      where: { id: connection.id },
+      data: { lastError: error instanceof Error ? error.message : "Google Tasks rechazo la importacion." },
+    });
+    revalidatePath("/tasks");
+    return;
+  }
   const now = new Date();
   for (const importedTask of importedTasks) {
     await prisma.task.upsert({
