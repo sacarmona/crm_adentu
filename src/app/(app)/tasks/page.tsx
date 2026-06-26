@@ -1,5 +1,5 @@
 import { TaskStatus, UserRole } from "@prisma/client";
-import { Check, Circle, LockKeyhole } from "lucide-react";
+import { Check, Circle, ExternalLink, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
@@ -8,13 +8,16 @@ import { EntityHeader } from "@/components/crm/entity-header";
 import { InlineDateForm } from "@/components/crm/inline-date-form";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
 import { taskStatusLabels } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
+import { cn } from "@/lib/utils";
 import {
   changeTaskStatus,
+  importGoogleTasks,
   updateTaskAssignee,
+  updateTaskCrmLinks,
   updateTaskDueDate,
 } from "@/server/actions/activity";
 import { isOverdueTask } from "@/server/services/activity";
@@ -27,6 +30,38 @@ const statusStyles: Record<TaskStatus, string> = {
   CLOSED: "bg-slate-100 text-slate-600 ring-slate-200",
 };
 
+type Option = { id: string; name: string };
+
+function SelectField({
+  label,
+  name,
+  defaultValue,
+  options,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string | null;
+  options: Option[];
+}) {
+  return (
+    <label>
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <select
+        className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
+        defaultValue={defaultValue ?? ""}
+        name={name}
+      >
+        <option value="">Sin vincular</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export default async function TasksPage({
   searchParams,
 }: {
@@ -34,31 +69,35 @@ export default async function TasksPage({
     status?: string;
     assignedToId?: string;
     scope?: string;
+    source?: string;
   }>;
 }) {
   const session = await auth();
   const params = await searchParams;
   const hasFilters = Boolean(
-    params && ("status" in params || "assignedToId" in params || "scope" in params),
+    params && ("status" in params || "assignedToId" in params || "scope" in params || "source" in params),
   );
   const status = (hasFilters ? params?.status : TaskStatus.PENDING) as
     | TaskStatus
     | undefined;
   const scope = hasFilters ? params?.scope : "mine";
+  const source = params?.source ?? "";
   const assignedToId =
     scope === "mine" ? session?.user.id : params?.assignedToId;
-  const [tasks, users] = await Promise.all([
+  const [tasks, users, companies, contacts, opportunities, interactions, services, calendarConnection] = await Promise.all([
     prisma.task.findMany({
       where: {
         deletedAt: null,
         ...(status ? { status } : {}),
         ...(assignedToId ? { assignedToId } : {}),
+        ...(source === "google" ? { googleTaskId: { not: null } } : {}),
       },
       include: {
         assignedTo: true,
         company: true,
         contact: true,
         opportunity: true,
+        interaction: true,
         service: true,
       },
       orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
@@ -69,18 +108,65 @@ export default async function TasksPage({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    prisma.company.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.contact.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.opportunity.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.interaction.findMany({
+      where: { deletedAt: null },
+      select: { id: true, date: true, content: true },
+      orderBy: { date: "desc" },
+      take: 100,
+    }),
+    prisma.service.findMany({
+      where: { deletedAt: null, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    session?.user.id
+      ? prisma.calendarConnection.findUnique({ where: { userId: session.user.id } })
+      : Promise.resolve(null),
   ]);
   const canEdit = session?.user.role !== UserRole.LECTURA;
+  const interactionOptions = interactions.map((interaction) => ({
+    id: interaction.id,
+    name: `${formatDateTime(interaction.date)} - ${interaction.content.slice(0, 60)}`,
+  }));
 
   return (
     <div className="space-y-5">
-      <EntityHeader
-        actionHref={canEdit ? "/tasks/new" : undefined}
-        actionLabel={canEdit ? "Nueva tarea" : undefined}
-        description="Agenda comercial con responsables, vencimientos, ejecución y resultados."
-        title="Tareas"
-      />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[200px_240px_180px_auto]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <EntityHeader
+          actionHref={canEdit ? "/tasks/new" : undefined}
+          actionLabel={canEdit ? "Nueva tarea" : undefined}
+          description="Agenda comercial con responsables, vencimientos, ejecucion y resultados."
+          title="Tareas"
+        />
+        {canEdit ? (
+          <form action={importGoogleTasks}>
+            <SubmitButton disabled={!calendarConnection} pendingLabel="Importando" variant="outline">
+              Importar Google Tasks
+            </SubmitButton>
+          </form>
+        ) : null}
+      </div>
+      {!calendarConnection && canEdit ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Conecta Google Calendar/Tasks en Configuracion para importar tareas de Google.
+        </p>
+      ) : null}
+      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[200px_240px_180px_180px_auto]">
         <select
           className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
           defaultValue={status ?? ""}
@@ -113,6 +199,14 @@ export default async function TasksPage({
           <option value="">Todo el equipo</option>
           <option value="mine">Solo mis tareas</option>
         </select>
+        <select
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          defaultValue={source}
+          name="source"
+        >
+          <option value="">Todos los origenes</option>
+          <option value="google">Google Tasks</option>
+        </select>
         <Button type="submit">Filtrar</Button>
       </form>
       <section className="divide-y divide-slate-100 overflow-hidden rounded-md border border-slate-200 bg-white">
@@ -121,6 +215,7 @@ export default async function TasksPage({
             status: task.status,
             dueDate: task.dueDate,
           });
+          const isGoogleTask = Boolean(task.googleTaskId);
 
           return (
             <article className="p-4" key={task.id}>
@@ -136,6 +231,11 @@ export default async function TasksPage({
                     >
                       {taskStatusLabels[task.status]}
                     </span>
+                    {isGoogleTask ? (
+                      <span className="rounded-md bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
+                        Google Tasks
+                      </span>
+                    ) : null}
                     {overdue ? (
                       <span className="rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">
                         Vencida
@@ -153,7 +253,7 @@ export default async function TasksPage({
                     ) : (
                       <span>{formatDateTime(task.dueDate)}</span>
                     )}
-                    <span>· Responsable:</span>
+                    <span>- Responsable:</span>
                     {canEdit ? (
                       <div className="w-44">
                         <InlineSelectForm
@@ -167,6 +267,9 @@ export default async function TasksPage({
                     ) : (
                       <span>{task.assignedTo?.name ?? "Sin asignar"}</span>
                     )}
+                    {task.googleTaskSyncedAt ? (
+                      <span>Sincronizada: {formatDateTime(task.googleTaskSyncedAt)}</span>
+                    ) : null}
                   </div>
                   {task.description ? (
                     <p className="mt-2 text-sm text-slate-700">
@@ -180,82 +283,63 @@ export default async function TasksPage({
                   ) : null}
                   <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     {task.company ? (
-                      <Link
-                        className="font-medium hover:underline"
-                        href={`/companies/${task.company.id}`}
-                      >
+                      <Link className="font-medium hover:underline" href={`/companies/${task.company.id}`}>
                         {task.company.name}
                       </Link>
                     ) : null}
                     {task.contact ? (
-                      <Link
-                        className="font-medium hover:underline"
-                        href={`/contacts/${task.contact.id}`}
-                      >
+                      <Link className="font-medium hover:underline" href={`/contacts/${task.contact.id}`}>
                         {task.contact.name}
                       </Link>
                     ) : null}
                     {task.opportunity ? (
-                      <Link
-                        className="font-medium hover:underline"
-                        href={`/opportunities/${task.opportunity.id}`}
-                      >
+                      <Link className="font-medium hover:underline" href={`/opportunities/${task.opportunity.id}`}>
                         {task.opportunity.name}
                       </Link>
                     ) : null}
+                    {task.interaction ? <span>Interaccion vinculada</span> : null}
                     {task.service ? <span>{task.service.name}</span> : null}
+                    {task.googleTaskWebUrl ? (
+                      <a className="inline-flex items-center gap-1 font-medium hover:underline" href={task.googleTaskWebUrl} rel="noreferrer" target="_blank">
+                        Abrir en Google <ExternalLink className="h-3 w-3" aria-hidden />
+                      </a>
+                    ) : null}
                   </div>
+                  {canEdit ? (
+                    <form action={updateTaskCrmLinks.bind(null, task.id)} className="mt-4 grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-3 xl:grid-cols-6">
+                      <SelectField defaultValue={task.companyId} label="Empresa" name="companyId" options={companies} />
+                      <SelectField defaultValue={task.contactId} label="Contacto" name="contactId" options={contacts} />
+                      <SelectField defaultValue={task.opportunityId} label="Oportunidad" name="opportunityId" options={opportunities} />
+                      <SelectField defaultValue={task.interactionId} label="Interaccion" name="interactionId" options={interactionOptions} />
+                      <SelectField defaultValue={task.serviceId} label="Servicio" name="serviceId" options={services} />
+                      <div className="flex items-end">
+                        <SubmitButton pendingLabel="Guardando" size="sm" variant="outline">
+                          Vincular
+                        </SubmitButton>
+                      </div>
+                    </form>
+                  ) : null}
                 </div>
                 {canEdit ? (
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <form action={changeTaskStatus}>
                       <input name="taskId" type="hidden" value={task.id} />
-                      <input
-                        name="status"
-                        type="hidden"
-                        value={TaskStatus.PENDING}
-                      />
-                      <Button
-                        disabled={task.status === TaskStatus.PENDING}
-                        size="sm"
-                        title="Marcar pendiente"
-                        type="submit"
-                        variant="outline"
-                      >
+                      <input name="status" type="hidden" value={TaskStatus.PENDING} />
+                      <Button disabled={task.status === TaskStatus.PENDING} size="sm" title="Marcar pendiente" type="submit" variant="outline">
                         <Circle className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </form>
                     <form action={changeTaskStatus}>
                       <input name="taskId" type="hidden" value={task.id} />
-                      <input
-                        name="status"
-                        type="hidden"
-                        value={TaskStatus.EXECUTED}
-                      />
-                      <Button
-                        disabled={task.status === TaskStatus.EXECUTED}
-                        size="sm"
-                        title="Marcar ejecutada"
-                        type="submit"
-                        variant="outline"
-                      >
+                      <input name="status" type="hidden" value={TaskStatus.EXECUTED} />
+                      <Button disabled={task.status === TaskStatus.EXECUTED} size="sm" title="Marcar ejecutada" type="submit" variant="outline">
                         <Check className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </form>
                     <form action={changeTaskStatus}>
                       <input name="taskId" type="hidden" value={task.id} />
-                      <input
-                        name="status"
-                        type="hidden"
-                        value={TaskStatus.CLOSED}
-                      />
-                      <Button
-                        disabled={task.status === TaskStatus.CLOSED}
-                        size="sm"
-                        title="Cerrar tarea"
-                        type="submit"
-                        variant="outline"
-                      >
+                      <input name="status" type="hidden" value={TaskStatus.CLOSED} />
+                      <Button disabled={task.status === TaskStatus.CLOSED} size="sm" title="Cerrar tarea" type="submit" variant="outline">
                         <LockKeyhole className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </form>

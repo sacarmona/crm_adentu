@@ -1,6 +1,7 @@
 import { env } from "@/lib/env";
 import { decryptEmailToken, encryptEmailToken } from "@/server/services/email-crypto";
 import { MEET_ARTIFACT_SCOPES } from "@/server/services/google-meet";
+import { GOOGLE_TASK_SCOPES } from "@/server/services/google-tasks";
 
 const AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -11,6 +12,7 @@ const SCOPES = [
   "email",
   "https://www.googleapis.com/auth/calendar.events",
   ...MEET_ARTIFACT_SCOPES,
+  ...GOOGLE_TASK_SCOPES,
 ];
 
 // El resto del CRM trata el reloj almacenado en UTC como si fuera la hora

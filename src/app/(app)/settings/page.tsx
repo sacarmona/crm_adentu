@@ -20,6 +20,7 @@ import { isAiConfigured } from "@/server/services/openai";
 import { isAnthropicConfigured } from "@/server/services/anthropic";
 import { isGoogleCalendarConfigured } from "@/server/services/google-calendar";
 import { meetingArtifactScopesGranted } from "@/server/services/google-meet";
+import { googleTasksScopesGranted } from "@/server/services/google-tasks";
 import { groupDictionaryCounts } from "@/server/services/settings";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export default async function SettingsPage({
     ? await prisma.calendarConnection.findUnique({ where: { userId: session.user.id } })
     : null;
   const calendarHasMeetArtifacts = meetingArtifactScopesGranted(calendarConnection?.scope);
+  const calendarHasGoogleTasks = googleTasksScopesGranted(calendarConnection?.scope);
   const [services, dictionaryValues, activeProvider, users] = await Promise.all([
     prisma.service.findMany({
       where: { deletedAt: null },
@@ -224,8 +226,11 @@ export default async function SettingsPage({
               <div>
                 <p className="text-sm font-medium">{calendarConnection.emailAddress}</p>
                 <p className="text-xs text-emerald-700">Conectado</p>
-                {!calendarHasMeetArtifacts ? (
+                {(!calendarHasMeetArtifacts || !calendarHasGoogleTasks) ? (
                   <p className="mt-1 text-xs text-amber-700">Reconecta para habilitar artefactos Meet/Drive.</p>
+                ) : null}
+                {!calendarHasGoogleTasks ? (
+                  <p className="mt-1 text-xs text-amber-700">Reconecta para importar Google Tasks.</p>
                 ) : null}
                 {calendarConnection.lastError ? (
                   <p className="mt-1 text-xs text-rose-700">{calendarConnection.lastError}</p>
@@ -236,7 +241,7 @@ export default async function SettingsPage({
                   Desconectar
                 </SubmitButton>
               </form>
-              {!calendarHasMeetArtifacts ? (
+              {(!calendarHasMeetArtifacts || !calendarHasGoogleTasks) ? (
                 <Button asChild size="sm">
                   <a href="/api/calendar/oauth/google/start">Reconectar</a>
                 </Button>

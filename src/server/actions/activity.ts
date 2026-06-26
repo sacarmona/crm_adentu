@@ -16,6 +16,8 @@ import {
 } from "@/server/services/activity";
 import { requireAdmin, requireWriter } from "@/server/authz";
 import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
+import { usableCalendarAccessToken } from "@/server/services/google-calendar";
+import { listAllGoogleTasks } from "@/server/services/google-tasks";
 
 async function assertNoActiveDependents(
   entityLabel: string,
@@ -415,4 +417,112 @@ export async function deleteInteraction(id: string) {
 
   activityPaths(before).forEach((path) => revalidatePath(path));
   redirect("/interactions");
+}
+
+
+function optionalFormText(formData: FormData, key: string) {
+  const value = formData.get(key);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+export async function importGoogleTasks() {
+  const user = await requireWriter("No tienes permisos para importar tareas de Google.");
+  const connection = await prisma.calendarConnection.findUnique({ where: { userId: user.id } });
+  if (!connection) {
+    throw new Error("Conecta Google Calendar/Tasks antes de importar tareas.");
+  }
+
+  const { accessToken, refreshed } = await usableCalendarAccessToken(connection);
+  if (refreshed) {
+    await prisma.calendarConnection.update({
+      where: { id: connection.id },
+      data: {
+        accessTokenEncrypted: refreshed.accessTokenEncrypted,
+        tokenExpiresAt: refreshed.tokenExpiresAt,
+      },
+    });
+  }
+
+  const importedTasks = await listAllGoogleTasks(accessToken);
+  const now = new Date();
+  for (const importedTask of importedTasks) {
+    await prisma.task.upsert({
+      where: {
+        googleTaskOwnerId_googleTaskListId_googleTaskId: {
+          googleTaskOwnerId: user.id,
+          googleTaskListId: importedTask.taskListId,
+          googleTaskId: importedTask.taskId,
+        },
+      },
+      update: {
+        title: importedTask.title,
+        description: importedTask.notes ?? `Importada desde Google Tasks (${importedTask.taskListTitle}).`,
+        status: importedTask.status,
+        dueDate: importedTask.dueDate,
+        executedAt: importedTask.completedAt,
+        googleTaskUpdatedAt: importedTask.updatedAt,
+        googleTaskSyncedAt: now,
+        googleTaskWebUrl: importedTask.webViewLink,
+      },
+      create: {
+        title: importedTask.title,
+        description: importedTask.notes ?? `Importada desde Google Tasks (${importedTask.taskListTitle}).`,
+        status: importedTask.status,
+        dueDate: importedTask.dueDate,
+        executedAt: importedTask.completedAt,
+        assignedToId: user.id,
+        createdById: user.id,
+        googleTaskOwnerId: user.id,
+        googleTaskListId: importedTask.taskListId,
+        googleTaskId: importedTask.taskId,
+        googleTaskUpdatedAt: importedTask.updatedAt,
+        googleTaskSyncedAt: now,
+        googleTaskWebUrl: importedTask.webViewLink,
+      },
+    });
+  }
+
+  await prisma.calendarConnection.update({
+    where: { id: connection.id },
+    data: { lastSyncedAt: now, lastError: null },
+  });
+  revalidatePath("/tasks");
+}
+
+export async function updateTaskCrmLinks(id: string, formData: FormData) {
+  const user = await requireWriter("No tienes permisos para vincular tareas.");
+  const before = await prisma.task.findFirst({ where: { id, deletedAt: null } });
+  if (!before) throw new Error("La tarea ya no esta disponible.");
+
+  const data = {
+    companyId: optionalFormText(formData, "companyId"),
+    contactId: optionalFormText(formData, "contactId"),
+    opportunityId: optionalFormText(formData, "opportunityId"),
+    interactionId: optionalFormText(formData, "interactionId"),
+    serviceId: optionalFormText(formData, "serviceId"),
+  };
+
+  await prisma.$transaction([
+    prisma.task.update({ where: { id }, data }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "Task",
+        entityId: id,
+        actorId: user.id,
+        before: {
+          companyId: before.companyId,
+          contactId: before.contactId,
+          opportunityId: before.opportunityId,
+          interactionId: before.interactionId,
+          serviceId: before.serviceId,
+        },
+        after: data,
+      },
+    }),
+  ]);
+
+  revalidatePath("/tasks");
 }

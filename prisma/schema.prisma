@@ -765,6 +765,13 @@ model Task {
   calendarSyncedAt DateTime?
   calendarError    String?
 
+  googleTaskOwnerId  String?
+  googleTaskListId   String?
+  googleTaskId       String?
+  googleTaskUpdatedAt DateTime?
+  googleTaskSyncedAt DateTime?
+  googleTaskWebUrl   String?
+
   company                Company?                 @relation(fields: [companyId], references: [id])
   contact                Contact?                 @relation(fields: [contactId], references: [id])
   opportunity            Opportunity?             @relation(fields: [opportunityId], references: [id])
@@ -779,6 +786,8 @@ model Task {
   @@index([assignedToId])
   @@index([companyId])
   @@index([opportunityId])
+  @@index([googleTaskOwnerId])
+  @@unique([googleTaskOwnerId, googleTaskListId, googleTaskId])
 }
 
 model MarketAsset {
