@@ -123,7 +123,7 @@ function CollapsibleGroup({
     (total, item) => total + countFor(item, pendingCounts),
     0,
   );
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <div>
