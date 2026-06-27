@@ -11,13 +11,17 @@ export function Pagination({
   pageSize: number;
   total: number;
   basePath: string;
-  params: Record<string, string | undefined>;
+  params: Record<string, string | string[] | undefined>;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const buildHref = (targetPage: number) => {
     const qs = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
-      if (value) qs.set(key, value);
+      if (Array.isArray(value)) {
+        for (const item of value) qs.append(key, item);
+      } else if (value) {
+        qs.set(key, value);
+      }
     }
     qs.set("page", String(targetPage));
     return `${basePath}?${qs.toString()}`;

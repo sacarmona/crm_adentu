@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
+import { MultiSelectFilter } from "@/components/crm/multi-select-filter";
 import { Pagination } from "@/components/crm/pagination";
 import { formatDate } from "@/lib/format";
 import { companyStatusLabels } from "@/lib/labels";
@@ -20,7 +21,7 @@ export default async function CompaniesPage({
 }: {
   searchParams?: Promise<{
     q?: string;
-    status?: string;
+    status?: string | string[];
     industry?: string;
     responsibleId?: string;
     sort?: string;
@@ -31,7 +32,9 @@ export default async function CompaniesPage({
   const params = await searchParams;
   const session = await auth();
   const q = params?.q?.trim();
-  const status = params?.status as CompanyStatus | undefined;
+  const statusValues = (
+    params?.status ? (Array.isArray(params.status) ? params.status : [params.status]) : []
+  ) as CompanyStatus[];
   const industry = params?.industry;
   const responsibleId = params?.responsibleId;
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
@@ -48,7 +51,7 @@ export default async function CompaniesPage({
           ],
         }
       : {}),
-    ...(status ? { status } : {}),
+    ...(statusValues.length ? { status: { in: statusValues } } : {}),
     ...(industry ? { industry } : {}),
     ...(responsibleId === "none"
       ? { responsibleId: null }
@@ -81,7 +84,7 @@ export default async function CompaniesPage({
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
-    if (status) qs.set("status", status);
+    for (const value of statusValues) qs.append("status", value);
     if (industry) qs.set("industry", industry);
     if (responsibleId) qs.set("responsibleId", responsibleId);
     qs.set("sort", field);
@@ -104,18 +107,15 @@ export default async function CompaniesPage({
           name="q"
           placeholder="Buscar por nombre, industria o region"
         />
-        <select
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
-          defaultValue={status ?? ""}
+        <MultiSelectFilter
+          defaultValues={statusValues}
           name="status"
-        >
-          <option value="">Todos los estados</option>
-          {Object.values(CompanyStatus).map((value) => (
-            <option key={value} value={value}>
-              {companyStatusLabels[value]}
-            </option>
-          ))}
-        </select>
+          options={Object.values(CompanyStatus).map((value) => ({
+            value,
+            label: companyStatusLabels[value],
+          }))}
+          placeholder="Todos los estados"
+        />
         <select
           className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
           defaultValue={industry ?? ""}
@@ -219,7 +219,7 @@ export default async function CompaniesPage({
           basePath="/companies"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status, industry, responsibleId, sort, dir: sort ? dir : undefined }}
+          params={{ q, status: statusValues, industry, responsibleId, sort, dir: sort ? dir : undefined }}
           total={total}
         />
       </section>

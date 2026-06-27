@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
+import { MultiSelectFilter } from "@/components/crm/multi-select-filter";
 import { Pagination } from "@/components/crm/pagination";
 import { formatDate } from "@/lib/format";
 import { contactStatusLabels } from "@/lib/labels";
@@ -20,7 +21,7 @@ export default async function ContactsPage({
 }: {
   searchParams?: Promise<{
     q?: string;
-    status?: string;
+    status?: string | string[];
     sort?: string;
     dir?: string;
     page?: string;
@@ -30,7 +31,9 @@ export default async function ContactsPage({
   const session = await auth();
   const canEdit = session?.user.role !== "LECTURA";
   const q = params?.q?.trim();
-  const status = params?.status as ContactStatus | undefined;
+  const statusValues = (
+    params?.status ? (Array.isArray(params.status) ? params.status : [params.status]) : []
+  ) as ContactStatus[];
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(params?.page) || 1);
@@ -45,7 +48,7 @@ export default async function ContactsPage({
           ],
         }
       : {}),
-    ...(status ? { status } : {}),
+    ...(statusValues.length ? { status: { in: statusValues } } : {}),
   };
   const [contacts, total] = await Promise.all([
     prisma.contact.findMany({
@@ -60,7 +63,7 @@ export default async function ContactsPage({
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
-    if (status) qs.set("status", status);
+    for (const value of statusValues) qs.append("status", value);
     qs.set("sort", field);
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/contacts?${qs.toString()}`;
@@ -76,12 +79,15 @@ export default async function ContactsPage({
       />
       <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_220px_auto]">
         <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={q} name="q" placeholder="Buscar contacto, email o cargo" />
-        <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={status ?? ""} name="status">
-          <option value="">Todos los estados</option>
-          {Object.values(ContactStatus).map((value) => (
-            <option key={value} value={value}>{contactStatusLabels[value]}</option>
-          ))}
-        </select>
+        <MultiSelectFilter
+          defaultValues={statusValues}
+          name="status"
+          options={Object.values(ContactStatus).map((value) => ({
+            value,
+            label: contactStatusLabels[value],
+          }))}
+          placeholder="Todos los estados"
+        />
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">Filtrar</button>
       </form>
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
@@ -136,7 +142,7 @@ export default async function ContactsPage({
           basePath="/contacts"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status, sort, dir: sort ? dir : undefined }}
+          params={{ q, status: statusValues, sort, dir: sort ? dir : undefined }}
           total={total}
         />
       </section>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
+import { MultiSelectFilter } from "@/components/crm/multi-select-filter";
 import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
@@ -65,7 +66,7 @@ export default async function OpportunitiesPage({
 }: {
   searchParams?: Promise<{
     q?: string;
-    status?: string;
+    status?: string | string[];
     followUp?: string;
     responsibleId?: string;
     sort?: string;
@@ -77,7 +78,9 @@ export default async function OpportunitiesPage({
   const session = await auth();
   const canEdit = session?.user.role !== "LECTURA";
   const q = params?.q?.trim();
-  const status = params?.status as OpportunityStatus | undefined;
+  const statusValues = (
+    params?.status ? (Array.isArray(params.status) ? params.status : [params.status]) : []
+  ) as OpportunityStatus[];
   const followUp = ["normal", "watch", "stalled", "closed"].includes(
     params?.followUp ?? "",
   )
@@ -97,7 +100,7 @@ export default async function OpportunitiesPage({
       ],
     });
   }
-  if (status) conditions.push({ status });
+  if (statusValues.length) conditions.push({ status: { in: statusValues } });
   if (followUpWhere) conditions.push(followUpWhere);
   if (responsibleId === "none") conditions.push({ responsibleId: null });
   else if (responsibleId) conditions.push({ responsibleId });
@@ -120,7 +123,7 @@ export default async function OpportunitiesPage({
   const sortHref = (field: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
-    if (status) qs.set("status", status);
+    for (const value of statusValues) qs.append("status", value);
     if (followUp) qs.set("followUp", followUp);
     if (responsibleId) qs.set("responsibleId", responsibleId);
     qs.set("sort", field);
@@ -138,12 +141,15 @@ export default async function OpportunitiesPage({
       />
       <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_180px_180px_180px_auto]">
         <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={q} name="q" placeholder="Buscar oportunidad o empresa" />
-        <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={status ?? ""} name="status">
-          <option value="">Todos los estados</option>
-          {Object.values(OpportunityStatus).map((value) => (
-            <option key={value} value={value}>{opportunityStatusLabels[value]}</option>
-          ))}
-        </select>
+        <MultiSelectFilter
+          defaultValues={statusValues}
+          name="status"
+          options={Object.values(OpportunityStatus).map((value) => ({
+            value,
+            label: opportunityStatusLabels[value],
+          }))}
+          placeholder="Todos los estados"
+        />
         <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={followUp ?? ""} name="followUp">
           <option value="">Todo seguimiento</option>
           {(["normal", "watch", "stalled", "closed"] as const).map((value) => (
@@ -237,7 +243,7 @@ export default async function OpportunitiesPage({
           basePath="/opportunities"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status, followUp, responsibleId, sort, dir: sort ? dir : undefined }}
+          params={{ q, status: statusValues, followUp, responsibleId, sort, dir: sort ? dir : undefined }}
           total={total}
         />
       </section>
