@@ -119,6 +119,10 @@ export async function updateCompanyResponsible(id: string, formData: FormData) {
 
   await prisma.$transaction([
     prisma.company.update({ where: { id }, data: { responsibleId } }),
+    prisma.opportunity.updateMany({
+      where: { companyId: id, responsibleId: null, deletedAt: null },
+      data: { responsibleId },
+    }),
     prisma.auditLog.create({
       data: {
         action: "UPDATE",
@@ -133,6 +137,7 @@ export async function updateCompanyResponsible(id: string, formData: FormData) {
 
   revalidatePath("/companies");
   revalidatePath(`/companies/${id}`);
+  revalidatePath("/opportunities");
 }
 
 export async function updateCompanyStatus(id: string, formData: FormData) {
@@ -300,6 +305,14 @@ export async function createOpportunity(formData: FormData) {
   const data = opportunitySchema.parse(parseForm(formData));
   const amounts = calculateOpportunityAmounts(data);
   const now = new Date();
+
+  if (!data.responsibleId && data.companyId) {
+    const company = await prisma.company.findUnique({
+      where: { id: data.companyId },
+      select: { responsibleId: true },
+    });
+    data.responsibleId = company?.responsibleId ?? null;
+  }
 
   const opportunity = await prisma.$transaction(async (tx) => {
     const created = await tx.opportunity.create({
