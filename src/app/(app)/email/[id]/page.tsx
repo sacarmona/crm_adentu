@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { EmailDraftEditor } from "@/components/email/draft-editor";
 import { EmailResolutionFields } from "@/components/email/email-resolution-fields";
+import { ExpandableBody } from "@/components/email/expandable-body";
 import { BackLink } from "@/components/ui/back-link";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
@@ -145,9 +146,11 @@ export default async function EmailMessagePage({
               : "Enviado"}
           </span>
         </div>
-        <p className="mt-5 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-          {message.body ?? message.snippet ?? "El proveedor no entrego contenido."}
-        </p>
+        <div className="mt-5">
+          <ExpandableBody
+            text={message.body ?? message.snippet ?? "El proveedor no entrego contenido."}
+          />
+        </div>
         {!message.body && message.snippet ? (
           <p className="mt-3 text-xs text-slate-500">
             Solo se sincronizo un extracto corto de este mensaje. Sincroniza el

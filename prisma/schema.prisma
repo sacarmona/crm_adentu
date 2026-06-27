@@ -250,6 +250,7 @@ model User {
   reviewedWhatsAppMessages     WhatsAppMessage[]        @relation("WhatsAppMessageReviewer")
   whatsAppDiscardRules         WhatsAppDiscardRule[]
   whatsAppThreadAnalyses       WhatsAppThreadAnalysis[]
+  calendarMeetingDiscardRules  CalendarMeetingDiscardRule[]
   calendarConnection           CalendarConnection?
   calendarMeetings             CalendarMeeting[]
 
@@ -299,6 +300,7 @@ model CalendarMeeting {
   id                    String                @id @default(uuid())
   userId                String
   providerEventId       String
+  recurringEventId      String?
   summary               String
   description           String?
   meetingUri            String?
@@ -315,16 +317,18 @@ model CalendarMeeting {
   contactId             String?
   opportunityId         String?
   serviceId             String?
+  discardRuleId         String?
   lastSyncedAt          DateTime              @default(now())
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 
-  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  importedInteraction Interaction?              @relation(fields: [importedInteractionId], references: [id])
-  company             Company?                  @relation(fields: [companyId], references: [id])
-  contact             Contact?                  @relation(fields: [contactId], references: [id])
-  opportunity         Opportunity?              @relation(fields: [opportunityId], references: [id])
-  service             Service?                  @relation(fields: [serviceId], references: [id])
+  user                User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importedInteraction Interaction?                 @relation(fields: [importedInteractionId], references: [id])
+  company             Company?                     @relation(fields: [companyId], references: [id])
+  contact             Contact?                     @relation(fields: [contactId], references: [id])
+  opportunity         Opportunity?                 @relation(fields: [opportunityId], references: [id])
+  service             Service?                     @relation(fields: [serviceId], references: [id])
+  discardRule         CalendarMeetingDiscardRule?  @relation(fields: [discardRuleId], references: [id])
   artifacts           CalendarMeetingArtifact[]
 
   @@unique([userId, providerEventId])
@@ -333,6 +337,23 @@ model CalendarMeeting {
   @@index([companyId])
   @@index([contactId])
   @@index([opportunityId])
+  @@index([recurringEventId])
+}
+
+model CalendarMeetingDiscardRule {
+  id               String   @id @default(uuid())
+  userId           String
+  recurringEventId String
+  isActive         Boolean  @default(true)
+  matchCount       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meetings CalendarMeeting[]
+
+  @@unique([userId, recurringEventId])
+  @@index([isActive])
 }
 
 model CalendarMeetingArtifact {

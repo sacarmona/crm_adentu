@@ -14,6 +14,7 @@ import {
   deleteMeeting,
   discoverMeetingArtifacts,
   ignoreMeeting,
+  ignoreRecurringMeeting,
   importMeetingArtifactText,
   syncMeetMeetings,
   updateMeetingContext,
@@ -157,6 +158,11 @@ export default async function MeetingsPage({
                   <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
                     {statusLabels[meeting.status]}
                   </span>
+                  {meeting.recurringEventId ? (
+                    <span className="rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200">
+                      Recurrente
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
                   {formatDateTime(meeting.startsAt)}
@@ -173,13 +179,24 @@ export default async function MeetingsPage({
                   </a>
                 ) : null}
               </div>
-              {meeting.importedInteractionId ? (
-                <Button asChild size="sm" variant="outline">
-                  <Link href={`/interactions?created=${meeting.importedInteractionId}`}>
-                    Ver interaccion
-                  </Link>
-                </Button>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                {meeting.importedInteractionId ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/interactions?created=${meeting.importedInteractionId}`}>
+                      Ver interaccion
+                    </Link>
+                  </Button>
+                ) : null}
+                {canEdit &&
+                meeting.recurringEventId &&
+                meeting.status !== CalendarMeetingStatus.IGNORED ? (
+                  <form action={ignoreRecurringMeeting.bind(null, meeting.id)}>
+                    <SubmitButton pendingLabel="Descartando" size="sm" variant="outline">
+                      Ignorar serie recurrente
+                    </SubmitButton>
+                  </form>
+                ) : null}
+              </div>
             </div>
 
             {meeting.status === CalendarMeetingStatus.IGNORED ? (

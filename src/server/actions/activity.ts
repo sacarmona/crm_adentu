@@ -529,7 +529,9 @@ export async function updateTaskCrmLinks(id: string, formData: FormData) {
   const before = await prisma.task.findFirst({ where: { id, deletedAt: null } });
   if (!before) throw new Error("La tarea ya no esta disponible.");
 
+  const title = optionalFormText(formData, "title");
   const data = {
+    ...(title ? { title } : {}),
     companyId: optionalFormText(formData, "companyId"),
     contactId: optionalFormText(formData, "contactId"),
     opportunityId: optionalFormText(formData, "opportunityId"),
@@ -546,6 +548,7 @@ export async function updateTaskCrmLinks(id: string, formData: FormData) {
         entityId: id,
         actorId: user.id,
         before: {
+          title: before.title,
           companyId: before.companyId,
           contactId: before.contactId,
           opportunityId: before.opportunityId,

@@ -10,6 +10,16 @@ import { createInteraction } from "@/server/actions/activity";
 
 export const dynamic = "force-dynamic";
 
+function nextBusinessDayAt9(from: Date) {
+  const next = new Date(from);
+  next.setDate(next.getDate() + 1);
+  while (next.getDay() === 0 || next.getDay() === 6) {
+    next.setDate(next.getDate() + 1);
+  }
+  next.setHours(9, 0, 0, 0);
+  return next;
+}
+
 export default async function NewInteractionPage({
   searchParams,
 }: {
@@ -22,7 +32,7 @@ export default async function NewInteractionPage({
   const session = await auth();
   const defaults = await searchParams;
   const now = new Date();
-  const nextActionDefault = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const nextActionDefault = nextBusinessDayAt9(now);
 
   if (session?.user.role === UserRole.LECTURA) {
     redirect("/interactions");
@@ -41,7 +51,7 @@ export default async function NewInteractionPage({
     }),
     prisma.opportunity.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true, companyId: true },
+      select: { id: true, name: true, companyId: true, serviceId: true },
       orderBy: { name: "asc" },
     }),
     prisma.service.findMany({

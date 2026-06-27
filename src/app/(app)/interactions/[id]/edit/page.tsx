@@ -36,7 +36,7 @@ export default async function EditInteractionPage({
       }),
       prisma.opportunity.findMany({
         where: { deletedAt: null },
-        select: { id: true, name: true, companyId: true },
+        select: { id: true, name: true, companyId: true, serviceId: true },
         orderBy: { name: "asc" },
       }),
       prisma.service.findMany({

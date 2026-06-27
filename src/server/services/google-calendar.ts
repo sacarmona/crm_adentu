@@ -242,6 +242,7 @@ type CalendarEventAttendee = {
 
 type GoogleCalendarEvent = {
   id?: string;
+  recurringEventId?: string;
   summary?: string;
   description?: string;
   hangoutLink?: string;
@@ -257,6 +258,7 @@ type GoogleCalendarEvent = {
 
 export type MeetCalendarEvent = {
   providerEventId: string;
+  recurringEventId?: string;
   summary: string;
   description?: string;
   meetingUri?: string;
@@ -312,6 +314,7 @@ export async function listMeetCalendarEvents(
     return [
       {
         providerEventId: event.id,
+        recurringEventId: event.recurringEventId,
         summary: event.summary?.trim() || "Reunion sin titulo",
         description: event.description,
         meetingUri,

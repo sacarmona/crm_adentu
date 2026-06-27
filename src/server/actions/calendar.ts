@@ -151,8 +151,17 @@ export async function syncMeetMeetings() {
   const timeMin = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
   const timeMax = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   const events = await listMeetCalendarEvents(accessToken, { timeMin, timeMax });
+  const discardRules = await prisma.calendarMeetingDiscardRule.findMany({
+    where: { userId: user.id, isActive: true },
+  });
+  const discardRuleByRecurringEventId = new Map(
+    discardRules.map((rule) => [rule.recurringEventId, rule]),
+  );
 
   for (const event of events) {
+    const matchedRule = event.recurringEventId
+      ? discardRuleByRecurringEventId.get(event.recurringEventId)
+      : undefined;
     const status =
       event.endsAt && event.endsAt.getTime() < now.getTime()
         ? CalendarMeetingStatus.MINUTES_PENDING
@@ -166,11 +175,18 @@ export async function syncMeetMeetings() {
       },
       select: { status: true },
     });
-    const nextStatus =
-      existing?.status === CalendarMeetingStatus.IMPORTED ||
-      existing?.status === CalendarMeetingStatus.IGNORED
+    const nextStatus = matchedRule
+      ? CalendarMeetingStatus.IGNORED
+      : existing?.status === CalendarMeetingStatus.IMPORTED ||
+          existing?.status === CalendarMeetingStatus.IGNORED
         ? existing.status
         : status;
+    if (matchedRule && existing?.status !== CalendarMeetingStatus.IGNORED) {
+      await prisma.calendarMeetingDiscardRule.update({
+        where: { id: matchedRule.id },
+        data: { matchCount: { increment: 1 } },
+      });
+    }
     await prisma.calendarMeeting.upsert({
       where: {
         userId_providerEventId: {
@@ -179,6 +195,7 @@ export async function syncMeetMeetings() {
         },
       },
       update: {
+        recurringEventId: event.recurringEventId,
         summary: event.summary,
         description: event.description,
         meetingUri: event.meetingUri,
@@ -188,11 +205,13 @@ export async function syncMeetMeetings() {
         attendees: event.attendees,
         organizerEmail: event.organizerEmail,
         status: nextStatus,
+        discardRuleId: matchedRule?.id ?? null,
         lastSyncedAt: now,
       },
       create: {
         userId: user.id,
         providerEventId: event.providerEventId,
+        recurringEventId: event.recurringEventId,
         summary: event.summary,
         description: event.description,
         meetingUri: event.meetingUri,
@@ -202,6 +221,7 @@ export async function syncMeetMeetings() {
         attendees: event.attendees,
         organizerEmail: event.organizerEmail,
         status: nextStatus,
+        discardRuleId: matchedRule?.id,
         lastSyncedAt: now,
       },
     });
@@ -257,6 +277,43 @@ export async function ignoreMeeting(meetingId: string) {
     where: { id: meetingId, userId: user.id, importedInteractionId: null },
     data: { status: CalendarMeetingStatus.IGNORED },
   });
+  revalidatePath("/meetings");
+}
+
+export async function ignoreRecurringMeeting(meetingId: string) {
+  const user = await requireWriter("No tienes permisos para descartar reuniones.");
+  const meeting = await prisma.calendarMeeting.findFirst({
+    where: { id: meetingId, userId: user.id },
+    select: { recurringEventId: true },
+  });
+  if (!meeting?.recurringEventId) {
+    throw new Error("Esta reunion no forma parte de una serie recurrente.");
+  }
+
+  const rule = await prisma.calendarMeetingDiscardRule.upsert({
+    where: {
+      userId_recurringEventId: {
+        userId: user.id,
+        recurringEventId: meeting.recurringEventId,
+      },
+    },
+    update: { isActive: true },
+    create: {
+      userId: user.id,
+      recurringEventId: meeting.recurringEventId,
+      isActive: true,
+    },
+  });
+
+  await prisma.calendarMeeting.updateMany({
+    where: {
+      userId: user.id,
+      recurringEventId: meeting.recurringEventId,
+      importedInteractionId: null,
+    },
+    data: { status: CalendarMeetingStatus.IGNORED, discardRuleId: rule.id },
+  });
+
   revalidatePath("/meetings");
 }
 

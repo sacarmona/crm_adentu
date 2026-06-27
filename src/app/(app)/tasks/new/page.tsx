@@ -2,7 +2,7 @@ import { UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { TaskForm } from "@/components/activity/forms";
+import { TaskForm } from "@/components/activity/task-form";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { prisma } from "@/lib/prisma";
 import { createTask } from "@/server/actions/activity";
@@ -34,12 +34,12 @@ export default async function NewTaskPage({
       }),
       prisma.contact.findMany({
         where: { deletedAt: null },
-        select: { id: true, name: true },
+        select: { id: true, name: true, companyId: true },
         orderBy: { name: "asc" },
       }),
       prisma.opportunity.findMany({
         where: { deletedAt: null },
-        select: { id: true, name: true },
+        select: { id: true, name: true, companyId: true, serviceId: true },
         orderBy: { name: "asc" },
       }),
       prisma.service.findMany({

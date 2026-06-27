@@ -318,18 +318,36 @@ export default async function TasksPage({
                     ) : null}
                   </div>
                   {canEdit ? (
-                    <form action={updateTaskCrmLinks.bind(null, task.id)} className="mt-4 grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-3 xl:grid-cols-6">
-                      <SelectField defaultValue={task.companyId} label="Empresa" name="companyId" options={companies} />
-                      <SelectField defaultValue={task.contactId} label="Contacto" name="contactId" options={contacts} />
-                      <SelectField defaultValue={task.opportunityId} label="Oportunidad" name="opportunityId" options={opportunities} />
-                      <SelectField defaultValue={task.interactionId} label="Interaccion" name="interactionId" options={interactionOptions} />
-                      <SelectField defaultValue={task.serviceId} label="Servicio" name="serviceId" options={services} />
-                      <div className="flex items-end">
-                        <SubmitButton pendingLabel="Guardando" size="sm" variant="outline">
-                          Vincular
-                        </SubmitButton>
-                      </div>
-                    </form>
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-xs font-medium text-emerald-700">
+                        Editar tarea
+                      </summary>
+                      <form
+                        action={updateTaskCrmLinks.bind(null, task.id)}
+                        className="mt-3 grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-3 xl:grid-cols-6"
+                      >
+                        <div className="md:col-span-3 xl:col-span-6">
+                          <label>
+                            <span className="text-xs font-medium text-slate-600">Titulo</span>
+                            <input
+                              className="mt-1 h-9 w-full rounded-md border border-slate-300 px-2 text-xs"
+                              defaultValue={task.title}
+                              name="title"
+                            />
+                          </label>
+                        </div>
+                        <SelectField defaultValue={task.companyId} label="Empresa" name="companyId" options={companies} />
+                        <SelectField defaultValue={task.contactId} label="Contacto" name="contactId" options={contacts} />
+                        <SelectField defaultValue={task.opportunityId} label="Oportunidad" name="opportunityId" options={opportunities} />
+                        <SelectField defaultValue={task.interactionId} label="Interaccion" name="interactionId" options={interactionOptions} />
+                        <SelectField defaultValue={task.serviceId} label="Servicio" name="serviceId" options={services} />
+                        <div className="flex items-end">
+                          <SubmitButton pendingLabel="Guardando" size="sm" variant="outline">
+                            Guardar
+                          </SubmitButton>
+                        </div>
+                      </form>
+                    </details>
                   ) : null}
                 </div>
                 {canEdit ? (
