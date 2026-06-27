@@ -18,9 +18,9 @@ import {
   Target,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 
 import { signOut } from "@/auth";
+import { NavGroup, PendingCountKey, SidebarNav } from "@/components/layout/sidebar-nav";
 
 type AppShellUser = {
   name?: string | null;
@@ -28,36 +28,58 @@ type AppShellUser = {
   role?: string | null;
 };
 
-type PendingCountKey = "email" | "whatsapp" | "webLeads" | "tasks" | "intelligence";
-
-const navigation: {
-  label: string;
-  href: string;
-  icon: typeof LayoutDashboard;
-  countKey?: PendingCountKey;
-}[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Empresas", href: "/companies", icon: Building2 },
-  { label: "Contactos", href: "/contacts", icon: Contact },
-  { label: "Oportunidades", href: "/opportunities", icon: Handshake },
-  { label: "Pipeline", href: "/pipeline", icon: Target },
-  { label: "Interacciones", href: "/interactions", icon: MessageSquareText },
-  { label: "Leads web", href: "/web-leads", icon: Globe2, countKey: "webLeads" },
-  { label: "Correo", href: "/email", icon: Mail, countKey: "email" },
-  { label: "WhatsApp", href: "/whatsapp", icon: MessageCircle, countKey: "whatsapp" },
-  { label: "Reuniones", href: "/meetings", icon: Video },
-  { label: "LinkedIn", href: "/linkedin", icon: Share2 },
-  { label: "Tareas", href: "/tasks", icon: ClipboardList, countKey: "tasks" },
-  { label: "Mercado", href: "/market", icon: BarChart3 },
+const navigationGroups: NavGroup[] = [
   {
-    label: "Inteligencia Comercial",
-    href: "/intelligence",
-    icon: Bot,
-    countKey: "intelligence",
+    items: [
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { label: "Pipeline", href: "/pipeline", icon: Target },
+    ],
   },
-  { label: "Playbooks", href: "/playbooks", icon: BookOpenCheck },
-  { label: "Importar", href: "/import", icon: FileUp },
-  { label: "Configuracion", href: "/settings", icon: Settings },
+  {
+    label: "Comercial",
+    items: [
+      { label: "Empresas", href: "/companies", icon: Building2 },
+      { label: "Contactos", href: "/contacts", icon: Contact },
+      { label: "Oportunidades", href: "/opportunities", icon: Handshake },
+      { label: "Mercado", href: "/market", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Fuentes",
+    items: [
+      { label: "Leads web", href: "/web-leads", icon: Globe2, countKey: "webLeads" },
+      { label: "Correo", href: "/email", icon: Mail, countKey: "email" },
+      { label: "WhatsApp", href: "/whatsapp", icon: MessageCircle, countKey: "whatsapp" },
+      { label: "Reuniones", href: "/meetings", icon: Video },
+      { label: "LinkedIn", href: "/linkedin", icon: Share2 },
+    ],
+  },
+  {
+    label: "Actividad",
+    items: [
+      { label: "Interacciones", href: "/interactions", icon: MessageSquareText },
+      { label: "Tareas", href: "/tasks", icon: ClipboardList, countKey: "tasks" },
+    ],
+  },
+  {
+    label: "Estrategia",
+    items: [
+      { label: "Playbooks", href: "/playbooks", icon: BookOpenCheck },
+      {
+        label: "Inteligencia Comercial",
+        href: "/intelligence",
+        icon: Bot,
+        countKey: "intelligence",
+      },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { label: "Importar", href: "/import", icon: FileUp },
+      { label: "Configuracion", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 export function AppShell({
@@ -95,26 +117,7 @@ export function AppShell({
             {user?.role ?? "LECTURA"}
           </p>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {navigation.map((item) => {
-            const count = item.countKey ? pendingCounts?.[item.countKey] ?? 0 : 0;
-            return (
-              <Link
-                className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
-                href={item.href}
-                key={item.label}
-              >
-                <item.icon className="h-4 w-4" aria-hidden="true" />
-                <span className="flex-1">{item.label}</span>
-                {count > 0 ? (
-                  <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white">
-                    {count > 99 ? "99+" : count}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
+        <SidebarNav groups={navigationGroups} pendingCounts={pendingCounts} />
       </aside>
       <div className="lg:pl-72">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5">
