@@ -1,4 +1,4 @@
-import { OpportunityStatus, TaskStatus } from "@prisma/client";
+import { TaskStatus } from "@prisma/client";
 import {
   AlertTriangle,
   ArrowRight,
@@ -128,8 +128,7 @@ export default async function DashboardPage({
   const dormantOpportunities = opportunities
     .filter(
       (opportunity) =>
-        opportunity.status !== OpportunityStatus.WON &&
-        opportunity.status !== OpportunityStatus.LOST &&
+        openPipelineStatuses.has(opportunity.status) &&
         (opportunity.lastInteraction ?? opportunity.createdAt) <
           dormantBoundary,
     )

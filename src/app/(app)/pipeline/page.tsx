@@ -3,17 +3,23 @@ import { Filter, Plus } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { MultiSelectFilter } from "@/components/crm/multi-select-filter";
 import { PipelineBoard } from "@/components/pipeline/pipeline-board";
 import { Button } from "@/components/ui/button";
+import { followUpHealthLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { getFollowUpHealth } from "@/server/services/dashboard-metrics";
+import { FollowUpHealth, getFollowUpHealth } from "@/server/services/dashboard-metrics";
 
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ responsibleId?: string; serviceId?: string }>;
+  searchParams?: Promise<{
+    responsibleId?: string;
+    serviceId?: string;
+    followUp?: string | string[];
+  }>;
 }) {
   const session = await auth();
   const params = await searchParams;
@@ -24,6 +30,15 @@ export default async function PipelinePage({
     ? params?.responsibleId || undefined
     : session?.user.id;
   const serviceId = params?.serviceId || undefined;
+  const followUpValues = (
+    params?.followUp
+      ? Array.isArray(params.followUp)
+        ? params.followUp
+        : [params.followUp]
+      : []
+  ).filter((value): value is FollowUpHealth =>
+    ["normal", "watch", "stalled", "closed"].includes(value),
+  );
   const canEdit =
     session?.user.role === UserRole.ADMIN ||
     session?.user.role === UserRole.COMERCIAL;
@@ -50,19 +65,24 @@ export default async function PipelinePage({
     }),
   ]);
 
-  const boardOpportunities = opportunities.map((opportunity) => ({
-    id: opportunity.id,
-    name: opportunity.name,
-    status: opportunity.status,
-    companyName: opportunity.company?.name ?? null,
-    serviceName: opportunity.service?.name ?? null,
-    responsibleName: opportunity.responsible?.name ?? null,
-    probability: Number(opportunity.probability),
-    totalAmount: Number(opportunity.totalAmount),
-    weightedAmount: Number(opportunity.weightedAmount),
-    followUp: getFollowUpHealth(opportunity),
-    estimatedCloseDate: opportunity.estimatedCloseDate?.toISOString() ?? null,
-  }));
+  const boardOpportunities = opportunities
+    .map((opportunity) => ({
+      id: opportunity.id,
+      name: opportunity.name,
+      status: opportunity.status,
+      companyName: opportunity.company?.name ?? null,
+      serviceName: opportunity.service?.name ?? null,
+      responsibleName: opportunity.responsible?.name ?? null,
+      probability: Number(opportunity.probability),
+      totalAmount: Number(opportunity.totalAmount),
+      weightedAmount: Number(opportunity.weightedAmount),
+      followUp: getFollowUpHealth(opportunity),
+      estimatedCloseDate: opportunity.estimatedCloseDate?.toISOString() ?? null,
+    }))
+    .filter(
+      (opportunity) =>
+        followUpValues.length === 0 || followUpValues.includes(opportunity.followUp.level),
+    );
 
   return (
     <div className="space-y-5">
@@ -85,7 +105,7 @@ export default async function PipelinePage({
         ) : null}
       </div>
 
-      <form className="grid gap-3 border-y border-slate-200 bg-white px-4 py-3 md:grid-cols-[220px_220px_auto_1fr]">
+      <form className="grid gap-3 border-y border-slate-200 bg-white px-4 py-3 md:grid-cols-[220px_220px_220px_auto_1fr]">
         <select
           className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
           defaultValue={responsibleId ?? ""}
@@ -110,12 +130,21 @@ export default async function PipelinePage({
             </option>
           ))}
         </select>
+        <MultiSelectFilter
+          defaultValues={followUpValues}
+          name="followUp"
+          options={(["normal", "watch", "stalled", "closed"] as const).map((value) => ({
+            value,
+            label: followUpHealthLabels[value],
+          }))}
+          placeholder="Todo seguimiento"
+        />
         <Button type="submit" variant="outline">
           <Filter className="h-4 w-4" aria-hidden="true" />
           Filtrar
         </Button>
         <p className="self-center text-right text-xs text-slate-500">
-          {opportunities.length} oportunidades visibles
+          {boardOpportunities.length} oportunidades visibles
         </p>
       </form>
 
