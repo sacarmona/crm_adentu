@@ -5,6 +5,12 @@ const closedStatuses = new Set<OpportunityStatus>([
   OpportunityStatus.LOST,
 ]);
 
+export const openPipelineStatuses = new Set<OpportunityStatus>([
+  OpportunityStatus.EXPLORATION,
+  OpportunityStatus.PROPOSAL_SENT,
+  OpportunityStatus.NEGOTIATION,
+]);
+
 export type DashboardOpportunity = {
   status: OpportunityStatus;
   totalAmount: number;
@@ -30,8 +36,8 @@ export function calculateDashboardMetrics(input: {
     now.getTime() - dormantDays * 24 * 60 * 60 * 1000,
   );
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const openOpportunities = input.opportunities.filter(
-    (opportunity) => !closedStatuses.has(opportunity.status),
+  const openOpportunities = input.opportunities.filter((opportunity) =>
+    openPipelineStatuses.has(opportunity.status),
   );
   const wonOpportunities = input.opportunities.filter(
     (opportunity) => opportunity.status === OpportunityStatus.WON,

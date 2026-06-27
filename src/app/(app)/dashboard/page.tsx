@@ -22,6 +22,7 @@ import { prisma } from "@/lib/prisma";
 import {
   calculateDashboardMetrics,
   daysSince,
+  openPipelineStatuses,
 } from "@/server/services/dashboard-metrics";
 import {
   pipelineStageLabels,
@@ -104,15 +105,17 @@ export default async function DashboardPage({
     weighted: pipelineSummary[status].weightedAmount,
   }));
   const serviceData = Object.values(
-    opportunities.reduce<Record<string, { name: string; value: number }>>(
-      (result, opportunity) => {
-        const name = opportunity.service?.name ?? "Sin servicio";
-        result[name] ??= { name, value: 0 };
-        result[name].value += 1;
-        return result;
-      },
-      {},
-    ),
+    opportunities
+      .filter((opportunity) => openPipelineStatuses.has(opportunity.status))
+      .reduce<Record<string, { name: string; value: number }>>(
+        (result, opportunity) => {
+          const name = opportunity.service?.name ?? "Sin servicio";
+          result[name] ??= { name, value: 0 };
+          result[name].value += 1;
+          return result;
+        },
+        {},
+      ),
   ).sort((a, b) => b.value - a.value);
   const overdueTasks = tasks
     .filter(
