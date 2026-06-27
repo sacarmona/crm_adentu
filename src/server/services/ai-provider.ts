@@ -4,12 +4,14 @@ import { prisma } from "@/lib/prisma";
 import {
   analyzeCommercialEmailWithAnthropic,
   analyzeCommercialInteractionWithAnthropic,
+  analyzeCommercialOpportunityWithAnthropic,
   extractLinkedInProfileWithAnthropic,
   generateCommercialEmailDraftWithAnthropic,
   isAnthropicConfigured,
 } from "@/server/services/anthropic";
 import {
   buildInteractionAnalysisPrompt,
+  buildOpportunityAnalysisPrompt,
   CommercialAnalysis,
 } from "@/server/services/ai-analysis";
 import {
@@ -23,6 +25,7 @@ import {
 import {
   analyzeCommercialEmail,
   analyzeCommercialInteraction,
+  analyzeCommercialOpportunity,
   extractLinkedInProfile,
   generateCommercialEmailDraft,
   isAiConfigured,
@@ -90,4 +93,13 @@ export async function analyzeInteractionWithActiveProvider(
   return provider === AiProvider.ANTHROPIC
     ? analyzeCommercialInteractionWithAnthropic(input)
     : analyzeCommercialInteraction(input);
+}
+
+export async function analyzeOpportunityWithActiveProvider(
+  input: Parameters<typeof buildOpportunityAnalysisPrompt>[0],
+): Promise<CommercialAnalysis> {
+  const provider = await getActiveAiProvider();
+  return provider === AiProvider.ANTHROPIC
+    ? analyzeCommercialOpportunityWithAnthropic(input)
+    : analyzeCommercialOpportunity(input);
 }

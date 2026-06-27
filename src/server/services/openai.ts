@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import {
   CommercialAnalysis,
   buildInteractionAnalysisPrompt,
+  buildOpportunityAnalysisPrompt,
   commercialAnalysisSchema,
 } from "@/server/services/ai-analysis";
 import {
@@ -145,6 +146,39 @@ export async function analyzeCommercialInteraction(
       format: zodTextFormat(
         commercialAnalysisSchema,
         "commercial_interaction_analysis",
+      ),
+    },
+  });
+
+  if (!response.output_parsed) {
+    throw new Error("La respuesta de IA no pudo validarse.");
+  }
+
+  return response.output_parsed;
+}
+
+export async function analyzeCommercialOpportunity(
+  input: Parameters<typeof buildOpportunityAnalysisPrompt>[0],
+): Promise<CommercialAnalysis> {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY no esta configurada.");
+  }
+
+  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const response = await openai.responses.parse({
+    model: env.OPENAI_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "Eres un analista comercial B2B para una empresa chilena de ingenieria. Responde solo con evidencia del texto y sugerencias prudentes.",
+      },
+      { role: "user", content: buildOpportunityAnalysisPrompt(input) },
+    ],
+    text: {
+      format: zodTextFormat(
+        commercialAnalysisSchema,
+        "commercial_opportunity_analysis",
       ),
     },
   });

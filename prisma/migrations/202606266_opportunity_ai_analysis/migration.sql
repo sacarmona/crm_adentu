@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AiInsightType" ADD VALUE 'OPPORTUNITY_ANALYSIS';

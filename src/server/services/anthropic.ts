@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import {
   CommercialAnalysis,
   buildInteractionAnalysisPrompt,
+  buildOpportunityAnalysisPrompt,
   commercialAnalysisSchema,
 } from "@/server/services/ai-analysis";
 import {
@@ -175,6 +176,42 @@ export async function analyzeCommercialInteractionWithAnthropic(
       "Eres un analista comercial B2B para una empresa chilena de ingenieria. Responde solo con evidencia del texto y sugerencias prudentes.",
     messages: [
       { role: "user", content: buildInteractionAnalysisPrompt(input) },
+    ],
+    tools: [analysisToolSchema],
+    tool_choice: { type: "tool", name: ANALYSIS_TOOL_NAME },
+  });
+
+  const toolUse = response.content.find(
+    (block) => block.type === "tool_use" && block.name === ANALYSIS_TOOL_NAME,
+  );
+
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("La respuesta de IA no pudo validarse.");
+  }
+
+  const result = commercialAnalysisSchema.safeParse(toolUse.input);
+  if (!result.success) {
+    throw new Error("La respuesta de IA no pudo validarse.");
+  }
+
+  return result.data;
+}
+
+export async function analyzeCommercialOpportunityWithAnthropic(
+  input: Parameters<typeof buildOpportunityAnalysisPrompt>[0],
+): Promise<CommercialAnalysis> {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY no esta configurada.");
+  }
+
+  const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const response = await anthropic.messages.create({
+    model: env.ANTHROPIC_MODEL,
+    max_tokens: 1024,
+    system:
+      "Eres un analista comercial B2B para una empresa chilena de ingenieria. Responde solo con evidencia del texto y sugerencias prudentes.",
+    messages: [
+      { role: "user", content: buildOpportunityAnalysisPrompt(input) },
     ],
     tools: [analysisToolSchema],
     tool_choice: { type: "tool", name: ANALYSIS_TOOL_NAME },

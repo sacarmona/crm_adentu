@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { PlaybookGuide } from "@/components/playbooks/playbook-guide";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@/lib/format";
 import {
   aiInsightTypeLabels,
@@ -19,12 +20,14 @@ import {
 import { prisma } from "@/lib/prisma";
 import { deleteOpportunity } from "@/server/actions/crm";
 import { createCommercialDocument, deleteCommercialDocument, updateCommercialDocumentStatus } from "@/server/actions/commercial-documents";
+import { analyzeOpportunity } from "@/server/actions/intelligence";
 
 export const dynamic = "force-dynamic";
+const MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS = 2;
 
 export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [session, opportunity] = await Promise.all([
+  const [session, opportunity, interactionCount] = await Promise.all([
     auth(),
     prisma.opportunity.findFirst({
       where: { id, deletedAt: null },
@@ -52,6 +55,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
         },
       },
     }),
+    prisma.interaction.count({ where: { opportunityId: id, deletedAt: null } }),
   ]);
 
   if (!opportunity) notFound();
@@ -101,11 +105,38 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           </dl>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold">Señales IA</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Señales IA</h2>
+            {canEdit ? (
+              interactionCount >= MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS ? (
+                <form action={analyzeOpportunity.bind(null, opportunity.id)}>
+                  <SubmitButton pendingLabel="Analizando" size="sm" variant="outline">
+                    Analizar con IA
+                  </SubmitButton>
+                </form>
+              ) : (
+                <span className="text-xs text-slate-400" title={`Requiere al menos ${MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS} interacciones registradas`}>
+                  Analizar con IA
+                </span>
+              )
+            ) : null}
+          </div>
+          {canEdit && interactionCount < MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS ? (
+            <p className="mt-1 text-xs text-slate-500">
+              Registra al menos {MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS} interacciones (tiene {interactionCount}) para habilitar el analisis de conjunto.
+            </p>
+          ) : null}
           <ul className="mt-4 space-y-3 text-sm">
             {opportunity.aiInsights.map((insight) => (
-              <li key={insight.id}>{insight.summary ?? aiInsightTypeLabels[insight.type]}</li>
+              <li key={insight.id}>
+                <Link className="hover:underline" href={`/intelligence/${insight.id}`}>
+                  {insight.summary ?? aiInsightTypeLabels[insight.type]}
+                </Link>
+              </li>
             ))}
+            {opportunity.aiInsights.length === 0 ? (
+              <li className="text-slate-500">Sin señales de IA todavia.</li>
+            ) : null}
           </ul>
         </div>
       </section>

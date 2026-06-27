@@ -14,11 +14,13 @@ import { prisma } from "@/lib/prisma";
 import { clampProbability } from "@/server/services/ai-analysis";
 import {
   analyzeInteractionWithActiveProvider,
+  analyzeOpportunityWithActiveProvider,
   isActiveProviderConfigured,
 } from "@/server/services/ai-provider";
 import { requireWriter } from "@/server/authz";
 
 const MAX_AI_REQUESTS_PER_HOUR = 10;
+const MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS = 2;
 
 function json(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -110,6 +112,100 @@ export async function analyzeInteraction(interactionId: string) {
 
   revalidatePath("/intelligence");
   revalidatePath("/interactions");
+  redirect(`/intelligence/${insight.id}`);
+}
+
+export async function analyzeOpportunity(opportunityId: string) {
+  const user = await requireWriter("No tienes permisos para usar inteligencia comercial.");
+  if (!(await isActiveProviderConfigured())) {
+    throw new Error("El proveedor de IA activo no esta configurado.");
+  }
+
+  const since = new Date(Date.now() - 60 * 60 * 1000);
+  const recentRequests = await prisma.auditLog.count({
+    where: {
+      actorId: user.id,
+      entityType: "AiInsight",
+      action: AuditAction.CREATE,
+      createdAt: { gte: since },
+    },
+  });
+  if (recentRequests >= MAX_AI_REQUESTS_PER_HOUR) {
+    throw new Error("Alcanzaste el limite de 10 analisis por hora.");
+  }
+
+  const opportunity = await prisma.opportunity.findFirst({
+    where: { id: opportunityId, deletedAt: null },
+    include: { company: true, service: true },
+  });
+  if (!opportunity) throw new Error("La oportunidad ya no esta disponible.");
+
+  const interactions = await prisma.interaction.findMany({
+    where: { opportunityId: opportunity.id, deletedAt: null },
+    orderBy: { date: "asc" },
+    take: 30,
+  });
+  if (interactions.length < MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS) {
+    throw new Error(
+      `Esta oportunidad necesita al menos ${MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS} interacciones registradas para un analisis de conjunto (tiene ${interactions.length}).`,
+    );
+  }
+
+  const analysis = await analyzeOpportunityWithActiveProvider({
+    opportunityName: opportunity.name,
+    opportunityStatus: opportunity.status,
+    opportunityProbability: Number(opportunity.probability),
+    companyName: opportunity.company?.name,
+    serviceName: opportunity.service?.name,
+    interactions: interactions.map((interaction) => ({
+      date: interaction.date,
+      type: interaction.type,
+      content: interaction.content,
+      nextAction: interaction.nextAction,
+    })),
+  });
+
+  const insight = await prisma.$transaction(async (tx) => {
+    const created = await tx.aiInsight.create({
+      data: {
+        type: AiInsightType.OPPORTUNITY_ANALYSIS,
+        status: AiInsightStatus.PROPOSED,
+        opportunityId: opportunity.id,
+        companyId: opportunity.companyId,
+        contactId: opportunity.primaryContactId,
+        summary: analysis.summary,
+        customerInterests: json(analysis.customerInterests),
+        objections: json(analysis.objections),
+        commitments: json(analysis.commitments),
+        risks: json(analysis.risks),
+        suggestedNextSteps: json(analysis.suggestedNextSteps),
+        mentionedServices: json(analysis.mentionedServices),
+        sentiment: analysis.sentiment,
+        suggestedAdvanceProbability: clampProbability(
+          analysis.suggestedAdvanceProbability,
+        ),
+        suggestedChanges: json(analysis.suggestedChanges),
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.CREATE,
+        entityType: "AiInsight",
+        entityId: created.id,
+        actorId: user.id,
+        after: {
+          type: created.type,
+          opportunityId: opportunity.id,
+          interactionsAnalyzed: interactions.length,
+        },
+      },
+    });
+    return created;
+  });
+
+  revalidatePath("/intelligence");
+  revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${opportunity.id}`);
   redirect(`/intelligence/${insight.id}`);
 }
 

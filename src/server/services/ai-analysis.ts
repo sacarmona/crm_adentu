@@ -57,6 +57,43 @@ export function buildInteractionAnalysisPrompt(input: {
   ].join("\n");
 }
 
+export function buildOpportunityAnalysisPrompt(input: {
+  opportunityName: string;
+  opportunityStatus: string;
+  opportunityProbability?: number | null;
+  companyName?: string | null;
+  serviceName?: string | null;
+  interactions: {
+    date: Date;
+    type: string;
+    content: string;
+    nextAction?: string | null;
+  }[];
+}) {
+  const history = input.interactions
+    .map(
+      (interaction, index) =>
+        `(${index + 1}) ${interaction.date.toISOString()} - ${interaction.type}\n${interaction.content}` +
+        (interaction.nextAction ? `\nProxima accion registrada: ${interaction.nextAction}` : ""),
+    )
+    .join("\n\n");
+
+  return [
+    "Analiza el historial completo de interacciones de esta oportunidad comercial de ADENTU Ingenieria.",
+    "Evalua la evolucion en conjunto, no cada interaccion por separado.",
+    "Separa hechos observables de sugerencias. No inventes compromisos, fechas ni montos.",
+    "Las sugerencias deben ser concretas y breves. Usa arreglos vacios cuando no exista evidencia.",
+    "Si el historial muestra estancamiento (sin avances reales entre interacciones), indicalo explicitamente en el resumen y sugiere marcar la oportunidad como estancada (STALLED) si corresponde.",
+    `Oportunidad: ${input.opportunityName}`,
+    `Empresa: ${input.companyName ?? "Sin empresa"}`,
+    `Etapa actual: ${input.opportunityStatus}`,
+    `Probabilidad actual: ${input.opportunityProbability ?? "Sin probabilidad"}`,
+    `Servicio: ${input.serviceName ?? "Sin servicio"}`,
+    `Historial de interacciones (${input.interactions.length}):`,
+    history,
+  ].join("\n");
+}
+
 export function clampProbability(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) return null;
   return Math.min(1, Math.max(0, value));

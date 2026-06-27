@@ -124,6 +124,7 @@ export const taskStatusLabels: Record<TaskStatus, string> = {
 
 export const aiInsightTypeLabels: Record<AiInsightType, string> = {
   INTERACTION_ANALYSIS: "Analisis de interaccion",
+  OPPORTUNITY_ANALYSIS: "Analisis de oportunidad",
   NEXT_ACTION_SUGGESTION: "Sugerencia de proxima accion",
   FOLLOW_UP_EMAIL: "Correo de seguimiento",
   COMPANY_HISTORY_SUMMARY: "Resumen de historial de empresa",
