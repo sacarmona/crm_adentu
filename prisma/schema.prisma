@@ -435,6 +435,16 @@ model EmailMessage {
   @@index([interactionId])
 }
 
+model EmailMessageTombstone {
+  id                String   @id @default(uuid())
+  connectionId      String
+  providerMessageId String
+  deletedAt         DateTime @default(now())
+
+  @@unique([connectionId, providerMessageId])
+  @@index([connectionId])
+}
+
 model EmailDraft {
   id             String           @id @default(uuid())
   emailMessageId String           @unique

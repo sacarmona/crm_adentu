@@ -708,13 +708,20 @@ export async function deleteRuleDiscardedEmails() {
   };
   const toDelete = await prisma.emailMessage.findMany({
     where,
-    select: { id: true },
+    select: { id: true, connectionId: true, providerMessageId: true },
   });
   if (toDelete.length === 0) {
     revalidatePath("/email");
     return;
   }
 
+  await prisma.emailMessageTombstone.createMany({
+    data: toDelete.map((message) => ({
+      connectionId: message.connectionId,
+      providerMessageId: message.providerMessageId,
+    })),
+    skipDuplicates: true,
+  });
   const deleted = await prisma.emailMessage.deleteMany({ where });
   await prisma.auditLog.create({
     data: {

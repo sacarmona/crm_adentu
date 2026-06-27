@@ -34,8 +34,17 @@ export async function synchronizeEmailConnection(connectionId: string, userId: s
       mailbox: connection.emailAddress,
     });
 
+    const tombstones = await prisma.emailMessageTombstone.findMany({
+      where: { connectionId: connection.id },
+      select: { providerMessageId: true },
+    });
+    const tombstonedIds = new Set(tombstones.map((tombstone) => tombstone.providerMessageId));
+    const newMessages = messages.filter(
+      (message) => !tombstonedIds.has(message.providerMessageId),
+    );
+
     const inserted = await prisma.emailMessage.createMany({
-      data: messages.map((message) => ({
+      data: newMessages.map((message) => ({
         ...message,
         connectionId: connection.id,
         toAddresses: message.toAddresses,
