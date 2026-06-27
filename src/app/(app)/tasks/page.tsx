@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { localDateTimeValue } from "@/components/activity/forms";
+import { TaskLinkFields } from "@/components/activity/task-link-fields";
 import { EntityHeader } from "@/components/crm/entity-header";
 import { InlineDateForm } from "@/components/crm/inline-date-form";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
@@ -30,38 +31,6 @@ const statusStyles: Record<TaskStatus, string> = {
   EXECUTED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   CLOSED: "bg-slate-100 text-slate-600 ring-slate-200",
 };
-
-type Option = { id: string; name: string };
-
-function SelectField({
-  label,
-  name,
-  defaultValue,
-  options,
-}: {
-  label: string;
-  name: string;
-  defaultValue?: string | null;
-  options: Option[];
-}) {
-  return (
-    <label>
-      <span className="text-xs font-medium text-slate-600">{label}</span>
-      <select
-        className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
-        defaultValue={defaultValue ?? ""}
-        name={name}
-      >
-        <option value="">Sin vincular</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 
 export default async function TasksPage({
   searchParams,
@@ -116,12 +85,12 @@ export default async function TasksPage({
     }),
     prisma.contact.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true },
+      select: { id: true, name: true, companyId: true },
       orderBy: { name: "asc" },
     }),
     prisma.opportunity.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true },
+      select: { id: true, name: true, companyId: true, serviceId: true },
       orderBy: { name: "asc" },
     }),
     prisma.interaction.findMany({
@@ -336,11 +305,20 @@ export default async function TasksPage({
                             />
                           </label>
                         </div>
-                        <SelectField defaultValue={task.companyId} label="Empresa" name="companyId" options={companies} />
-                        <SelectField defaultValue={task.contactId} label="Contacto" name="contactId" options={contacts} />
-                        <SelectField defaultValue={task.opportunityId} label="Oportunidad" name="opportunityId" options={opportunities} />
-                        <SelectField defaultValue={task.interactionId} label="Interaccion" name="interactionId" options={interactionOptions} />
-                        <SelectField defaultValue={task.serviceId} label="Servicio" name="serviceId" options={services} />
+                        <TaskLinkFields
+                          companies={companies}
+                          contacts={contacts}
+                          defaults={{
+                            companyId: task.companyId,
+                            contactId: task.contactId,
+                            opportunityId: task.opportunityId,
+                            interactionId: task.interactionId,
+                            serviceId: task.serviceId,
+                          }}
+                          interactions={interactionOptions}
+                          opportunities={opportunities}
+                          services={services}
+                        />
                         <div className="flex items-end">
                           <SubmitButton pendingLabel="Guardando" size="sm" variant="outline">
                             Guardar

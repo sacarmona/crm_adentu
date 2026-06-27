@@ -306,3 +306,32 @@ export async function rejectInsight(insightId: string) {
   revalidatePath("/intelligence");
   redirect("/intelligence");
 }
+
+export async function deleteInsight(insightId: string) {
+  const user = await requireWriter("No tienes permisos para usar inteligencia comercial.");
+  const insight = await prisma.aiInsight.findFirst({
+    where: {
+      id: insightId,
+      deletedAt: null,
+      status: AiInsightStatus.REJECTED,
+    },
+  });
+  if (!insight) throw new Error("Solo se pueden eliminar analisis rechazados.");
+
+  await prisma.$transaction([
+    prisma.aiInsight.update({
+      where: { id: insight.id },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.SOFT_DELETE,
+        entityType: "AiInsight",
+        entityId: insight.id,
+        actorId: user.id,
+        before: { status: insight.status },
+      },
+    }),
+  ]);
+  revalidatePath("/intelligence");
+}

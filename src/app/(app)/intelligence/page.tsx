@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
 import {
   aiInsightStatusLabels,
@@ -11,7 +12,7 @@ import {
   interactionTypeLabels,
 } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { analyzeInteraction } from "@/server/actions/intelligence";
+import { analyzeInteraction, deleteInsight } from "@/server/actions/intelligence";
 import { isAiConfigured } from "@/server/services/openai";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export default async function IntelligencePage({
   const params = await searchParams;
   const status = params?.status as AiInsightStatus | undefined;
   const configured = isAiConfigured();
+  const canEdit = session?.user.role !== UserRole.LECTURA;
   const canUseAi =
     configured &&
     session?.user.role !== UserRole.LECTURA;
@@ -161,6 +163,7 @@ export default async function IntelligencePage({
               <th className="px-4 py-3">Sentimiento</th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Fecha</th>
+              <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -190,13 +193,22 @@ export default async function IntelligencePage({
                 <td className="px-4 py-3">
                   {formatDateTime(insight.createdAt)}
                 </td>
+                <td className="px-4 py-3">
+                  {insight.status === AiInsightStatus.REJECTED && canEdit ? (
+                    <form action={deleteInsight.bind(null, insight.id)}>
+                      <SubmitButton pendingLabel="Eliminando" size="sm" variant="outline">
+                        Eliminar
+                      </SubmitButton>
+                    </form>
+                  ) : null}
+                </td>
               </tr>
             ))}
             {insights.length === 0 ? (
               <tr>
                 <td
                   className="px-4 py-8 text-center text-slate-500"
-                  colSpan={5}
+                  colSpan={6}
                 >
                   No hay sugerencias para el filtro seleccionado.
                 </td>
