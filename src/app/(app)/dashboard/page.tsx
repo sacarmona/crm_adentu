@@ -311,8 +311,13 @@ export default async function DashboardPage({
                 {formatDateTime(interaction.date)}
               </span>
               <span className="text-sm font-medium">{interactionTypeLabels[interaction.type]}</span>
-              <div>
-                <p className="text-sm text-slate-700">{interaction.content}</p>
+              <div className="min-w-0">
+                <Link
+                  className="line-clamp-2 text-sm text-slate-700 hover:underline"
+                  href={`/interactions/${interaction.id}/edit`}
+                >
+                  {interaction.content}
+                </Link>
                 <p className="mt-1 text-xs text-slate-500">
                   {interaction.company?.name ??
                     interaction.opportunity?.name ??
