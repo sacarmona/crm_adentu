@@ -24,7 +24,7 @@ function NavLink({ item, count }: { item: NavItem; count: number }) {
       className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
       href={item.href}
     >
-      <item.icon className="h-4 w-4" aria-hidden="true" />
+      <item.icon className="h-4 w-4" aria-hidden />
       <span className="flex-1">{item.label}</span>
       {count > 0 ? (
         <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white">
