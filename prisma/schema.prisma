@@ -723,6 +723,7 @@ model Opportunity {
   status             OpportunityStatus @default(EXPLORATION)
   certainty          Certainty?
   probability        Decimal           @default(0) @db.Decimal(5, 4)
+  probabilityBeforeClose Decimal?      @db.Decimal(5, 4)
   ageDays            Int               @default(0)
   businessUnit       String?
   currency           Currency          @default(CLP)

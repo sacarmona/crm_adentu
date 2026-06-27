@@ -18,7 +18,10 @@ import {
   calculateContactCompleteness,
   calculateOpportunityCompleteness,
 } from "@/server/services/completeness-scoring";
-import { calculateOpportunityAmounts } from "@/server/services/opportunity-calculations";
+import {
+  calculateOpportunityAmounts,
+  resolveStatusChangeProbability,
+} from "@/server/services/opportunity-calculations";
 import { requireAdmin, requireWriter } from "@/server/authz";
 
 async function assertNoActiveDependents(
@@ -196,8 +199,21 @@ export async function updateOpportunityStatus(id: string, formData: FormData) {
   const before = await prisma.opportunity.findUnique({ where: { id } });
   if (!before) throw new Error("La oportunidad ya no esta disponible.");
 
+  const { probability, probabilityBeforeClose } = resolveStatusChangeProbability({
+    previousStatus: before.status,
+    newStatus: status,
+    currentProbability: Number(before.probability),
+    probabilityBeforeClose:
+      before.probabilityBeforeClose != null ? Number(before.probabilityBeforeClose) : null,
+  });
+  const weightedAmount =
+    Math.round((Number(before.totalAmount) * probability + Number.EPSILON) * 100) / 100;
+
   await prisma.$transaction([
-    prisma.opportunity.update({ where: { id }, data: { status } }),
+    prisma.opportunity.update({
+      where: { id },
+      data: { status, probability, probabilityBeforeClose, weightedAmount },
+    }),
     prisma.auditLog.create({
       data: {
         action: AuditAction.STAGE_CHANGE,
@@ -383,12 +399,25 @@ export async function createOpportunity(formData: FormData) {
 export async function updateOpportunity(id: string, formData: FormData) {
   const user = await requireWriter();
   const data = opportunitySchema.parse(parseForm(formData));
-  const amounts = calculateOpportunityAmounts(data);
   const before = await prisma.opportunity.findUnique({ where: { id } });
+
+  const { probability, probabilityBeforeClose } = before
+    ? resolveStatusChangeProbability({
+        previousStatus: before.status,
+        newStatus: data.status,
+        currentProbability: data.probability,
+        probabilityBeforeClose:
+          before.probabilityBeforeClose != null ? Number(before.probabilityBeforeClose) : null,
+      })
+    : { probability: data.probability, probabilityBeforeClose: null };
+
+  const amounts = calculateOpportunityAmounts({ ...data, probability });
   const opportunity = await prisma.opportunity.update({
     where: { id },
     data: {
       ...data,
+      probability,
+      probabilityBeforeClose,
       estimatedCloseDate: nullableDate(data.estimatedCloseDate),
       estimatedStartDate: nullableDate(data.estimatedStartDate),
       nextActionDate: nullableDate(data.nextActionDate),
@@ -447,7 +476,14 @@ export async function changeOpportunityStage(input: {
   const data = opportunityStageSchema.parse(input);
   const before = await prisma.opportunity.findFirst({
     where: { id: data.opportunityId, deletedAt: null },
-    select: { id: true, name: true, status: true },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      probability: true,
+      probabilityBeforeClose: true,
+      totalAmount: true,
+    },
   });
 
   if (!before) {
@@ -458,10 +494,20 @@ export async function changeOpportunityStage(input: {
     return { status: before.status };
   }
 
+  const { probability, probabilityBeforeClose } = resolveStatusChangeProbability({
+    previousStatus: before.status,
+    newStatus: data.status,
+    currentProbability: Number(before.probability),
+    probabilityBeforeClose:
+      before.probabilityBeforeClose != null ? Number(before.probabilityBeforeClose) : null,
+  });
+  const weightedAmount =
+    Math.round((Number(before.totalAmount) * probability + Number.EPSILON) * 100) / 100;
+
   await prisma.$transaction([
     prisma.opportunity.update({
       where: { id: before.id },
-      data: { status: data.status },
+      data: { status: data.status, probability, probabilityBeforeClose, weightedAmount },
     }),
     prisma.auditLog.create({
       data: {

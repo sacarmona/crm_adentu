@@ -23,9 +23,8 @@ const PAGE_SIZE = 50;
 const closedStatuses = [OpportunityStatus.WON, OpportunityStatus.LOST];
 
 function buildFollowUpWhere(
-  followUp: FollowUpHealth | undefined,
-): Prisma.OpportunityWhereInput | null {
-  if (!followUp) return null;
+  followUp: FollowUpHealth,
+): Prisma.OpportunityWhereInput {
   if (followUp === "closed") {
     return { status: { in: closedStatuses } };
   }
@@ -67,8 +66,9 @@ export default async function OpportunitiesPage({
   searchParams?: Promise<{
     q?: string;
     status?: string | string[];
-    followUp?: string;
+    followUp?: string | string[];
     responsibleId?: string;
+    hideClosed?: string;
     sort?: string;
     dir?: string;
     page?: string;
@@ -81,16 +81,20 @@ export default async function OpportunitiesPage({
   const statusValues = (
     params?.status ? (Array.isArray(params.status) ? params.status : [params.status]) : []
   ) as OpportunityStatus[];
-  const followUp = ["normal", "watch", "stalled", "closed"].includes(
-    params?.followUp ?? "",
-  )
-    ? (params?.followUp as FollowUpHealth)
-    : undefined;
+  const followUpValues = (
+    params?.followUp
+      ? Array.isArray(params.followUp)
+        ? params.followUp
+        : [params.followUp]
+      : []
+  ).filter((value): value is FollowUpHealth =>
+    ["normal", "watch", "stalled", "closed"].includes(value),
+  );
   const responsibleId = params?.responsibleId;
+  const hideClosed = params?.hideClosed === "1";
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(params?.page) || 1);
-  const followUpWhere = buildFollowUpWhere(followUp);
   const conditions: Prisma.OpportunityWhereInput[] = [{ deletedAt: null }];
   if (q) {
     conditions.push({
@@ -101,9 +105,12 @@ export default async function OpportunitiesPage({
     });
   }
   if (statusValues.length) conditions.push({ status: { in: statusValues } });
-  if (followUpWhere) conditions.push(followUpWhere);
+  if (followUpValues.length) {
+    conditions.push({ OR: followUpValues.map((value) => buildFollowUpWhere(value)) });
+  }
   if (responsibleId === "none") conditions.push({ responsibleId: null });
   else if (responsibleId) conditions.push({ responsibleId });
+  if (hideClosed) conditions.push({ status: { notIn: closedStatuses } });
   const where: Prisma.OpportunityWhereInput = { AND: conditions };
   const [opportunities, total, users] = await Promise.all([
     prisma.opportunity.findMany({
@@ -124,8 +131,9 @@ export default async function OpportunitiesPage({
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
     for (const value of statusValues) qs.append("status", value);
-    if (followUp) qs.set("followUp", followUp);
+    for (const value of followUpValues) qs.append("followUp", value);
     if (responsibleId) qs.set("responsibleId", responsibleId);
+    if (hideClosed) qs.set("hideClosed", "1");
     qs.set("sort", field);
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/opportunities?${qs.toString()}`;
@@ -150,12 +158,15 @@ export default async function OpportunitiesPage({
           }))}
           placeholder="Todos los estados"
         />
-        <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={followUp ?? ""} name="followUp">
-          <option value="">Todo seguimiento</option>
-          {(["normal", "watch", "stalled", "closed"] as const).map((value) => (
-            <option key={value} value={value}>{followUpHealthLabels[value]}</option>
-          ))}
-        </select>
+        <MultiSelectFilter
+          defaultValues={followUpValues}
+          name="followUp"
+          options={(["normal", "watch", "stalled", "closed"] as const).map((value) => ({
+            value,
+            label: followUpHealthLabels[value],
+          }))}
+          placeholder="Todo seguimiento"
+        />
         <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={responsibleId ?? ""} name="responsibleId">
           <option value="">Todos los responsables</option>
           <option value="none">Sin responsable</option>
@@ -164,6 +175,10 @@ export default async function OpportunitiesPage({
           ))}
         </select>
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">Filtrar</button>
+        <label className="flex items-center gap-2 text-sm text-slate-600 md:col-span-full">
+          <input defaultChecked={hideClosed} name="hideClosed" type="checkbox" value="1" />
+          Ocultar oportunidades cerradas
+        </label>
       </form>
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">
@@ -243,7 +258,15 @@ export default async function OpportunitiesPage({
           basePath="/opportunities"
           page={page}
           pageSize={PAGE_SIZE}
-          params={{ q, status: statusValues, followUp, responsibleId, sort, dir: sort ? dir : undefined }}
+          params={{
+            q,
+            status: statusValues,
+            followUp: followUpValues,
+            responsibleId,
+            hideClosed: hideClosed ? "1" : undefined,
+            sort,
+            dir: sort ? dir : undefined,
+          }}
           total={total}
         />
       </section>
