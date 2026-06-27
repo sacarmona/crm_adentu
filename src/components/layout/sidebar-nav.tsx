@@ -1,22 +1,95 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import {
+  BarChart3,
+  BookOpenCheck,
+  Bot,
+  Building2,
+  ChevronDown,
+  ClipboardList,
+  Contact,
+  FileUp,
+  Globe2,
+  Handshake,
+  LayoutDashboard,
+  Mail,
+  MessageCircle,
+  MessageSquareText,
+  Settings,
+  Share2,
+  Target,
+  Video,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export type PendingCountKey = "email" | "whatsapp" | "webLeads" | "tasks" | "intelligence";
 
-export type NavItem = {
+type NavItem = {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   countKey?: PendingCountKey;
 };
 
-export type NavGroup = {
+type NavGroup = {
   label?: string;
   items: NavItem[];
 };
+
+const navigationGroups: NavGroup[] = [
+  {
+    items: [
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { label: "Pipeline", href: "/pipeline", icon: Target },
+    ],
+  },
+  {
+    label: "Comercial",
+    items: [
+      { label: "Empresas", href: "/companies", icon: Building2 },
+      { label: "Contactos", href: "/contacts", icon: Contact },
+      { label: "Oportunidades", href: "/opportunities", icon: Handshake },
+      { label: "Mercado", href: "/market", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Fuentes",
+    items: [
+      { label: "Leads web", href: "/web-leads", icon: Globe2, countKey: "webLeads" },
+      { label: "Correo", href: "/email", icon: Mail, countKey: "email" },
+      { label: "WhatsApp", href: "/whatsapp", icon: MessageCircle, countKey: "whatsapp" },
+      { label: "Reuniones", href: "/meetings", icon: Video },
+      { label: "LinkedIn", href: "/linkedin", icon: Share2 },
+    ],
+  },
+  {
+    label: "Actividad",
+    items: [
+      { label: "Interacciones", href: "/interactions", icon: MessageSquareText },
+      { label: "Tareas", href: "/tasks", icon: ClipboardList, countKey: "tasks" },
+    ],
+  },
+  {
+    label: "Estrategia",
+    items: [
+      { label: "Playbooks", href: "/playbooks", icon: BookOpenCheck },
+      {
+        label: "Inteligencia Comercial",
+        href: "/intelligence",
+        icon: Bot,
+        countKey: "intelligence",
+      },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { label: "Importar", href: "/import", icon: FileUp },
+      { label: "Configuracion", href: "/settings", icon: Settings },
+    ],
+  },
+];
 
 function NavLink({ item, count }: { item: NavItem; count: number }) {
   return (
@@ -80,15 +153,13 @@ function CollapsibleGroup({
 }
 
 export function SidebarNav({
-  groups,
   pendingCounts,
 }: {
-  groups: NavGroup[];
   pendingCounts?: Record<PendingCountKey, number>;
 }) {
   return (
     <nav className="flex-1 space-y-3 overflow-y-auto px-3 py-4">
-      {groups.map((group, index) =>
+      {navigationGroups.map((group, index) =>
         group.label ? (
           <CollapsibleGroup group={group} key={group.label} pendingCounts={pendingCounts} />
         ) : (

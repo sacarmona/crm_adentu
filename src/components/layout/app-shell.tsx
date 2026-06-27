@@ -1,86 +1,13 @@
-import {
-  BarChart3,
-  BookOpenCheck,
-  Bot,
-  Building2,
-  ClipboardList,
-  Contact,
-  FileUp,
-  Globe2,
-  Handshake,
-  LayoutDashboard,
-  Mail,
-  MessageCircle,
-  MessageSquareText,
-  Video,
-  Share2,
-  Settings,
-  Target,
-} from "lucide-react";
 import Image from "next/image";
 
 import { signOut } from "@/auth";
-import { NavGroup, PendingCountKey, SidebarNav } from "@/components/layout/sidebar-nav";
+import { PendingCountKey, SidebarNav } from "@/components/layout/sidebar-nav";
 
 type AppShellUser = {
   name?: string | null;
   email?: string | null;
   role?: string | null;
 };
-
-const navigationGroups: NavGroup[] = [
-  {
-    items: [
-      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Pipeline", href: "/pipeline", icon: Target },
-    ],
-  },
-  {
-    label: "Comercial",
-    items: [
-      { label: "Empresas", href: "/companies", icon: Building2 },
-      { label: "Contactos", href: "/contacts", icon: Contact },
-      { label: "Oportunidades", href: "/opportunities", icon: Handshake },
-      { label: "Mercado", href: "/market", icon: BarChart3 },
-    ],
-  },
-  {
-    label: "Fuentes",
-    items: [
-      { label: "Leads web", href: "/web-leads", icon: Globe2, countKey: "webLeads" },
-      { label: "Correo", href: "/email", icon: Mail, countKey: "email" },
-      { label: "WhatsApp", href: "/whatsapp", icon: MessageCircle, countKey: "whatsapp" },
-      { label: "Reuniones", href: "/meetings", icon: Video },
-      { label: "LinkedIn", href: "/linkedin", icon: Share2 },
-    ],
-  },
-  {
-    label: "Actividad",
-    items: [
-      { label: "Interacciones", href: "/interactions", icon: MessageSquareText },
-      { label: "Tareas", href: "/tasks", icon: ClipboardList, countKey: "tasks" },
-    ],
-  },
-  {
-    label: "Estrategia",
-    items: [
-      { label: "Playbooks", href: "/playbooks", icon: BookOpenCheck },
-      {
-        label: "Inteligencia Comercial",
-        href: "/intelligence",
-        icon: Bot,
-        countKey: "intelligence",
-      },
-    ],
-  },
-  {
-    label: "Sistema",
-    items: [
-      { label: "Importar", href: "/import", icon: FileUp },
-      { label: "Configuracion", href: "/settings", icon: Settings },
-    ],
-  },
-];
 
 export function AppShell({
   children,
@@ -117,7 +44,7 @@ export function AppShell({
             {user?.role ?? "LECTURA"}
           </p>
         </div>
-        <SidebarNav groups={navigationGroups} pendingCounts={pendingCounts} />
+        <SidebarNav pendingCounts={pendingCounts} />
       </aside>
       <div className="lg:pl-72">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5">
