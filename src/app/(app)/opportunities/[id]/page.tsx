@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { CommercialDocumentStatus, CommercialDocumentType, Currency, UserRole } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -11,10 +11,14 @@ import {
   aiInsightTypeLabels,
   interactionTypeLabels,
   opportunityStatusLabels,
+  commercialDocumentStatusLabels,
+  commercialDocumentTypeLabels,
+  currencyLabels,
   taskStatusLabels,
 } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { deleteOpportunity } from "@/server/actions/crm";
+import { createCommercialDocument, deleteCommercialDocument, updateCommercialDocumentStatus } from "@/server/actions/commercial-documents";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +34,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
         responsible: true,
         interactions: { where: { deletedAt: null }, orderBy: { date: "desc" }, take: 10 },
         tasks: { where: { deletedAt: null }, orderBy: { dueDate: "asc" }, take: 10 },
+        commercialDocuments: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } },
         aiInsights: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 5 },
         service: {
           include: {
@@ -128,6 +133,23 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           />
         </section>
       ) : null}
+      <section className="rounded-md border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <div><h2 className="font-semibold">Documentos comerciales</h2><p className="mt-1 text-xs text-slate-500">Cotizaciones, propuestas y contratos vinculados a esta oportunidad.</p></div>
+        </div>
+        {canEdit ? <form action={createCommercialDocument} className="mt-4 grid gap-3 border-b border-slate-100 pb-5 md:grid-cols-2 xl:grid-cols-4">
+          <input name="opportunityId" type="hidden" value={opportunity.id} />
+          <select className="h-10 rounded-md border border-slate-300 px-3 text-sm" name="type">{Object.values(CommercialDocumentType).map((value) => <option key={value} value={value}>{commercialDocumentTypeLabels[value]}</option>)}</select>
+          <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" name="title" placeholder="Titulo del documento" required />
+          <select className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue="DRAFT" name="status">{Object.values(CommercialDocumentStatus).map((value) => <option key={value} value={value}>{commercialDocumentStatusLabels[value]}</option>)}</select>
+          <div className="grid grid-cols-[100px_1fr] gap-2"><select className="h-10 rounded-md border border-slate-300 px-2 text-sm" defaultValue={opportunity.currency} name="currency">{Object.values(Currency).map((value) => <option key={value} value={value}>{currencyLabels[value]}</option>)}</select><input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={opportunity.totalAmount.toString()} min="0" name="amount" placeholder="Monto" step="0.01" type="number" /></div>
+          <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" name="validUntil" type="date" />
+          <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" name="documentUrl" placeholder="Enlace Drive o documento" type="url" />
+          <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" name="notes" placeholder="Notas" />
+          <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">Agregar documento</button>
+        </form> : null}
+        <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="text-xs uppercase text-slate-500"><tr><th className="py-2">Documento</th><th>Version</th><th>Estado</th><th>Monto</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody className="divide-y divide-slate-100">{opportunity.commercialDocuments.map((document) => <tr key={document.id}><td className="py-3 font-medium">{document.documentUrl ? <a className="hover:underline" href={document.documentUrl} rel="noreferrer" target="_blank">{document.title}</a> : document.title}<p className="text-xs font-normal text-slate-500">{commercialDocumentTypeLabels[document.type]}</p></td><td>v{document.version}</td><td>{canEdit ? <form action={updateCommercialDocumentStatus.bind(null, document.id)}><select className="h-9 rounded-md border border-slate-300 px-2 text-sm" defaultValue={document.status} name="status">{Object.values(CommercialDocumentStatus).map((value) => <option key={value} value={value}>{commercialDocumentStatusLabels[value]}</option>)}</select><button className="ml-2 text-xs font-medium">Guardar</button></form> : commercialDocumentStatusLabels[document.status]}</td><td>{formatCurrency(document.amount.toString(), document.currency)}</td><td>{formatDate(document.validUntil)}</td><td>{isAdmin ? <form action={deleteCommercialDocument.bind(null, document.id)}><button className="text-xs text-red-700">Eliminar</button></form> : null}</td></tr>)}{opportunity.commercialDocuments.length === 0 ? <tr><td className="py-6 text-center text-slate-500" colSpan={6}>Sin documentos comerciales.</td></tr> : null}</tbody></table></div>
+      </section>
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-md border border-slate-200 bg-white p-5">
           <h2 className="font-semibold">Interacciones recientes</h2>

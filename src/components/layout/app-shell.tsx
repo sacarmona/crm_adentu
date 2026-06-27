@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Contact,
   FileUp,
+  Globe2,
   Handshake,
   LayoutDashboard,
   Mail,
@@ -27,7 +28,7 @@ type AppShellUser = {
   role?: string | null;
 };
 
-type PendingCountKey = "email" | "whatsapp" | "tasks" | "intelligence";
+type PendingCountKey = "email" | "whatsapp" | "webLeads" | "tasks" | "intelligence";
 
 const navigation: {
   label: string;
@@ -41,6 +42,7 @@ const navigation: {
   { label: "Oportunidades", href: "/opportunities", icon: Handshake },
   { label: "Pipeline", href: "/pipeline", icon: Target },
   { label: "Interacciones", href: "/interactions", icon: MessageSquareText },
+  { label: "Leads web", href: "/web-leads", icon: Globe2, countKey: "webLeads" },
   { label: "Correo", href: "/email", icon: Mail, countKey: "email" },
   { label: "WhatsApp", href: "/whatsapp", icon: MessageCircle, countKey: "whatsapp" },
   { label: "Reuniones", href: "/meetings", icon: Video },

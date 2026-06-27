@@ -4,6 +4,8 @@ import {
   AuditAction,
   Certainty,
   CommercialSentiment,
+  CommercialDocumentStatus,
+  CommercialDocumentType,
   CompanyStatus,
   ContactStatus,
   Currency,
@@ -73,6 +75,22 @@ export const currencyLabels: Record<Currency, string> = {
   UF: "UF",
   USD: "USD",
   EUR: "EUR",
+};
+
+export const commercialDocumentTypeLabels: Record<CommercialDocumentType, string> = {
+  QUOTE: "Cotizacion",
+  PROPOSAL: "Propuesta",
+  CONTRACT: "Contrato",
+};
+
+export const commercialDocumentStatusLabels: Record<CommercialDocumentStatus, string> = {
+  DRAFT: "Borrador",
+  SENT: "Enviado",
+  VIEWED: "Visto",
+  ACCEPTED: "Aceptado",
+  REJECTED: "Rechazado",
+  EXPIRED: "Vencido",
+  CANCELLED: "Cancelado",
 };
 
 export const interactionTypeLabels: Record<InteractionType, string> = {

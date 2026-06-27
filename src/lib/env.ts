@@ -36,6 +36,7 @@ const envSchema = z.object({
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
   WHATSAPP_APP_SECRET: z.string().optional(),
   WHATSAPP_API_VERSION: z.string().default("v21.0"),
+  WEB_LEAD_SECRET: z.string().min(16).optional(),
   EMAIL_AUTO_CLASSIFY: z.preprocess(
     (value) => {
       const normalized = unquote(value);
@@ -74,6 +75,7 @@ export const env = envSchema.parse({
   WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
   WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET,
   WHATSAPP_API_VERSION: process.env.WHATSAPP_API_VERSION,
+  WEB_LEAD_SECRET: process.env.WEB_LEAD_SECRET,
   EMAIL_AUTO_CLASSIFY: process.env.EMAIL_AUTO_CLASSIFY,
   EMAIL_AUTO_CLASSIFY_LIMIT: process.env.EMAIL_AUTO_CLASSIFY_LIMIT,
 });

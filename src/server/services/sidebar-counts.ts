@@ -3,12 +3,13 @@ import {
   EmailClassificationStatus,
   TaskStatus,
   WhatsAppMessageStatus,
+  WebLeadStatus,
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
 export async function getSidebarPendingCounts(userId: string) {
-  const [email, whatsapp, tasks, intelligence] = await Promise.all([
+  const [email, whatsapp, webLeads, tasks, intelligence] = await Promise.all([
     prisma.emailMessage.count({
       where: {
         connection: { userId },
@@ -18,6 +19,7 @@ export async function getSidebarPendingCounts(userId: string) {
     prisma.whatsAppMessage.count({
       where: { status: WhatsAppMessageStatus.PENDING },
     }),
+    prisma.webLead.count({ where: { status: WebLeadStatus.PENDING } }),
     prisma.task.count({
       where: { deletedAt: null, status: TaskStatus.PENDING, assignedToId: userId },
     }),
@@ -26,5 +28,5 @@ export async function getSidebarPendingCounts(userId: string) {
     }),
   ]);
 
-  return { email, whatsapp, tasks, intelligence };
+  return { email, whatsapp, webLeads, tasks, intelligence };
 }

@@ -44,6 +44,28 @@ enum LeadSource {
   OUTBOUND_OTHER
 }
 
+enum WebLeadStatus {
+  PENDING
+  CONVERTED
+  DISCARDED
+}
+
+enum CommercialDocumentType {
+  QUOTE
+  PROPOSAL
+  CONTRACT
+}
+
+enum CommercialDocumentStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
 enum OpportunityStatus {
   EXPLORATION
   PROPOSAL_SENT
@@ -253,6 +275,8 @@ model User {
   calendarMeetingDiscardRules  CalendarMeetingDiscardRule[]
   calendarConnection           CalendarConnection?
   calendarMeetings             CalendarMeeting[]
+  reviewedWebLeads             WebLead[]                @relation("WebLeadReviewer")
+  createdCommercialDocuments   CommercialDocument[]     @relation("CommercialDocumentCreator")
 
   @@index([email])
   @@index([role])
@@ -633,6 +657,7 @@ model Company {
   commercialMilestones     CommercialMilestone[]
   attachments              Attachment[]
   calendarMeetings         CalendarMeeting[]
+  webLeads                 WebLead[]
 
   @@index([name])
   @@index([normalizedName])
@@ -668,6 +693,7 @@ model Contact {
   tasks                Task[]
   attachments          Attachment[]
   calendarMeetings     CalendarMeeting[]
+  webLeads             WebLead[]
 
   @@index([companyId])
   @@index([email])
@@ -717,6 +743,8 @@ model Opportunity {
   aiInsights       AiInsight[]
   attachments      Attachment[]
   calendarMeetings CalendarMeeting[]
+  webLeads         WebLead[]
+  commercialDocuments CommercialDocument[]
 
   @@index([status])
   @@index([companyId])
@@ -1065,6 +1093,70 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([createdAt])
+}
+
+model WebLead {
+  id                    String        @id @default(uuid())
+  externalId            String?       @unique
+  status                WebLeadStatus @default(PENDING)
+  name                  String
+  email                 String
+  phone                 String?
+  companyName           String?
+  roleArea              String?
+  subject               String?
+  message               String
+  sourcePage             String?
+  campaignSource        String?
+  campaignMedium        String?
+  campaignName          String?
+  consent               Boolean       @default(false)
+  rawPayload            Json?
+  companyId             String?
+  contactId             String?
+  opportunityId         String?
+  reviewedById          String?
+  reviewedAt            DateTime?
+  discardReason         String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  company       Company?     @relation(fields: [companyId], references: [id])
+  contact       Contact?     @relation(fields: [contactId], references: [id])
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+  reviewedBy    User?        @relation("WebLeadReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([companyId])
+  @@index([opportunityId])
+}
+
+model CommercialDocument {
+  id            String                   @id @default(uuid())
+  opportunityId String
+  type          CommercialDocumentType
+  status        CommercialDocumentStatus @default(DRAFT)
+  title         String
+  version       Int                      @default(1)
+  currency      Currency                 @default(CLP)
+  amount        Decimal                  @default(0) @db.Decimal(18, 2)
+  documentUrl   String?
+  sentAt        DateTime?
+  validUntil    DateTime?
+  acceptedAt    DateTime?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  deletedAt     DateTime?
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  createdBy   User?       @relation("CommercialDocumentCreator", fields: [createdById], references: [id])
+
+  @@unique([opportunityId, type, version])
+  @@index([opportunityId, status])
+  @@index([validUntil])
 }
 
 model Attachment {
