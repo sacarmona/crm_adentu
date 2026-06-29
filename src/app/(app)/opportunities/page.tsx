@@ -138,6 +138,18 @@ export default async function OpportunitiesPage({
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/opportunities?${qs.toString()}`;
   };
+  const listQuery = new URLSearchParams();
+  if (q) listQuery.set("q", q);
+  for (const value of statusValues) listQuery.append("status", value);
+  for (const value of followUpValues) listQuery.append("followUp", value);
+  if (responsibleId) listQuery.set("responsibleId", responsibleId);
+  if (hideClosed) listQuery.set("hideClosed", "1");
+  if (sort) {
+    listQuery.set("sort", sort);
+    listQuery.set("dir", dir);
+  }
+  if (page > 1) listQuery.set("page", String(page));
+  const returnTo = `/opportunities${listQuery.size ? `?${listQuery.toString()}` : ""}`;
 
   return (
     <div className="space-y-5">
@@ -204,7 +216,7 @@ export default async function OpportunitiesPage({
               const health = getFollowUpHealth(opportunity);
               return (
                 <tr key={opportunity.id}>
-                  <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/opportunities/${opportunity.id}`}>{opportunity.name}</Link></td>
+                  <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/opportunities/${opportunity.id}?returnTo=${encodeURIComponent(returnTo)}`}>{opportunity.name}</Link></td>
                   <td className="px-4 py-3">{opportunity.company?.name ?? "-"}</td>
                   <td className="px-4 py-3">
                     {canEdit ? (

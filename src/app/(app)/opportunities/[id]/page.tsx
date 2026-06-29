@@ -1,4 +1,5 @@
 import { CommercialDocumentStatus, CommercialDocumentType, Currency, UserRole } from "@prisma/client";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -25,8 +26,19 @@ import { analyzeOpportunity } from "@/server/actions/intelligence";
 export const dynamic = "force-dynamic";
 const MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS = 2;
 
-export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OpportunityDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
+  const returnTo =
+    query?.returnTo === "/opportunities" || query?.returnTo?.startsWith("/opportunities?")
+      ? query.returnTo
+      : "/opportunities";
   const [session, opportunity, interactionCount] = await Promise.all([
     auth(),
     prisma.opportunity.findFirst({
@@ -64,6 +76,12 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
 
   return (
     <div className="space-y-5">
+      <Button asChild className="w-fit" size="sm" variant="ghost">
+        <Link href={returnTo}>
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+          Volver a oportunidades
+        </Link>
+      </Button>
       <section className="rounded-md border border-slate-200 bg-white p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
