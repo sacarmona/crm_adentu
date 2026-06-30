@@ -1153,7 +1153,17 @@ model CommercialDocument {
   version       Int                      @default(1)
   currency      Currency                 @default(CLP)
   amount        Decimal                  @default(0) @db.Decimal(18, 2)
+  documentNumber String?
+  documentDate   DateTime?
+  exchangeRate   Decimal                 @default(1) @db.Decimal(18, 6)
+  amountClp      Decimal                 @default(0) @db.Decimal(18, 2)
+  exchangeRateDate DateTime?
+  exchangeRateSource String?
   documentUrl   String?
+  driveFileId   String?
+  fileName      String?
+  mimeType      String?
+  analysisSummary String?
   sentAt        DateTime?
   validUntil    DateTime?
   acceptedAt    DateTime?
@@ -1169,6 +1179,7 @@ model CommercialDocument {
   @@unique([opportunityId, type, version])
   @@index([opportunityId, status])
   @@index([validUntil])
+  @@index([documentNumber])
 }
 
 model Attachment {
