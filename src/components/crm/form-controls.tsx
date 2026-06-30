@@ -10,6 +10,7 @@ export function TextField({
   type = "text",
   required = false,
   readOnly = false,
+  minLength,
 }: {
   label: string;
   name: string;
@@ -17,6 +18,7 @@ export function TextField({
   type?: string;
   required?: boolean;
   readOnly?: boolean;
+  minLength?: number;
 }) {
   return (
     <label className="block">
@@ -24,6 +26,7 @@ export function TextField({
       <input
         className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-950"
         defaultValue={defaultValue ?? ""}
+        minLength={minLength}
         name={name}
         readOnly={readOnly}
         required={required}

@@ -18,37 +18,44 @@ function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
 }
 
-export async function createUserAccount(formData: FormData) {
-  const actor = await requireAdmin("Solo ADMIN puede crear usuarios.");
-  const data = createUserSchema.parse(parseForm(formData));
+export async function createUserAccount(
+  _prev: string | null,
+  formData: FormData,
+): Promise<string | null> {
+  try {
+    const actor = await requireAdmin("Solo ADMIN puede crear usuarios.");
+    const parsed = createUserSchema.safeParse(parseForm(formData));
+    if (!parsed.success) {
+      return parsed.error.issues.map((i) => i.message).join(", ");
+    }
+    const data = parsed.data;
 
-  const existing = await prisma.user.findUnique({
-    where: { email: data.email },
-  });
-  if (existing) {
-    throw new Error("Ya existe un usuario con ese correo.");
+    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) return "Ya existe un usuario con ese correo.";
+
+    const passwordHash = await bcrypt.hash(data.password, 12);
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        phone: data.phone,
+        passwordHash,
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        action: AuditAction.CREATE,
+        entityType: "User",
+        entityId: user.id,
+        actorId: actor.id,
+        after: { name: user.name, email: user.email, role: user.role },
+      },
+    });
+    revalidatePath("/settings");
+  } catch {
+    return "Error al crear el usuario. Intenta nuevamente.";
   }
-
-  const passwordHash = await bcrypt.hash(data.password, 12);
-  const user = await prisma.user.create({
-    data: {
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      phone: data.phone,
-      passwordHash,
-    },
-  });
-  await prisma.auditLog.create({
-    data: {
-      action: AuditAction.CREATE,
-      entityType: "User",
-      entityId: user.id,
-      actorId: actor.id,
-      after: { name: user.name, email: user.email, role: user.role },
-    },
-  });
-  revalidatePath("/settings");
   redirect("/settings?view=users");
 }
 

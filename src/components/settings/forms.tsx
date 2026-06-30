@@ -1,4 +1,7 @@
+"use client";
+
 import { DictionaryValue, Service, UserRole } from "@prisma/client";
+import { useActionState } from "react";
 
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
 import { Button } from "@/components/ui/button";
@@ -126,13 +129,19 @@ export function DictionaryValueForm({
 export function UserForm({
   action,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (prev: string | null, formData: FormData) => Promise<string | null>;
 }) {
+  const [error, formAction, pending] = useActionState(action, null);
   return (
     <form
-      action={action}
+      action={formAction}
       className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 md:grid-cols-2"
     >
+      {error ? (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 md:col-span-2">
+          {error}
+        </p>
+      ) : null}
       <TextField label="Nombre" name="name" required />
       <TextField label="Correo" name="email" required type="email" />
       <SelectField
@@ -150,13 +159,16 @@ export function UserForm({
         name="phone"
       />
       <TextField
-        label="Contrasena inicial"
+        label="Contrasena inicial (minimo 12 caracteres)"
+        minLength={12}
         name="password"
         required
         type="password"
       />
       <div className="md:col-span-2">
-        <Button type="submit">Crear usuario</Button>
+        <Button disabled={pending} type="submit">
+          {pending ? "Creando..." : "Crear usuario"}
+        </Button>
       </div>
     </form>
   );
