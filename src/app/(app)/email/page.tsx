@@ -19,6 +19,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { DiscardDropdown } from "@/components/email/discard-dropdown";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatDateTime } from "@/lib/format";
@@ -559,9 +560,19 @@ export default async function EmailPage({
                             Interaccion creada
                           </span>
                         ) : null}
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/email/${message.id}`}>Revisar</Link>
-                        </Button>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/email/${message.id}`}>Revisar</Link>
+                          </Button>
+                          {message.classification?.status !==
+                          EmailClassificationStatus.IGNORED ? (
+                            <DiscardDropdown
+                              fromAddress={message.fromAddress}
+                              messageId={message.id}
+                              subject={message.subject}
+                            />
+                          ) : null}
+                        </div>
                         {message.draft ? (
                           <span className="text-xs text-slate-500">
                             Borrador: {emailDraftStatusLabels[message.draft.status]}
