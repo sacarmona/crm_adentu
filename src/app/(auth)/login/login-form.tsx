@@ -5,8 +5,6 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,7 +29,7 @@ export function LoginForm() {
     setIsPending(false);
 
     if (result?.error) {
-      setError("Correo o contrasena incorrectos.");
+      setError("Correo o contraseña incorrectos.");
       return;
     }
 
@@ -40,14 +38,14 @@ export function LoginForm() {
   }
 
   return (
-    <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+    <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
       <div>
-        <label className="text-sm font-medium text-slate-700" htmlFor="email">
+        <label className="text-sm font-medium text-blue-100" htmlFor="email">
           Correo
         </label>
         <input
           autoComplete="email"
-          className="mt-2 h-11 w-full rounded-md border border-slate-300 px-3 text-sm outline-none transition-colors focus:border-slate-950"
+          className="mt-2 h-11 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 outline-none transition-colors focus:border-blue-400 focus:bg-white/15"
           defaultValue="admin.demo@adentu.cl"
           id="email"
           name="email"
@@ -55,15 +53,12 @@ export function LoginForm() {
         />
       </div>
       <div>
-        <label
-          className="text-sm font-medium text-slate-700"
-          htmlFor="password"
-        >
-          Contrasena
+        <label className="text-sm font-medium text-blue-100" htmlFor="password">
+          Contraseña
         </label>
         <input
           autoComplete="current-password"
-          className="mt-2 h-11 w-full rounded-md border border-slate-300 px-3 text-sm outline-none transition-colors focus:border-slate-950"
+          className="mt-2 h-11 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 outline-none transition-colors focus:border-blue-400 focus:bg-white/15"
           defaultValue="AdentuDemo2026!"
           id="password"
           name="password"
@@ -71,15 +66,18 @@ export function LoginForm() {
         />
       </div>
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-lg border border-red-400/30 bg-red-500/20 px-3 py-2 text-sm text-red-200">
           {error}
         </p>
       ) : null}
-      <Button className="w-full" disabled={isPending} type="submit">
+      <button
+        className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-500 text-sm font-semibold text-white transition-colors hover:bg-blue-400 disabled:opacity-60"
+        disabled={isPending}
+        type="submit"
+      >
         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         Ingresar
-      </Button>
+      </button>
     </form>
   );
 }
-

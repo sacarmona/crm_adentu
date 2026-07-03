@@ -14,32 +14,43 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-5 py-10 text-slate-950">
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section>
-          <Image
-            alt="ADENTU"
-            height={56}
-            priority
-            src="/brand/adentu-logo.png"
-            style={{ height: "56px", width: "auto" }}
-            width={200}
-          />
-          <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-normal">
-            Acceso al CRM comercial
-          </h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-            Gestiona empresas, contactos, oportunidades, interacciones y tareas
-            desde un entorno protegido por roles.
-          </p>
-        </section>
-        <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">Iniciar sesion</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Usa las credenciales demo creadas por el seed para validar el flujo.
-          </p>
-          <LoginForm />
-        </section>
+    <main className="relative min-h-screen overflow-hidden">
+      {/* Background image */}
+      <Image
+        alt=""
+        className="object-cover object-center"
+        fill
+        priority
+        src="/brand/login-bg.png"
+      />
+
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-[#050e1f]/60" />
+
+      {/* Content */}
+      <div className="relative z-10 flex min-h-screen items-center justify-end px-6 py-10 sm:px-16">
+        <div className="w-full max-w-sm">
+          {/* Logo */}
+          <div className="mb-8">
+            <Image
+              alt="ADENTU"
+              height={48}
+              priority
+              src="/brand/adentu-logo.png"
+              style={{ height: "48px", width: "auto", filter: "brightness(0) invert(1)" }}
+              width={180}
+            />
+          </div>
+
+          {/* Card */}
+          <div className="rounded-2xl border border-white/10 bg-white/10 p-8 shadow-2xl backdrop-blur-md">
+            <h1 className="text-2xl font-semibold text-white">Iniciar sesión</h1>
+            <p className="mt-1.5 text-sm text-blue-200/80">
+              CRM Comercial · Acceso protegido por roles
+            </p>
+            <LoginForm />
+          </div>
+        </div>
       </div>
     </main>
   );
