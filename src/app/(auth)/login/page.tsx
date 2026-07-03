@@ -28,7 +28,7 @@ export default async function LoginPage() {
       <div className="absolute inset-0 bg-[#050e1f]/60" />
 
       {/* Content */}
-      <div className="relative z-10 flex min-h-screen items-center justify-end px-6 py-10 sm:px-16">
+      <div className="relative z-10 flex min-h-screen items-center justify-start px-6 py-10 sm:px-16">
         <div className="w-full max-w-sm">
           {/* Logo */}
           <div className="mb-8">
