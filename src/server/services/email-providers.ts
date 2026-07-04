@@ -43,6 +43,7 @@ export function emailProviderConfig(provider: EmailProvider): ProviderConfig {
         "email",
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.settings.basic",
       ],
     };
   }
@@ -65,6 +66,12 @@ export function isEmailProviderConfigured(provider: EmailProvider) {
 export function hasGmailComposeScope(scope?: string | null) {
   return Boolean(
     scope?.includes("https://www.googleapis.com/auth/gmail.compose"),
+  );
+}
+
+export function hasGmailSettingsScope(scope?: string | null) {
+  return Boolean(
+    scope?.includes("https://www.googleapis.com/auth/gmail.settings.basic"),
   );
 }
 
@@ -468,6 +475,39 @@ function encodeMimeWord(value: string) {
   return `=?UTF-8?B?${Buffer.from(value, "utf-8").toString("base64")}?=`;
 }
 
+function plainTextToHtml(text: string) {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const paragraphs = escaped
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#202124">${paragraphs}</div>`;
+}
+
+export async function fetchGmailSignature(
+  accessToken: string,
+): Promise<string | undefined> {
+  const response = await fetchProviderWithRetry(
+    "https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs",
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+  );
+  if (!response.ok) {
+    throw new Error(`Gmail no pudo leer la firma (${response.status}).`);
+  }
+  const data = (await response.json()) as {
+    sendAs?: Array<{ isDefault?: boolean; isPrimary?: boolean; signature?: string }>;
+  };
+  const sendAs = data.sendAs ?? [];
+  const primary =
+    sendAs.find((entry) => entry.isDefault) ??
+    sendAs.find((entry) => entry.isPrimary) ??
+    sendAs[0];
+  return primary?.signature || undefined;
+}
+
 export async function createOrUpdateGmailDraft(input: {
   accessToken: string;
   to: string;
@@ -476,6 +516,7 @@ export async function createOrUpdateGmailDraft(input: {
   threadId?: string;
   inReplyTo?: string;
   providerDraftId?: string;
+  signatureHtml?: string;
 }) {
   const headers = [
     `To: ${input.to}`,
@@ -483,10 +524,13 @@ export async function createOrUpdateGmailDraft(input: {
     ...(input.inReplyTo
       ? [`In-Reply-To: ${input.inReplyTo}`, `References: ${input.inReplyTo}`]
       : []),
-    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Type: text/html; charset="UTF-8"',
     "MIME-Version: 1.0",
   ];
-  const mime = `${headers.join("\r\n")}\r\n\r\n${input.body}`;
+  const html = input.signatureHtml
+    ? `${plainTextToHtml(input.body)}<br>${input.signatureHtml}`
+    : plainTextToHtml(input.body);
+  const mime = `${headers.join("\r\n")}\r\n\r\n${html}`;
   const raw = Buffer.from(mime, "utf-8").toString("base64url");
 
   const url = input.providerDraftId

@@ -1,20 +1,25 @@
 import { EmailProvider } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { prismaMock, createOrUpdateGmailDraftMock, usableEmailAccessTokenMock } =
-  vi.hoisted(() => ({
-    prismaMock: {
-      emailDraft: {
-        findUnique: vi.fn(),
-        update: vi.fn(),
-      },
-      emailConnection: {
-        update: vi.fn(),
-      },
+const {
+  prismaMock,
+  createOrUpdateGmailDraftMock,
+  usableEmailAccessTokenMock,
+  fetchGmailSignatureMock,
+} = vi.hoisted(() => ({
+  prismaMock: {
+    emailDraft: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
     },
-    createOrUpdateGmailDraftMock: vi.fn(),
-    usableEmailAccessTokenMock: vi.fn(),
-  }));
+    emailConnection: {
+      update: vi.fn(),
+    },
+  },
+  createOrUpdateGmailDraftMock: vi.fn(),
+  usableEmailAccessTokenMock: vi.fn(),
+  fetchGmailSignatureMock: vi.fn(),
+}));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
@@ -26,6 +31,7 @@ vi.mock("@/server/services/email-providers", async () => {
     ...actual,
     createOrUpdateGmailDraft: createOrUpdateGmailDraftMock,
     usableEmailAccessToken: usableEmailAccessTokenMock,
+    fetchGmailSignature: fetchGmailSignatureMock,
   };
 });
 
@@ -163,6 +169,73 @@ describe("pushEmailDraftToMailbox", () => {
     expect(prismaMock.emailDraft.update).toHaveBeenCalledWith({
       where: { id: "draft-1" },
       data: { pushError: "Gmail no pudo guardar el borrador (403)." },
+    });
+  });
+
+  it("fetches and forwards the Gmail signature when the settings scope is granted", async () => {
+    prismaMock.emailDraft.findUnique.mockResolvedValue(
+      draftFixture({
+        scope:
+          "https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.settings.basic",
+      }),
+    );
+    usableEmailAccessTokenMock.mockResolvedValue({
+      accessToken: "access-token",
+      refreshed: null,
+    });
+    fetchGmailSignatureMock.mockResolvedValue("<div>Equipo ADENTU</div>");
+    createOrUpdateGmailDraftMock.mockResolvedValue({ id: "gmail-draft-1" });
+
+    await pushEmailDraftToMailbox("draft-1");
+
+    expect(fetchGmailSignatureMock).toHaveBeenCalledWith("access-token");
+    expect(createOrUpdateGmailDraftMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signatureHtml: "<div>Equipo ADENTU</div>" }),
+    );
+  });
+
+  it("skips the signature fetch when the settings scope is missing", async () => {
+    prismaMock.emailDraft.findUnique.mockResolvedValue(draftFixture());
+    usableEmailAccessTokenMock.mockResolvedValue({
+      accessToken: "access-token",
+      refreshed: null,
+    });
+    createOrUpdateGmailDraftMock.mockResolvedValue({ id: "gmail-draft-1" });
+
+    await pushEmailDraftToMailbox("draft-1");
+
+    expect(fetchGmailSignatureMock).not.toHaveBeenCalled();
+    expect(createOrUpdateGmailDraftMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signatureHtml: undefined }),
+    );
+  });
+
+  it("ignores signature fetch errors and still saves the draft", async () => {
+    prismaMock.emailDraft.findUnique.mockResolvedValue(
+      draftFixture({
+        scope:
+          "https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.settings.basic",
+      }),
+    );
+    usableEmailAccessTokenMock.mockResolvedValue({
+      accessToken: "access-token",
+      refreshed: null,
+    });
+    fetchGmailSignatureMock.mockRejectedValue(new Error("no signature"));
+    createOrUpdateGmailDraftMock.mockResolvedValue({ id: "gmail-draft-1" });
+
+    await pushEmailDraftToMailbox("draft-1");
+
+    expect(createOrUpdateGmailDraftMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signatureHtml: undefined }),
+    );
+    expect(prismaMock.emailDraft.update).toHaveBeenCalledWith({
+      where: { id: "draft-1" },
+      data: {
+        providerDraftId: "gmail-draft-1",
+        pushedAt: expect.any(Date),
+        pushError: null,
+      },
     });
   });
 });

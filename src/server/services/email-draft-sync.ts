@@ -3,7 +3,9 @@ import { EmailProvider } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   createOrUpdateGmailDraft,
+  fetchGmailSignature,
   hasGmailComposeScope,
+  hasGmailSettingsScope,
   usableEmailAccessToken,
 } from "@/server/services/email-providers";
 
@@ -51,6 +53,15 @@ export async function pushEmailDraftToMailbox(draftId: string) {
       });
     }
 
+    let signatureHtml: string | undefined;
+    if (hasGmailSettingsScope(connection.scope)) {
+      try {
+        signatureHtml = await fetchGmailSignature(token.accessToken);
+      } catch {
+        signatureHtml = undefined;
+      }
+    }
+
     const result = await createOrUpdateGmailDraft({
       accessToken: token.accessToken,
       to: draft.emailMessage.fromAddress,
@@ -59,6 +70,7 @@ export async function pushEmailDraftToMailbox(draftId: string) {
       threadId: draft.emailMessage.threadId ?? undefined,
       inReplyTo: draft.emailMessage.messageIdHeader ?? undefined,
       providerDraftId: draft.providerDraftId ?? undefined,
+      signatureHtml,
     });
 
     await prisma.emailDraft.update({
