@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
+  --background: #f0f4fa;
+  --foreground: #1a2f4a;
+  --sidebar-bg: #132d52;
+  --sidebar-border: rgba(255,255,255,0.08);
+  --sidebar-text: #9bbcde;
+  --sidebar-text-muted: #4a72a0;
+  --sidebar-active-bg: #1d5498;
+  --topbar-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-border: #dde5f0;
 }
 
 @theme inline {
@@ -10,6 +18,19 @@
   --color-foreground: var(--foreground);
   --font-sans: Arial, Helvetica, sans-serif;
   --font-mono: "Cascadia Code", Consolas, monospace;
+
+  /* Remap Tailwind slate tokens to blue-tinted equivalents */
+  --color-slate-50:  #f0f4fa;
+  --color-slate-100: #e4edf8;
+  --color-slate-200: #dde5f0;
+  --color-slate-300: #b8cde4;
+  --color-slate-400: #7a9cbf;
+  --color-slate-500: #4a72a0;
+  --color-slate-600: #2d5280;
+  --color-slate-700: #1e3d64;
+  --color-slate-800: #132d52;
+  --color-slate-900: #0a1e38;
+  --color-slate-950: #060f1f;
 }
 
 body {
