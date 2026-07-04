@@ -93,8 +93,22 @@ produccion.
 ## Borradores de correo
 
 Los borradores se generan con el proveedor de IA activo y requieren revision
-humana. El estado `APPROVED` significa que el texto esta listo para copiar; la
-aplicacion no envia mensajes ni llama endpoints de envio de Gmail o Microsoft.
+humana. Al aprobar un borrador (`APPROVED`), si la conexion es Gmail y tiene
+el scope `gmail.compose`, la aplicacion crea o actualiza el mismo borrador
+dentro del hilo correspondiente en Gmail via la API (`users.drafts.create` /
+`users.drafts.update`). La aplicacion nunca envia el correo automaticamente,
+solo lo deja guardado como borrador en el buzon real.
+
+Para que esto funcione:
+
+- El proyecto de OAuth de Gmail debe tener el scope
+  `https://www.googleapis.com/auth/gmail.compose` habilitado en el
+  consent screen (ademas del `gmail.readonly` ya existente).
+- Las cuentas conectadas antes de este cambio deben reconectarse
+  (Desconectar > Conectar Gmail) para otorgar el scope nuevo.
+- Microsoft/Outlook todavia no esta soportado para este flujo; el borrador
+  queda con un error visible pidiendo reconexion o indicando que aun no
+  esta disponible para ese proveedor.
 
 ## Reglas de descarte
 
