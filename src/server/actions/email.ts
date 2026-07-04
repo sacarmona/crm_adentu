@@ -19,6 +19,7 @@ import {
 } from "@/server/services/email-agent";
 import { generateEmailDraftWithActiveProvider } from "@/server/services/ai-provider";
 import { emailDraftFormSchema } from "@/server/services/email-draft";
+import { pushEmailDraftToMailbox } from "@/server/services/email-draft-sync";
 import {
   applyDiscardRulesForUser,
   discardRuleValue,
@@ -491,8 +492,24 @@ export async function approveEmailDraft(formData: FormData) {
       },
     }),
   ]);
+  await pushEmailDraftToMailbox(draft.id);
   revalidatePath(`/email/${draft.emailMessageId}`);
   revalidatePath("/email");
+}
+
+export async function retryPushEmailDraft(draftId: string) {
+  const user = await requireWriter("No tienes permisos para reintentar el guardado.");
+  const draft = await prisma.emailDraft.findFirst({
+    where: {
+      id: draftId,
+      emailMessage: { connection: { userId: user.id } },
+    },
+  });
+  if (!draft) {
+    throw new Error("El borrador no esta disponible.");
+  }
+  await pushEmailDraftToMailbox(draft.id);
+  revalidatePath(`/email/${draft.emailMessageId}`);
 }
 
 export async function discardEmailDraft(draftId: string) {

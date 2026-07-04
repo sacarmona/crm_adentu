@@ -10,6 +10,7 @@ import {
 export type NormalizedEmailMessage = {
   providerMessageId: string;
   threadId?: string;
+  messageIdHeader?: string;
   direction: EmailDirection;
   fromAddress: string;
   fromName?: string;
@@ -41,6 +42,7 @@ export function emailProviderConfig(provider: EmailProvider): ProviderConfig {
         "openid",
         "email",
         "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.compose",
       ],
     };
   }
@@ -58,6 +60,12 @@ export function emailProviderConfig(provider: EmailProvider): ProviderConfig {
 export function isEmailProviderConfigured(provider: EmailProvider) {
   const config = emailProviderConfig(provider);
   return Boolean(config.clientId && config.clientSecret);
+}
+
+export function hasGmailComposeScope(scope?: string | null) {
+  return Boolean(
+    scope?.includes("https://www.googleapis.com/auth/gmail.compose"),
+  );
 }
 
 export function emailOAuthAuthorizationUrl(input: {
@@ -362,6 +370,7 @@ async function gmailMessages(accessToken: string, mailbox: string) {
       return {
         providerMessageId: message.id,
         threadId: message.threadId,
+        messageIdHeader: headers.get("message-id"),
         direction:
           from.address === mailbox.toLowerCase()
             ? EmailDirection.OUTBOUND
@@ -449,8 +458,60 @@ export function fetchProviderMessages(input: {
   provider: EmailProvider;
   accessToken: string;
   mailbox: string;
-}) {
+}): Promise<NormalizedEmailMessage[]> {
   return input.provider === EmailProvider.GMAIL
     ? gmailMessages(input.accessToken, input.mailbox)
     : microsoftMessages(input.accessToken, input.mailbox);
+}
+
+function encodeMimeWord(value: string) {
+  return `=?UTF-8?B?${Buffer.from(value, "utf-8").toString("base64")}?=`;
+}
+
+export async function createOrUpdateGmailDraft(input: {
+  accessToken: string;
+  to: string;
+  subject: string;
+  body: string;
+  threadId?: string;
+  inReplyTo?: string;
+  providerDraftId?: string;
+}) {
+  const headers = [
+    `To: ${input.to}`,
+    `Subject: ${encodeMimeWord(input.subject)}`,
+    ...(input.inReplyTo
+      ? [`In-Reply-To: ${input.inReplyTo}`, `References: ${input.inReplyTo}`]
+      : []),
+    'Content-Type: text/plain; charset="UTF-8"',
+    "MIME-Version: 1.0",
+  ];
+  const mime = `${headers.join("\r\n")}\r\n\r\n${input.body}`;
+  const raw = Buffer.from(mime, "utf-8").toString("base64url");
+
+  const url = input.providerDraftId
+    ? `https://gmail.googleapis.com/gmail/v1/users/me/drafts/${input.providerDraftId}`
+    : "https://gmail.googleapis.com/gmail/v1/users/me/drafts";
+
+  const response = await fetchProviderWithRetry(url, {
+    method: input.providerDraftId ? "PUT" : "POST",
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: {
+        threadId: input.threadId,
+        raw,
+      },
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gmail no pudo guardar el borrador (${response.status}).`);
+  }
+
+  const draft = (await response.json()) as { id: string };
+  return { id: draft.id };
 }

@@ -27,6 +27,7 @@ import {
   generateEmailDraft,
   ignoreEmailClassification,
   restoreDiscardedEmail,
+  retryPushEmailDraft,
   saveEmailDraft,
 } from "@/server/actions/email";
 import { isActiveProviderConfigured } from "@/server/services/ai-provider";
@@ -279,7 +280,8 @@ export default async function EmailMessagePage({
           <div>
             <h2 className="font-semibold">Borrador de respuesta</h2>
             <p className="mt-1 text-xs text-slate-500">
-              La aprobacion solo marca el texto como listo. No envia correo.
+              Al aprobar, si tu cuenta es Gmail, guardamos el borrador en tu
+              buzon real. No se envia el correo automaticamente.
             </p>
           </div>
           {message.draft ? (
@@ -308,7 +310,11 @@ export default async function EmailMessagePage({
                 subject: message.draft.subject,
                 body: message.draft.body,
                 status: message.draft.status,
+                providerDraftId: message.draft.providerDraftId,
+                pushedAt: message.draft.pushedAt,
+                pushError: message.draft.pushError,
               }}
+              retryPushAction={retryPushEmailDraft.bind(null, message.draft.id)}
               saveAction={saveEmailDraft}
             />
           </div>

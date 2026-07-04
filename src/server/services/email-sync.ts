@@ -49,6 +49,7 @@ export async function synchronizeEmailConnection(connectionId: string, userId: s
         connectionId: connection.id,
         toAddresses: message.toAddresses,
         ccAddresses: message.ccAddresses,
+        messageIdHeader: message.messageIdHeader ?? null,
       })),
       skipDuplicates: true,
     });

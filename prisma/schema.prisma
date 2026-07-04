@@ -410,6 +410,7 @@ model EmailMessage {
   connectionId      String
   providerMessageId String
   threadId          String?
+  messageIdHeader   String?
   direction         EmailDirection
   fromAddress       String
   fromName          String?
@@ -446,15 +447,18 @@ model EmailMessageTombstone {
 }
 
 model EmailDraft {
-  id             String           @id @default(uuid())
-  emailMessageId String           @unique
-  status         EmailDraftStatus @default(DRAFT)
-  subject        String
-  body           String
-  reviewedById   String?
-  reviewedAt     DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id              String           @id @default(uuid())
+  emailMessageId  String           @unique
+  status          EmailDraftStatus @default(DRAFT)
+  subject         String
+  body            String
+  providerDraftId String?
+  pushedAt        DateTime?
+  pushError       String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   emailMessage EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
   reviewedBy   User?        @relation("EmailDraftReviewer", fields: [reviewedById], references: [id])
