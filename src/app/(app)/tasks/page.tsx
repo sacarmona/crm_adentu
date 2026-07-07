@@ -43,6 +43,20 @@ export default async function TasksPage({
   }>;
 }) {
   const session = await auth();
+
+  // Auto-sync Google Tasks on every page load when the user has the integration connected.
+  // Runs before the data queries so the rendered list already reflects the latest status from Google.
+  if (session?.user.id) {
+    const conn = await prisma.calendarConnection.findUnique({ where: { userId: session.user.id } });
+    if (conn && googleTasksScopesGranted(conn.scope)) {
+      try {
+        await importGoogleTasks();
+      } catch {
+        // Sync failures are non-fatal: the page renders with the last known data.
+      }
+    }
+  }
+
   const params = await searchParams;
   const hasFilters = Boolean(
     params && ("status" in params || "assignedToId" in params || "scope" in params || "source" in params),
