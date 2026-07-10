@@ -16,6 +16,7 @@ import { analyzeInteraction, deleteInsight } from "@/server/actions/intelligence
 import { isAiConfigured } from "@/server/services/openai";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const statusStyles: Record<AiInsightStatus, string> = {
   DRAFT: "bg-slate-100 text-slate-600",
@@ -27,11 +28,12 @@ const statusStyles: Record<AiInsightStatus, string> = {
 export default async function IntelligencePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ status?: string }>;
+  searchParams?: Promise<{ status?: string; error?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
   const status = params?.status as AiInsightStatus | undefined;
+  const errorMessage = params?.error ? decodeURIComponent(params.error) : null;
   const configured = isAiConfigured();
   const canEdit = session?.user.role !== UserRole.LECTURA;
   const canUseAi =
@@ -72,6 +74,11 @@ export default async function IntelligencePage({
         </p>
       </div>
 
+      {errorMessage ? (
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <span className="font-medium">Error al analizar:</span> {errorMessage}
+        </div>
+      ) : null}
       {!configured ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Define `OPENAI_API_KEY` y opcionalmente `OPENAI_MODEL` para habilitar
