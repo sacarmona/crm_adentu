@@ -168,12 +168,26 @@ function CollapsibleGroup({
 
 export function SidebarNav({
   pendingCounts,
+  role,
 }: {
   pendingCounts?: Record<PendingCountKey, number>;
+  role?: string | null;
 }) {
+  const visibleGroups =
+    role === "LECTURA"
+      ? navigationGroups
+          .slice(0, 1)
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) =>
+              ["/dashboard", "/pipeline"].includes(item.href),
+            ),
+          }))
+      : navigationGroups;
+
   return (
     <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
-      {navigationGroups.map((group, index) =>
+      {visibleGroups.map((group, index) =>
         group.label ? (
           <CollapsibleGroup group={group} key={group.label} pendingCounts={pendingCounts} />
         ) : (

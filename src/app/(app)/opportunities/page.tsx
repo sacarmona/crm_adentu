@@ -9,7 +9,10 @@ import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { updateOpportunityStatus } from "@/server/actions/crm";
+import {
+  updateOpportunityResponsible,
+  updateOpportunityStatus,
+} from "@/server/actions/crm";
 import {
   FOLLOW_UP_NORMAL_DAYS,
   FOLLOW_UP_STALLED_DAYS,
@@ -198,6 +201,7 @@ export default async function OpportunitiesPage({
             <tr>
               <th className="px-4 py-3">Oportunidad</th>
               <th className="px-4 py-3">Empresa</th>
+              <th className="px-4 py-3">Responsable</th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Prob.</th>
               <th className="px-4 py-3">Monto total</th>
@@ -218,6 +222,22 @@ export default async function OpportunitiesPage({
                 <tr key={opportunity.id}>
                   <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/opportunities/${opportunity.id}?returnTo=${encodeURIComponent(returnTo)}`}>{opportunity.name}</Link></td>
                   <td className="px-4 py-3">{opportunity.company?.name ?? "-"}</td>
+                  <td className="px-4 py-3">
+                    {canEdit ? (
+                      <InlineSelectForm
+                        action={updateOpportunityResponsible.bind(null, opportunity.id)}
+                        defaultValue={opportunity.responsibleId ?? ""}
+                        name="responsibleId"
+                        options={users.map((user) => ({
+                          value: user.id,
+                          label: user.name,
+                        }))}
+                        placeholder="Sin responsable"
+                      />
+                    ) : (
+                      opportunity.responsible?.name ?? "Sin responsable"
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {canEdit ? (
                       <InlineSelectForm
@@ -262,7 +282,7 @@ export default async function OpportunitiesPage({
               );
             })}
             {opportunities.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={8}>No hay oportunidades para los filtros seleccionados.</td></tr>
+              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={9}>No hay oportunidades para los filtros seleccionados.</td></tr>
             ) : null}
           </tbody>
         </table>

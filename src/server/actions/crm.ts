@@ -232,6 +232,33 @@ export async function updateOpportunityStatus(id: string, formData: FormData) {
   revalidatePath("/pipeline");
 }
 
+export async function updateOpportunityResponsible(id: string, formData: FormData) {
+  const user = await requireWriter(
+    "No tienes permisos para modificar el responsable de la oportunidad.",
+  );
+  const responsibleId = (formData.get("responsibleId") as string) || null;
+  const before = await prisma.opportunity.findUnique({ where: { id } });
+  if (!before) throw new Error("La oportunidad ya no esta disponible.");
+
+  await prisma.$transaction([
+    prisma.opportunity.update({ where: { id }, data: { responsibleId } }),
+    prisma.auditLog.create({
+      data: {
+        action: "UPDATE",
+        entityType: "Opportunity",
+        entityId: id,
+        actorId: user.id,
+        before: { responsibleId: before.responsibleId },
+        after: { responsibleId },
+      },
+    }),
+  ]);
+
+  revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${id}`);
+  revalidatePath("/pipeline");
+}
+
 export async function deleteCompany(id: string) {
   const user = await requireAdmin("Solo ADMIN puede eliminar empresas.");
   const [contacts, opportunities] = await Promise.all([

@@ -18,6 +18,8 @@ const protectedPrefixes = [
   "/settings",
 ];
 
+const lecturaAllowedPrefixes = ["/dashboard", "/pipeline"];
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtected = protectedPrefixes.some((prefix) =>
@@ -35,6 +37,13 @@ export async function proxy(request: NextRequest) {
   });
 
   if (token) {
+    if (
+      token.role === "LECTURA" &&
+      !lecturaAllowedPrefixes.some((prefix) => pathname.startsWith(prefix))
+    ) {
+      return NextResponse.redirect(new URL("/pipeline", request.url));
+    }
+
     return NextResponse.next();
   }
 

@@ -66,7 +66,7 @@ export function AppShell({
           </p>
         </div>
 
-        <SidebarNav pendingCounts={pendingCounts} />
+        <SidebarNav pendingCounts={pendingCounts} role={user?.role} />
       </aside>
 
       <div className="lg:pl-72">
