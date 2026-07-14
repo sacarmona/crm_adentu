@@ -1,4 +1,5 @@
 import { OpportunityStatus, Prisma } from "@prisma/client";
+import { FileDown } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
@@ -153,6 +154,11 @@ export default async function OpportunitiesPage({
   }
   if (page > 1) listQuery.set("page", String(page));
   const returnTo = `/opportunities${listQuery.size ? `?${listQuery.toString()}` : ""}`;
+  const exportQuery = new URLSearchParams(listQuery);
+  exportQuery.delete("page");
+  const exportHref = `/api/opportunities/export${
+    exportQuery.size ? `?${exportQuery.toString()}` : ""
+  }`;
 
   return (
     <div className="space-y-5">
@@ -162,7 +168,7 @@ export default async function OpportunitiesPage({
         description="Gestiona pipeline, servicios, probabilidad y montos comerciales calculados."
         title="Oportunidades"
       />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_180px_180px_180px_auto]">
+      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_180px_180px_180px_auto_auto]">
         <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={q} name="q" placeholder="Buscar oportunidad o empresa" />
         <MultiSelectFilter
           defaultValues={statusValues}
@@ -190,6 +196,13 @@ export default async function OpportunitiesPage({
           ))}
         </select>
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">Filtrar</button>
+        <Link
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          href={exportHref}
+        >
+          <FileDown className="h-4 w-4" aria-hidden="true" />
+          Descargar PDF
+        </Link>
         <label className="flex items-center gap-2 text-sm text-slate-600 md:col-span-full">
           <input defaultChecked={hideClosed} name="hideClosed" type="checkbox" value="1" />
           Ocultar oportunidades cerradas
