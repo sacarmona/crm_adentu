@@ -213,9 +213,9 @@ export default async function DashboardPage({
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
-        <div className="rounded-md border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between">
+      <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
+        <div className="flex min-h-[420px] min-w-0 flex-col rounded-md border border-slate-200 bg-white p-5">
+          <div className="flex min-h-12 items-start justify-between gap-3">
             <div>
               <h2 className="font-semibold">Pipeline por etapa</h2>
               <p className="mt-1 text-xs text-slate-500">
@@ -224,17 +224,23 @@ export default async function DashboardPage({
             </div>
             <CircleDollarSign className="h-5 w-5 text-teal-700" aria-hidden="true" />
           </div>
-          <PipelineStageChart data={stageData} />
+          <div className="mt-4 flex-1">
+            <PipelineStageChart data={stageData} />
+          </div>
         </div>
-        <div className="rounded-md border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold">Oportunidades por servicio</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Distribucion de la cartera visible
-          </p>
-          <OpportunityDistributionChart data={serviceData} />
-          <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="flex min-h-[420px] min-w-0 flex-col rounded-md border border-slate-200 bg-white p-5">
+          <div className="min-h-12">
+            <h2 className="font-semibold">Oportunidades por servicio</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Distribucion de la cartera visible
+            </p>
+          </div>
+          <div className="mt-4">
+            <OpportunityDistributionChart data={serviceData} />
+          </div>
+          <div className="mt-3 grid min-h-[76px] grid-cols-2 gap-2 overflow-hidden text-xs">
             {serviceData.slice(0, 6).map((service) => (
-              <div className="flex justify-between gap-2" key={service.name}>
+              <div className="flex min-w-0 justify-between gap-2" key={service.name}>
                 <span className="truncate text-slate-600">{service.name}</span>
                 <span className="font-semibold">{service.value}</span>
               </div>

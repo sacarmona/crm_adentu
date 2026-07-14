@@ -39,7 +39,7 @@ export function PipelineStageChart({
   data: { stage: string; total: number; weighted: number }[];
 }) {
   return (
-    <div className="h-72 w-full">
+    <div className="h-[320px] w-full min-w-0">
       <ResponsiveContainer height="100%" width="100%">
         <BarChart data={data} margin={{ bottom: 5, left: 0, right: 8, top: 8 }}>
           <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
@@ -80,7 +80,7 @@ export function OpportunityDistributionChart({
   data: { name: string; value: number }[];
 }) {
   return (
-    <div className="h-72 w-full">
+    <div className="h-[270px] w-full min-w-0">
       <ResponsiveContainer height="100%" width="100%">
         <PieChart>
           <Pie
