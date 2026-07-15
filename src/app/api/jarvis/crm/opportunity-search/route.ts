@@ -57,29 +57,34 @@ export async function GET(request: NextRequest) {
     serviceId = match.id;
   }
 
-  const opportunities = await prisma.opportunity.findMany({
-    where: {
-      deletedAt: null,
-      ...(status ? { status } : {}),
-      ...(serviceId ? { serviceId } : {}),
-      ...(text
-        ? {
-            OR: [
-              { name: { contains: text, mode: "insensitive" } },
-              { company: { name: { contains: text, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-    },
-    include: {
-      company: { select: { name: true } },
-      primaryContact: { select: { name: true } },
-      responsible: { select: { name: true } },
-      service: { select: { name: true } },
-    },
-    orderBy: [{ estimatedCloseDate: "asc" }, { updatedAt: "desc" }],
-    take: limit,
-  });
+  const where = {
+    deletedAt: null,
+    ...(status ? { status } : {}),
+    ...(serviceId ? { serviceId } : {}),
+    ...(text
+      ? {
+          OR: [
+            { name: { contains: text, mode: "insensitive" as const } },
+            { company: { name: { contains: text, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [totalCount, opportunities] = await Promise.all([
+    prisma.opportunity.count({ where }),
+    prisma.opportunity.findMany({
+      where,
+      include: {
+        company: { select: { name: true } },
+        primaryContact: { select: { name: true } },
+        responsible: { select: { name: true } },
+        service: { select: { name: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+    }),
+  ]);
 
   const items = opportunities.map((opportunity) => ({
     id: opportunity.id,
@@ -95,16 +100,22 @@ export async function GET(request: NextRequest) {
     lastInteraction: opportunity.lastInteraction?.toISOString() ?? null,
   }));
 
+  const truncated = totalCount > items.length;
+
   return NextResponse.json({
     app: "crm_adentu",
     metric: "opportunity_search",
     asOf: new Date().toISOString(),
     query: { text: text ?? null, stage: stageLabel ?? null, service: serviceName ?? null, limit },
     count: items.length,
+    totalCount,
+    truncated,
     items,
     summary:
       items.length === 0
         ? "No se encontraron oportunidades con esos criterios."
-        : `Se encontraron ${items.length} oportunidades.`,
+        : truncated
+          ? `Se encontraron ${totalCount} oportunidades en total; se muestran las ${items.length} mas recientes (aumenta el parametro limit hasta 50 para ver mas).`
+          : `Se encontraron ${items.length} oportunidades.`,
   });
 }
