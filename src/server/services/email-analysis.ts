@@ -53,6 +53,12 @@ export function buildEmailAnalysisPrompt(input: {
     `Empresa CRM coincidente: ${input.matchedCompanyName ?? "Ninguna"}`,
     `Oportunidad CRM coincidente: ${input.matchedOpportunityName ?? "Ninguna"}`,
   ];
+  if (channel === "email" && input.direction === "OUTBOUND") {
+    lines.push(
+      "Este correo fue enviado por el usuario de ADENTU. Interpreta compromisos y proxima accion desde la perspectiva de ADENTU como emisor, no como receptor.",
+      "Si corresponde seguimiento, sugiere una accion de follow-up comercial posterior al envio; no sugieras responder como si el cliente hubiera escrito.",
+    );
+  }
   if (channel !== "whatsapp") {
     lines.push(`Asunto: ${input.subject ?? "Sin asunto"}`);
   }

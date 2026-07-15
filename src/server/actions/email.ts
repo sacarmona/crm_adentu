@@ -25,8 +25,15 @@ import {
   discardRuleValue,
   emailDiscardRuleSchema,
 } from "@/server/services/email-discard-rules";
+import { outboundEmailFollowUp } from "@/server/services/email-follow-up";
 import { synchronizeEmailConnection } from "@/server/services/email-sync";
 import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
+
+function firstEmailAddress(value: unknown) {
+  return Array.isArray(value)
+    ? value.find((item): item is string => typeof item === "string" && item.includes("@"))
+    : null;
+}
 
 export async function syncEmailConnection(connectionId: string) {
   const user = await requireWriter("No tienes permisos para sincronizar correo.");
@@ -150,7 +157,10 @@ export async function approveEmailClassification(
 
     if (!contactId && resolution?.newContactName) {
       const newContactEmail =
-        resolution.newContactEmail ?? classification.emailMessage.fromAddress;
+        resolution.newContactEmail ??
+        (classification.emailMessage.direction === "OUTBOUND"
+          ? firstEmailAddress(classification.emailMessage.toAddresses)
+          : classification.emailMessage.fromAddress);
       const existingContact = await tx.contact.findFirst({
         where: {
           deletedAt: null,
@@ -202,6 +212,25 @@ export async function approveEmailClassification(
       });
     }
 
+    const opportunityForFollowUp = opportunityId
+      ? await tx.opportunity.findUnique({
+          where: { id: opportunityId },
+          select: { name: true },
+        })
+      : null;
+    const outboundFollowUp =
+      classification.emailMessage.direction === "OUTBOUND"
+        ? outboundEmailFollowUp({
+            sentAt: classification.emailMessage.sentAt,
+            subject: classification.emailMessage.subject,
+            opportunityName: opportunityForFollowUp?.name,
+          })
+        : null;
+    const nextAction =
+      outboundFollowUp?.title ?? classification.suggestedNextAction;
+    const nextActionDate =
+      outboundFollowUp?.dueDate ?? classification.suggestedDueDate;
+
     const interaction = await tx.interaction.create({
       data: {
         date: classification.emailMessage.sentAt,
@@ -211,20 +240,18 @@ export async function approveEmailClassification(
         companyId,
         opportunityId,
         executedById: user.id,
-        nextAction: classification.suggestedNextAction,
-        nextActionDate: classification.suggestedDueDate,
-        nextActionDueDate: classification.suggestedDueDate,
-        nextActionStatus: classification.suggestedNextAction
-          ? TaskStatus.PENDING
-          : null,
+        nextAction,
+        nextActionDate,
+        nextActionDueDate: nextActionDate,
+        nextActionStatus: nextAction ? TaskStatus.PENDING : null,
       },
     });
-    const task = classification.suggestedNextAction
+    const task = nextAction
       ? await tx.task.create({
           data: {
-            title: classification.suggestedNextAction,
+            title: nextAction,
             status: TaskStatus.PENDING,
-            dueDate: classification.suggestedDueDate,
+            dueDate: nextActionDate,
             contactId,
             companyId,
             opportunityId,
@@ -286,10 +313,10 @@ export async function approveEmailClassification(
             data: { lastInteraction: classification.emailMessage.sentAt },
           })
         : Promise.resolve(),
-      opportunityId && classification.suggestedDueDate
+      opportunityId && nextActionDate
         ? tx.opportunity.update({
             where: { id: opportunityId },
-            data: { nextActionDate: classification.suggestedDueDate },
+            data: { nextActionDate },
           })
         : Promise.resolve(),
     ]);
@@ -313,6 +340,8 @@ export async function approveEmailClassification(
   revalidatePath(`/email/${classification.emailMessageId}`);
   revalidatePath("/interactions");
   revalidatePath("/tasks");
+  revalidatePath("/opportunities");
+  revalidatePath("/pipeline");
 }
 
 export async function ignoreEmailClassification(classificationId: string) {
