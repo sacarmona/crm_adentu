@@ -202,7 +202,7 @@ Fase 14B completada:
 
 Fase 14C completada:
 
-- Sincronizacion automatica diaria mediante Vercel Cron.
+- Sincronizacion automatica cada 15 minutos mediante Vercel Cron.
 - Endpoint protegido con `CRON_SECRET`.
 - Procesamiento idempotente de todos los buzones conectados.
 - Clasificacion automatica opcional, apagada por defecto.
