@@ -14,6 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import {
   certaintyLabels,
   companyStatusLabels,
@@ -111,11 +112,13 @@ export function ContactForm({
   return (
     <form action={action} className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 md:grid-cols-2">
       <TextField defaultValue={contact?.name} label="Nombre" name="name" required />
-      <SelectField
+      <SearchableSelectField
         defaultValue={contact?.companyId}
         label="Empresa"
         name="companyId"
         options={companyOptions(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
       />
       <TextField defaultValue={contact?.roleArea} label="Cargo/Area" name="roleArea" />
       <SelectField
@@ -172,7 +175,14 @@ export function OpportunityForm({
         options={enumOptions(OpportunityStatus, opportunityStatusLabels)}
         required
       />
-      <SelectField defaultValue={opportunity?.companyId} label="Empresa" name="companyId" options={companyOptions(companies)} />
+      <SearchableSelectField
+        defaultValue={opportunity?.companyId}
+        label="Empresa"
+        name="companyId"
+        options={companyOptions(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
+      />
       <SelectField defaultValue={opportunity?.primaryContactId} label="Contacto principal" name="primaryContactId" options={contactOptions(contacts)} />
       <SelectField defaultValue={opportunity?.serviceId} label="Servicio" name="serviceId" options={serviceOptions(services)} />
       <SelectField defaultValue={opportunity?.certainty} label="Certeza" name="certainty" options={enumOptions(Certainty, certaintyLabels)} />

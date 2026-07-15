@@ -5,6 +5,7 @@ import { Bot, FileUp, Share2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import { Button } from "@/components/ui/button";
 
 type Option = { id: string; name: string };
@@ -147,10 +148,12 @@ export function LinkedInCaptureForm({
         Selecciona al menos una empresa, contacto u oportunidad para poder
         registrar la captura.
       </p>
-      <SelectField
+      <SearchableSelectField
         label="Empresa CRM"
         name="companyId"
         options={options(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
       />
       <SelectField
         label="Contacto CRM"

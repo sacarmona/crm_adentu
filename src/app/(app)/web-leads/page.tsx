@@ -2,6 +2,7 @@ import { WebLeadStatus } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { EntityHeader } from "@/components/crm/entity-header";
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { convertWebLead, discardWebLead } from "@/server/actions/web-leads";
@@ -45,7 +46,15 @@ export default async function WebLeadsPage({ searchParams }: { searchParams?: Pr
         {lead.status === "CONVERTED" ? <p className="mt-4 text-sm text-emerald-700">Convertido a {lead.opportunity?.name || lead.contact?.name || lead.company?.name}.</p> : null}
         {lead.status === "PENDING" && canEdit ? <div className="mt-5 grid gap-4 border-t border-slate-100 pt-4 lg:grid-cols-[1fr_auto]">
           <form action={convertWebLead.bind(null, lead.id)} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <select className="h-10 rounded-md border border-slate-300 px-3 text-sm" name="companyId"><option value="">Crear/usar empresa indicada</option>{companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <SearchableSelectField
+              controlClassName="h-10 text-sm"
+              label="Empresa"
+              labelClassName="sr-only"
+              name="companyId"
+              options={companies.map((item) => ({ value: item.id, label: item.name }))}
+              placeholder="Crear/usar empresa indicada"
+              searchPlaceholder="Buscar empresa..."
+            />
             <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={lead.companyName ?? ""} name="newCompanyName" placeholder="Nueva empresa" />
             <select className="h-10 rounded-md border border-slate-300 px-3 text-sm" name="contactId"><option value="">Crear/usar contacto por email</option>{contacts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.email ? ` - ${item.email}` : ""}</option>)}</select>
             <input className="h-10 rounded-md border border-slate-300 px-3 text-sm" defaultValue={lead.name} name="newContactName" placeholder="Nombre contacto" />

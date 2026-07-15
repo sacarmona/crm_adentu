@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import { Button } from "@/components/ui/button";
 
 type Option = { id: string; name: string };
@@ -65,33 +66,39 @@ export function MarketAssetForm({
         label="Propietario (texto)"
         name="ownerName"
       />
-      <SelectField
+      <SearchableSelectField
         defaultValue={asset?.ownerCompanyId}
         label="Empresa propietaria"
         name="ownerCompanyId"
         options={options(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
       />
       <TextField
         defaultValue={asset?.constructionCompany}
         label="Constructora (texto)"
         name="constructionCompany"
       />
-      <SelectField
+      <SearchableSelectField
         defaultValue={asset?.constructionCompanyId}
         label="Empresa constructora"
         name="constructionCompanyId"
         options={options(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
       />
       <TextField
         defaultValue={asset?.operationMaintenance}
         label="Operacion y mantenimiento (texto)"
         name="operationMaintenance"
       />
-      <SelectField
+      <SearchableSelectField
         defaultValue={asset?.omCompanyId}
         label="Empresa O&M"
         name="omCompanyId"
         options={options(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
       />
       <TextField
         defaultValue={asset?.otherRole}
@@ -141,11 +148,13 @@ export function CommercialMilestoneForm({
         name="project"
         required
       />
-      <SelectField
+      <SearchableSelectField
         defaultValue={milestone?.companyId}
         label="Empresa relacionada"
         name="companyId"
         options={options(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
       />
       <TextField
         defaultValue={milestone?.industry}
@@ -193,11 +202,13 @@ export function MarketOpportunityForm({
     >
       <input name="assetId" type="hidden" value={defaults.assetId} />
       <TextField defaultValue={defaults.name} label="Nombre" name="name" required />
-      <SelectField
+      <SearchableSelectField
         defaultValue={defaults.companyId}
         label="Empresa"
         name="companyId"
         options={options(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
       />
       <SelectField
         defaultValue={defaults.serviceId}

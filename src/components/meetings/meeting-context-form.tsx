@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 type CompanyOption = { id: string; name: string };
@@ -41,14 +42,9 @@ export function MeetingContextForm({
   const [companyId, setCompanyId] = useState(defaults.companyId ?? "");
   const [contactId, setContactId] = useState(defaults.contactId ?? "");
   const [opportunityId, setOpportunityId] = useState(defaults.opportunityId ?? "");
-  const [companyQuery, setCompanyQuery] = useState("");
   const [contactQuery, setContactQuery] = useState("");
   const [opportunityQuery, setOpportunityQuery] = useState("");
 
-  const companyOptions = useMemo(
-    () => companies.filter((company) => matches(company.name, companyQuery)),
-    [companies, companyQuery],
-  );
   const filteredContacts = useMemo(
     () =>
       contacts.filter(
@@ -70,36 +66,22 @@ export function MeetingContextForm({
 
   return (
     <form action={action} className="mt-4 grid gap-3 lg:grid-cols-4">
-      <label>
-        <span className="text-xs font-medium text-slate-600">Buscar empresa</span>
-        <input
-          className="mt-1 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
-          onChange={(event) => setCompanyQuery(event.target.value)}
-          placeholder="Filtrar empresas"
-          value={companyQuery}
-        />
-      </label>
-      <label>
-        <span className="text-xs font-medium text-slate-600">Empresa</span>
-        <select
-          className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-          name="companyId"
-          onChange={(event) => {
-            setCompanyId(event.target.value);
-            setContactId("");
-            setOpportunityId("");
-          }}
-          value={companyId}
-        >
-          <option value="">Sin asociar</option>
-          {companyOptions.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="lg:col-span-2">
+      <SearchableSelectField
+        controlClassName="mt-1 h-10 text-sm"
+        label="Empresa"
+        labelClassName="text-xs font-medium text-slate-600"
+        name="companyId"
+        onChange={(value) => {
+          setCompanyId(value);
+          setContactId("");
+          setOpportunityId("");
+        }}
+        options={companies.map((company) => ({ value: company.id, label: company.name }))}
+        placeholder="Sin asociar"
+        searchPlaceholder="Buscar empresa..."
+        value={companyId}
+      />
+      <label className="lg:col-span-3">
         <span className="text-xs font-medium text-slate-600">Nueva empresa</span>
         <input
           className="mt-1 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"

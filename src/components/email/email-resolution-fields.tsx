@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { SelectField, TextField } from "@/components/crm/form-controls";
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 
 type Option = { id: string; name: string };
 type ScopedOption = Option & { companyId: string | null };
@@ -52,24 +53,20 @@ export function EmailResolutionFields({
       {showCompany ? (
         <div className="grid gap-3 rounded-md border border-slate-200 p-4 md:grid-cols-2">
           <p className="text-sm font-medium text-slate-700 md:col-span-2">Empresa</p>
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Empresa existente</span>
-            <select
-              className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-950"
-              name="companyId"
-              onChange={(event) => setCompanyId(event.currentTarget.value)}
-              value={companyId}
-            >
-              <option value="">Sin seleccionar</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {suggestedCompanyIds.includes(company.id)
-                    ? `${company.name} (sugerido)`
-                    : company.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelectField
+            label="Empresa existente"
+            name="companyId"
+            onChange={setCompanyId}
+            options={companies.map((company) => ({
+              value: company.id,
+              label: suggestedCompanyIds.includes(company.id)
+                ? `${company.name} (sugerido)`
+                : company.name,
+            }))}
+            placeholder="Sin seleccionar"
+            searchPlaceholder="Buscar empresa..."
+            value={companyId}
+          />
           <TextField label="O crear nueva empresa" name="newCompanyName" />
         </div>
       ) : null}

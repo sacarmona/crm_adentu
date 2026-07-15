@@ -4,6 +4,7 @@ import { Send } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { SelectField } from "@/components/crm/form-controls";
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 type CompanyOption = { id: string; name: string };
@@ -51,25 +52,18 @@ export function WhatsAppComposer({
           value={to}
         />
       </div>
-      <div className="block">
-        <span className="text-sm font-medium text-slate-700">Empresa (opcional)</span>
-        <select
-          className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-          name="companyId"
-          onChange={(event) => {
-            setCompanyId(event.target.value);
-            setContactId("");
-          }}
-          value={companyId}
-        >
-          <option value="">Sin empresa</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SearchableSelectField
+        label="Empresa (opcional)"
+        name="companyId"
+        onChange={(value) => {
+          setCompanyId(value);
+          setContactId("");
+        }}
+        options={companies.map((company) => ({ value: company.id, label: company.name }))}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
+        value={companyId}
+      />
       <div className="block">
         <span className="text-sm font-medium text-slate-700">Contacto (opcional)</span>
         <select

@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
+
 type Option = { id: string; name: string };
 type ContactOption = Option & { companyId: string | null };
 type OpportunityOption = Option & { companyId: string | null; serviceId: string | null };
@@ -80,15 +82,19 @@ export function TaskLinkFields({
 
   return (
     <>
-      <SelectField
+      <SearchableSelectField
+        controlClassName="mt-1 h-9 text-xs"
         label="Empresa"
+        labelClassName="text-xs font-medium text-slate-600"
         name="companyId"
         onChange={(value) => {
           setCompanyId(value);
           setContactId("");
           setOpportunityId("");
         }}
-        options={companies}
+        options={companies.map((company) => ({ value: company.id, label: company.name }))}
+        placeholder="Sin vincular"
+        searchPlaceholder="Buscar empresa..."
         value={companyId}
       />
       <SelectField

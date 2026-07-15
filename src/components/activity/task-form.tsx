@@ -4,6 +4,7 @@ import { TaskStatus } from "@prisma/client";
 import { useMemo, useState } from "react";
 
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
+import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import { Button } from "@/components/ui/button";
 import { taskStatusLabels } from "@/lib/labels";
 
@@ -55,21 +56,11 @@ export function TaskForm({
     opportunityId?: string;
   };
 }) {
-  const [companyQuery, setCompanyQuery] = useState("");
   const [companyId, setCompanyId] = useState(defaults?.companyId ?? "");
   const [contactId, setContactId] = useState(defaults?.contactId ?? "");
   const [opportunityId, setOpportunityId] = useState(defaults?.opportunityId ?? "");
   const [serviceId, setServiceId] = useState("");
 
-  const filteredCompanies = useMemo(
-    () =>
-      companyQuery
-        ? companies.filter((company) =>
-            company.name.toLowerCase().includes(companyQuery.toLowerCase()),
-          )
-        : companies,
-    [companies, companyQuery],
-  );
   const filteredContacts = useMemo(
     () => (companyId ? contacts.filter((contact) => contact.companyId === companyId) : contacts),
     [companyId, contacts],
@@ -102,33 +93,19 @@ export function TaskForm({
         name="assignedToId"
         options={options(users)}
       />
-      <div className="block">
-        <span className="text-sm font-medium text-slate-700">Empresa</span>
-        <input
-          className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-950"
-          onChange={(event) => setCompanyQuery(event.target.value)}
-          placeholder="Buscar empresa..."
-          type="search"
-          value={companyQuery}
-        />
-        <select
-          className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-          name="companyId"
-          onChange={(event) => {
-            setCompanyId(event.target.value);
-            setContactId("");
-            setOpportunityId("");
-          }}
-          value={companyId}
-        >
-          <option value="">Sin empresa</option>
-          {filteredCompanies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SearchableSelectField
+        label="Empresa"
+        name="companyId"
+        onChange={(value) => {
+          setCompanyId(value);
+          setContactId("");
+          setOpportunityId("");
+        }}
+        options={options(companies)}
+        placeholder="Sin empresa"
+        searchPlaceholder="Buscar empresa..."
+        value={companyId}
+      />
       <div className="block">
         <span className="text-sm font-medium text-slate-700">Contacto</span>
         <select
