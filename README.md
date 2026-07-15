@@ -202,13 +202,14 @@ Fase 14B completada:
 
 Fase 14C completada:
 
-- Sincronizacion automatica cada 15 minutos mediante Vercel Cron.
+- Sincronizacion automatica diaria mediante Vercel Cron como respaldo y renovacion de Gmail Push.
 - Endpoint protegido con `CRON_SECRET`.
 - Procesamiento idempotente de todos los buzones conectados.
 - Clasificacion automatica opcional, apagada por defecto.
 - Limite configurable de mensajes por ejecucion automatica.
 - Accion manual para analizar hasta cinco mensajes pendientes.
 - Resultado parcial por buzon para aislar fallos sin detener el lote completo.
+- Endpoint Gmail Push/PubSub protegido con `GMAIL_PUSH_TOKEN` para sincronizar cambios sin polling frecuente.
 
 Fase 14D completada:
 

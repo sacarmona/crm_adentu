@@ -6,6 +6,7 @@ import { classifyPendingEmails } from "@/server/services/email-agent";
 import { isActiveProviderConfigured } from "@/server/services/ai-provider";
 import { isAuthorizedCronRequest } from "@/server/services/email-automation";
 import { synchronizeEmailConnection } from "@/server/services/email-sync";
+import { renewGmailWatches } from "@/server/services/gmail-push";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const gmailWatchRenewal = await renewGmailWatches();
+
   const classificationResults = [];
   const shouldClassify =
     env.EMAIL_AUTO_CLASSIFY === "true" &&
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest) {
       ? "partial"
       : "ok",
     synchronizedConnections: syncResults,
+    gmailWatchRenewal,
     automaticClassification: shouldClassify,
     classifications: classificationResults,
     timestamp: new Date().toISOString(),

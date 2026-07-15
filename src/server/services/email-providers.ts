@@ -301,6 +301,21 @@ export type GmailPart = {
   parts?: GmailPart[];
 };
 
+type GmailApiMessage = {
+  id: string;
+  threadId?: string;
+  snippet?: string;
+  internalDate?: string;
+  labelIds?: string[];
+  payload?: GmailPart & { headers?: { name: string; value: string }[] };
+};
+
+export class GmailHistoryExpiredError extends Error {
+  constructor() {
+    super("El historial de Gmail expiro. Se requiere una resincronizacion completa.");
+  }
+}
+
 function decodeGmailBase64Url(data: string) {
   return Buffer.from(data, "base64url").toString("utf-8");
 }
@@ -337,6 +352,60 @@ export function extractGmailBody(payload?: GmailPart): string | undefined {
   return undefined;
 }
 
+function normalizeGmailMessage(message: GmailApiMessage, mailbox: string) {
+  const headers = new Map(
+    (message.payload?.headers ?? []).map((header) => [
+      header.name.toLowerCase(),
+      header.value,
+    ]),
+  );
+  const from = parseAddress(headers.get("from"));
+  const sentAtValue = headers.get("date");
+  return {
+    providerMessageId: message.id,
+    threadId: message.threadId,
+    messageIdHeader: headers.get("message-id"),
+    direction:
+      from.address === mailbox.toLowerCase()
+        ? EmailDirection.OUTBOUND
+        : EmailDirection.INBOUND,
+    fromAddress: from.address,
+    fromName: from.name,
+    toAddresses: splitAddresses(headers.get("to")),
+    ccAddresses: splitAddresses(headers.get("cc")),
+    subject: headers.get("subject"),
+    snippet: message.snippet,
+    body: extractGmailBody(message.payload),
+    sentAt: sentAtValue
+      ? new Date(sentAtValue)
+      : new Date(Number(message.internalDate ?? Date.now())),
+    isRead: !(message.labelIds ?? []).includes("UNREAD"),
+  } satisfies NormalizedEmailMessage;
+}
+
+async function readGmailMessage(accessToken: string, mailbox: string, id: string) {
+  const response = await fetchProviderWithRetry(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+  );
+  if (!response.ok) {
+    throw new Error(`Gmail no pudo leer un mensaje (${response.status}).`);
+  }
+  return normalizeGmailMessage((await response.json()) as GmailApiMessage, mailbox);
+}
+
+export async function fetchGmailMessagesByIds(
+  accessToken: string,
+  mailbox: string,
+  ids: string[],
+) {
+  return mapInBatches(
+    [...new Set(ids)].map((id) => ({ id })),
+    5,
+    ({ id }) => readGmailMessage(accessToken, mailbox, id),
+  );
+}
+
 async function gmailMessages(accessToken: string, mailbox: string) {
   const listResponse = await fetch(
     "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=50&q=newer_than%3A90d",
@@ -346,56 +415,62 @@ async function gmailMessages(accessToken: string, mailbox: string) {
     throw new Error(`Gmail no pudo listar mensajes (${listResponse.status}).`);
   }
   const list = (await listResponse.json()) as { messages?: { id: string }[] };
+  return fetchGmailMessagesByIds(
+    accessToken,
+    mailbox,
+    (list.messages ?? []).map((message) => message.id),
+  );
+}
 
-  return mapInBatches(
-    list.messages ?? [],
-    5,
-    async ({ id }) => {
-      const response = await fetchProviderWithRetry(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
-        { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
-      );
-      if (!response.ok) {
-        throw new Error(`Gmail no pudo leer un mensaje (${response.status}).`);
-      }
-      const message = (await response.json()) as {
-        id: string;
-        threadId?: string;
-        snippet?: string;
-        internalDate?: string;
-        labelIds?: string[];
-        payload?: GmailPart & { headers?: { name: string; value: string }[] };
-      };
-      const headers = new Map(
-        (message.payload?.headers ?? []).map((header) => [
-          header.name.toLowerCase(),
-          header.value,
-        ]),
-      );
-      const from = parseAddress(headers.get("from"));
-      const sentAtValue = headers.get("date");
-      return {
-        providerMessageId: message.id,
-        threadId: message.threadId,
-        messageIdHeader: headers.get("message-id"),
-        direction:
-          from.address === mailbox.toLowerCase()
-            ? EmailDirection.OUTBOUND
-            : EmailDirection.INBOUND,
-        fromAddress: from.address,
-        fromName: from.name,
-        toAddresses: splitAddresses(headers.get("to")),
-        ccAddresses: splitAddresses(headers.get("cc")),
-        subject: headers.get("subject"),
-        snippet: message.snippet,
-        body: extractGmailBody(message.payload),
-        sentAt: sentAtValue
-          ? new Date(sentAtValue)
-          : new Date(Number(message.internalDate ?? Date.now())),
-        isRead: !(message.labelIds ?? []).includes("UNREAD"),
-      } satisfies NormalizedEmailMessage;
+export async function listGmailHistoryMessageIds(
+  accessToken: string,
+  startHistoryId: string,
+) {
+  const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/history");
+  url.searchParams.set("startHistoryId", startHistoryId);
+  url.searchParams.set("historyTypes", "messageAdded");
+  const response = await fetchProviderWithRetry(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (response.status === 404) {
+    throw new GmailHistoryExpiredError();
+  }
+  if (!response.ok) {
+    throw new Error(`Gmail no pudo leer el historial (${response.status}).`);
+  }
+  const data = (await response.json()) as {
+    history?: Array<{
+      messagesAdded?: Array<{ message?: { id?: string } }>;
+    }>;
+    historyId?: string;
+  };
+  const messageIds =
+    data.history?.flatMap((entry) =>
+      (entry.messagesAdded ?? [])
+        .map((item) => item.message?.id)
+        .filter((id): id is string => Boolean(id)),
+    ) ?? [];
+  return { messageIds: [...new Set(messageIds)], historyId: data.historyId };
+}
+
+export async function watchGmailMailbox(accessToken: string, topicName: string) {
+  const response = await fetchProviderWithRetry(
+    "https://gmail.googleapis.com/gmail/v1/users/me/watch",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ topicName }),
+      cache: "no-store",
     },
   );
+  if (!response.ok) {
+    throw new Error(`Gmail no pudo registrar el watch (${response.status}).`);
+  }
+  return (await response.json()) as { historyId?: string; expiration?: string };
 }
 
 async function microsoftMessages(accessToken: string, mailbox: string) {
