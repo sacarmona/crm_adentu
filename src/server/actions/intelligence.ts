@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { clampProbability } from "@/server/services/ai-analysis";
+import { searchCompanyContext } from "@/server/services/web-search";
 import {
   analyzeInteractionWithActiveProvider,
   analyzeOpportunityWithActiveProvider,
@@ -149,11 +150,27 @@ export async function analyzeOpportunity(opportunityId: string) {
         if (!opportunity) {
           errorMessage = "La oportunidad ya no esta disponible.";
         } else {
-          const interactions = await prisma.interaction.findMany({
-            where: { opportunityId: opportunity.id, deletedAt: null },
-            orderBy: { date: "asc" },
-            take: 30,
-          });
+          const [interactions, pendingTasks, webContext] = await Promise.all([
+            prisma.interaction.findMany({
+              where: { opportunityId: opportunity.id, deletedAt: null },
+              orderBy: { date: "asc" },
+              take: 30,
+            }),
+            prisma.task.findMany({
+              where: {
+                opportunityId: opportunity.id,
+                deletedAt: null,
+                status: "PENDING",
+              },
+              select: { title: true, dueDate: true },
+              orderBy: { dueDate: "asc" },
+              take: 10,
+            }),
+            searchCompanyContext(
+              opportunity.company?.name ?? opportunity.name,
+              opportunity.company?.industry,
+            ),
+          ]);
           if (interactions.length < MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS) {
             errorMessage = `Esta oportunidad necesita al menos ${MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS} interacciones registradas (tiene ${interactions.length}).`;
           } else {
@@ -162,7 +179,10 @@ export async function analyzeOpportunity(opportunityId: string) {
               opportunityStatus: opportunity.status,
               opportunityProbability: Number(opportunity.probability),
               companyName: opportunity.company?.name,
+              industry: opportunity.company?.industry,
               serviceName: opportunity.service?.name,
+              pendingTasks,
+              webContext,
               interactions: interactions.map((i) => ({
                 date: i.date,
                 type: i.type,

@@ -62,7 +62,10 @@ export function buildOpportunityAnalysisPrompt(input: {
   opportunityStatus: string;
   opportunityProbability?: number | null;
   companyName?: string | null;
+  industry?: string | null;
   serviceName?: string | null;
+  pendingTasks?: { title: string; dueDate?: Date | null }[];
+  webContext?: string | null;
   interactions: {
     date: Date;
     type: string;
@@ -78,20 +81,41 @@ export function buildOpportunityAnalysisPrompt(input: {
     )
     .join("\n\n");
 
+  const taskSection =
+    input.pendingTasks && input.pendingTasks.length > 0
+      ? [
+          `Tareas pendientes (${input.pendingTasks.length}):`,
+          ...input.pendingTasks.map(
+            (t) =>
+              `- ${t.title}${t.dueDate ? ` (vence ${t.dueDate.toISOString().slice(0, 10)})` : ""}`,
+          ),
+        ].join("\n")
+      : null;
+
+  const webSection = input.webContext
+    ? `Contexto publico de la empresa (fuente web, usar solo como referencia):\n${input.webContext}`
+    : null;
+
   return [
     "Analiza el historial completo de interacciones de esta oportunidad comercial de ADENTU Ingenieria.",
     "Evalua la evolucion en conjunto, no cada interaccion por separado.",
     "Separa hechos observables de sugerencias. No inventes compromisos, fechas ni montos.",
     "Las sugerencias deben ser concretas y breves. Usa arreglos vacios cuando no exista evidencia.",
-    "Si el historial muestra estancamiento (sin avances reales entre interacciones), indicalo explicitamente en el resumen y sugiere marcar la oportunidad como estancada (STALLED) si corresponde.",
+    "Si el historial muestra estancamiento (sin avances reales entre interacciones), indicalo en el resumen y sugiere marcar como STALLED si corresponde.",
+    webSection ? "El contexto web es informacion publica de referencia; no lo presentes como hecho verificado." : null,
     `Oportunidad: ${input.opportunityName}`,
     `Empresa: ${input.companyName ?? "Sin empresa"}`,
+    input.industry ? `Industria: ${input.industry}` : null,
     `Etapa actual: ${input.opportunityStatus}`,
     `Probabilidad actual: ${input.opportunityProbability ?? "Sin probabilidad"}`,
     `Servicio: ${input.serviceName ?? "Sin servicio"}`,
+    taskSection,
+    webSection,
     `Historial de interacciones (${input.interactions.length}):`,
     history,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function clampProbability(value: number | null | undefined) {

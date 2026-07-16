@@ -40,6 +40,7 @@ const envSchema = z.object({
   WHATSAPP_API_VERSION: z.string().default("v21.0"),
   WEB_LEAD_SECRET: z.string().min(16).optional(),
   JARVIS_API_TOKEN: z.string().min(16).optional(),
+  TAVILY_API_KEY: z.string().optional(),
   EMAIL_AUTO_CLASSIFY: z.preprocess(
     (value) => {
       const normalized = unquote(value);
@@ -82,6 +83,7 @@ export const env = envSchema.parse({
   WHATSAPP_API_VERSION: process.env.WHATSAPP_API_VERSION,
   WEB_LEAD_SECRET: process.env.WEB_LEAD_SECRET,
   JARVIS_API_TOKEN: process.env.JARVIS_API_TOKEN,
+  TAVILY_API_KEY: process.env.TAVILY_API_KEY,
   EMAIL_AUTO_CLASSIFY: process.env.EMAIL_AUTO_CLASSIFY,
   EMAIL_AUTO_CLASSIFY_LIMIT: process.env.EMAIL_AUTO_CLASSIFY_LIMIT,
 });
