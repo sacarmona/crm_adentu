@@ -14,6 +14,8 @@ import {
 import { prisma } from "@/lib/prisma";
 import {
   analyzeOpportunity,
+  approveInsight,
+  rejectInsight,
   deleteInsight,
 } from "@/server/actions/intelligence";
 import { MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS } from "@/lib/intelligence";
@@ -317,12 +319,29 @@ export default async function IntelligencePage({
                 </td>
                 <td className="px-4 py-3 text-xs">{formatDateTime(insight.createdAt)}</td>
                 <td className="px-4 py-3">
-                  {insight.status === AiInsightStatus.REJECTED && canEdit ? (
-                    <form action={deleteInsight.bind(null, insight.id)}>
-                      <SubmitButton pendingLabel="Eliminando" size="sm" variant="outline">
-                        Eliminar
-                      </SubmitButton>
-                    </form>
+                  {canEdit ? (
+                    <div className="flex gap-2">
+                      {insight.status === AiInsightStatus.PROPOSED ? (
+                        <>
+                          <form action={approveInsight.bind(null, insight.id)}>
+                            <SubmitButton pendingLabel="Aprobando..." size="sm" variant="default">
+                              Aprobar
+                            </SubmitButton>
+                          </form>
+                          <form action={rejectInsight.bind(null, insight.id)}>
+                            <SubmitButton pendingLabel="Rechazando..." size="sm" variant="outline">
+                              Rechazar
+                            </SubmitButton>
+                          </form>
+                        </>
+                      ) : insight.status === AiInsightStatus.REJECTED ? (
+                        <form action={deleteInsight.bind(null, insight.id)}>
+                          <SubmitButton pendingLabel="Eliminando..." size="sm" variant="outline">
+                            Eliminar
+                          </SubmitButton>
+                        </form>
+                      ) : null}
+                    </div>
                   ) : null}
                 </td>
               </tr>
