@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import {
   analyzeOpportunity,
   deleteInsight,
+  MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS,
 } from "@/server/actions/intelligence";
 import { isActiveProviderConfigured } from "@/server/services/ai-provider";
 import { isTavilyConfigured } from "@/server/services/web-search";
@@ -86,8 +87,12 @@ export default async function IntelligencePage({
             },
           },
           orderBy: { lastInteraction: "asc" },
-          take: 30,
-        })
+          take: 60,
+        }).then((rows) =>
+          rows.filter(
+            (o) => o._count.interactions >= MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS,
+          ),
+        )
       : Promise.resolve([]),
     prisma.aiInsight.findMany({
       where: { deletedAt: null, ...(filterStatus ? { status: filterStatus } : {}) },
