@@ -1,5 +1,3 @@
-"use server";
-
 import { env } from "@/lib/env";
 
 const TAVILY_URL = "https://api.tavily.com/search";
