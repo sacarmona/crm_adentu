@@ -28,7 +28,13 @@ async function accessTokenForUser(userId: string) {
 }
 
 export async function syncTaskCalendarEvent(taskId: string) {
-  const task = await prisma.task.findFirst({ where: { id: taskId, deletedAt: null } });
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, deletedAt: null },
+    include: {
+      company: { select: { name: true } },
+      opportunity: { select: { name: true } },
+    },
+  });
   if (!task) return;
 
   try {
@@ -67,10 +73,18 @@ export async function syncTaskCalendarEvent(taskId: string) {
       return;
     }
 
+    const summary = task.company
+      ? `${task.company.name} - ${task.title}`
+      : task.title;
+    const descriptionParts: string[] = [];
+    if (task.opportunity) descriptionParts.push(`Oportunidad: ${task.opportunity.name}`);
+    if (task.description) descriptionParts.push(task.description);
+    const description = descriptionParts.length > 0 ? descriptionParts.join("\n") : undefined;
+
     if (task.calendarEventId && !ownerChanged) {
       await updateCalendarEvent(accessToken, task.calendarEventId, {
-        summary: task.title,
-        description: task.description ?? undefined,
+        summary,
+        description,
         start: task.dueDate,
       });
       await prisma.task.update({
@@ -81,8 +95,8 @@ export async function syncTaskCalendarEvent(taskId: string) {
     }
 
     const eventId = await createCalendarEvent(accessToken, {
-      summary: task.title,
-      description: task.description ?? undefined,
+      summary,
+      description,
       start: task.dueDate,
     });
     await prisma.task.update({
