@@ -20,8 +20,9 @@ import {
 } from "@/server/services/ai-provider";
 import { requireWriter } from "@/server/authz";
 
+import { MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS } from "@/lib/intelligence";
+
 const MAX_AI_REQUESTS_PER_HOUR = 10;
-export const MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS = 2;
 
 function json(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;

@@ -15,8 +15,8 @@ import { prisma } from "@/lib/prisma";
 import {
   analyzeOpportunity,
   deleteInsight,
-  MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS,
 } from "@/server/actions/intelligence";
+import { MIN_INTERACTIONS_FOR_OPPORTUNITY_ANALYSIS } from "@/lib/intelligence";
 import { isActiveProviderConfigured } from "@/server/services/ai-provider";
 import { isTavilyConfigured } from "@/server/services/web-search";
 
