@@ -22,7 +22,7 @@ import { isAnthropicConfigured } from "@/server/services/anthropic";
 import { googleDriveScopesGranted } from "@/server/services/google-drive";
 import { isGoogleCalendarConfigured } from "@/server/services/google-calendar";
 import { meetingArtifactScopesGranted } from "@/server/services/google-meet";
-import { googleTasksScopesGranted } from "@/server/services/google-tasks";
+import { googleTasksScopesGranted, googleTasksWriteGranted } from "@/server/services/google-tasks";
 import { groupDictionaryCounts } from "@/server/services/settings";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +51,7 @@ export default async function SettingsPage({
     : null;
   const calendarHasMeetArtifacts = meetingArtifactScopesGranted(calendarConnection?.scope);
   const calendarHasGoogleTasks = googleTasksScopesGranted(calendarConnection?.scope);
+  const calendarHasGoogleTasksWrite = googleTasksWriteGranted(calendarConnection?.scope);
   const [services, dictionaryValues, activeProvider, users, whatsAppSettings, driveConnections] =
     await Promise.all([
     prisma.service.findMany({
@@ -243,8 +244,8 @@ export default async function SettingsPage({
                 {(!calendarHasMeetArtifacts || !calendarHasGoogleTasks) ? (
                   <p className="mt-1 text-xs text-amber-700">Reconecta para habilitar artefactos Meet/Drive.</p>
                 ) : null}
-                {!calendarHasGoogleTasks ? (
-                  <p className="mt-1 text-xs text-amber-700">Reconecta para importar Google Tasks.</p>
+                {!calendarHasGoogleTasksWrite ? (
+                  <p className="mt-1 text-xs text-amber-700">Reconecta para habilitar creación de Google Tasks desde el Pipeline.</p>
                 ) : null}
                 {calendarConnection.lastError ? (
                   <p className="mt-1 text-xs text-rose-700">{calendarConnection.lastError}</p>
@@ -255,7 +256,7 @@ export default async function SettingsPage({
                   Desconectar
                 </SubmitButton>
               </form>
-              {(!calendarHasMeetArtifacts || !calendarHasGoogleTasks) ? (
+              {(!calendarHasMeetArtifacts || !calendarHasGoogleTasks || !calendarHasGoogleTasksWrite) ? (
                 <Button asChild size="sm">
                   <a href="/api/calendar/oauth/google/start">Reconectar</a>
                 </Button>

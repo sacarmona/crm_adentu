@@ -17,7 +17,12 @@ import {
 import { requireAdmin, requireWriter } from "@/server/authz";
 import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 import { usableCalendarAccessToken } from "@/server/services/google-calendar";
-import { googleTasksScopesGranted, listAllGoogleTasks } from "@/server/services/google-tasks";
+import {
+  googleTasksScopesGranted,
+  googleTasksWriteGranted,
+  listAllGoogleTasks,
+  createGoogleTask,
+} from "@/server/services/google-tasks";
 
 async function assertNoActiveDependents(
   entityLabel: string,
@@ -310,7 +315,28 @@ export async function createQuickTask(data: {
         after: { title: task.title, status: task.status, source: "pipeline-quick" },
       },
     });
-    await syncTaskCalendarEvent(task.id);
+    // Crear en Google Tasks si el usuario tiene el scope de escritura
+    const conn = await prisma.calendarConnection.findUnique({ where: { userId: user.id } });
+    if (conn && googleTasksWriteGranted(conn.scope)) {
+      try {
+        const { accessToken } = await usableCalendarAccessToken(conn);
+        const notesparts: string[] = [];
+        if (data.companyId) {
+          const company = await prisma.company.findUnique({ where: { id: data.companyId }, select: { name: true } });
+          if (company) notesparts.push(`Empresa: ${company.name}`);
+        }
+        const opp = await prisma.opportunity.findUnique({ where: { id: data.opportunityId }, select: { name: true } });
+        if (opp) notesparts.push(`Oportunidad: ${opp.name}`);
+        await createGoogleTask(accessToken, {
+          title: data.title,
+          notes: notesparts.length > 0 ? notesparts.join("\n") : undefined,
+          dueDate: data.dueDate ? parseLocalDateTime(data.dueDate) ?? undefined : undefined,
+        });
+      } catch {
+        // No bloquea la creación local si Google Tasks falla
+      }
+    }
+
     revalidatePath("/pipeline");
     revalidatePath("/tasks");
     revalidatePath(`/opportunities/${data.opportunityId}`);

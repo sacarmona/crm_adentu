@@ -2,11 +2,20 @@ import { TaskStatus } from "@prisma/client";
 
 const TASKS_API_URL = "https://tasks.googleapis.com/tasks/v1";
 
-export const GOOGLE_TASK_SCOPES = ["https://www.googleapis.com/auth/tasks.readonly"];
+export const GOOGLE_TASK_SCOPES = ["https://www.googleapis.com/auth/tasks"];
 
 export function googleTasksScopesGranted(scope?: string | null) {
   const granted = new Set((scope ?? "").split(/\s+/).filter(Boolean));
-  return GOOGLE_TASK_SCOPES.every((required) => granted.has(required));
+  // Acepta tanto el scope completo (tasks) como el legacy readonly
+  return (
+    granted.has("https://www.googleapis.com/auth/tasks") ||
+    granted.has("https://www.googleapis.com/auth/tasks.readonly")
+  );
+}
+
+export function googleTasksWriteGranted(scope?: string | null) {
+  const granted = new Set((scope ?? "").split(/\s+/).filter(Boolean));
+  return granted.has("https://www.googleapis.com/auth/tasks");
 }
 
 type GoogleTaskList = {
@@ -107,4 +116,35 @@ export async function listAllGoogleTasks(accessToken: string) {
   const lists = await listGoogleTaskLists(accessToken);
   const tasksByList = await Promise.all(lists.map((list) => listGoogleTasks(accessToken, list)));
   return tasksByList.flat();
+}
+
+export async function createGoogleTask(
+  accessToken: string,
+  input: { title: string; notes?: string; dueDate?: Date },
+): Promise<string> {
+  const body: Record<string, unknown> = { title: input.title };
+  if (input.notes) body.notes = input.notes;
+  if (input.dueDate) {
+    // Google Tasks requiere fecha RFC 3339 con hora en cero UTC
+    const d = input.dueDate;
+    body.due = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}T00:00:00.000Z`;
+  }
+
+  const response = await fetch(`${TASKS_API_URL}/lists/@default/tasks`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Google Tasks rechazo la creacion (${response.status}).`);
+  }
+
+  const created = (await response.json()) as { id?: string };
+  if (!created.id) throw new Error("Google Tasks no retorno el ID de la tarea creada.");
+  return created.id;
 }
