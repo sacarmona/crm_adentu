@@ -1,12 +1,23 @@
-import { TaskStatus } from "@prisma/client";
+import { InteractionType, TaskStatus } from "@prisma/client";
 import {
   AlertTriangle,
   ArrowRight,
   CalendarClock,
   CircleDollarSign,
+  FileText,
   Handshake,
+  type LucideIcon,
+  Mail,
+  MessageCircle,
+  MessageSquareReply,
+  MonitorPlay,
+  MoreHorizontal,
+  Phone,
+  Repeat,
   Target,
   Trophy,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -38,6 +49,41 @@ function periodStart(key: string, now: Date): Date {
   if (key === "mtd") return new Date(now.getFullYear(), now.getMonth(), 1);
   const days = PERIOD_DAYS[key] ?? 30;
   return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
+const INTERACTION_ORDER: InteractionType[] = [
+  InteractionType.EMAIL,
+  InteractionType.WHATSAPP,
+  InteractionType.PHONE,
+  InteractionType.LINKEDIN,
+  InteractionType.NEW_FOCUS_CLIENT_MEETING,
+  InteractionType.ONLINE_MEETING,
+  InteractionType.IN_PERSON_MEETING,
+  InteractionType.PROPOSAL_SENT,
+  InteractionType.FOLLOW_UP,
+  InteractionType.CLIENT_RESPONSE,
+  InteractionType.OTHER,
+];
+
+const INTERACTION_ICONS: Record<InteractionType, LucideIcon> = {
+  EMAIL: Mail,
+  WHATSAPP: MessageCircle,
+  PHONE: Phone,
+  LINKEDIN: Users,
+  NEW_FOCUS_CLIENT_MEETING: UserPlus,
+  ONLINE_MEETING: MonitorPlay,
+  IN_PERSON_MEETING: Handshake,
+  PROPOSAL_SENT: FileText,
+  FOLLOW_UP: Repeat,
+  CLIENT_RESPONSE: MessageSquareReply,
+  OTHER: MoreHorizontal,
+};
+
+function fullChannelCounts(
+  rows: { type: InteractionType; _count: { type: number } }[],
+): { type: InteractionType; count: number }[] {
+  const map = new Map(rows.map((row) => [row.type, row._count.type]));
+  return INTERACTION_ORDER.map((type) => ({ type, count: map.get(type) ?? 0 }));
 }
 
 export default async function DashboardPage({
@@ -153,8 +199,8 @@ export default async function DashboardPage({
   ).sort((a, b) => b.value - a.value);
   const totalNew = interactionCountsNew.reduce((sum, row) => sum + row._count.type, 0);
   const totalExisting = interactionCountsExisting.reduce((sum, row) => sum + row._count.type, 0);
-  const topNew = [...interactionCountsNew].sort((a, b) => b._count.type - a._count.type).slice(0, 5);
-  const topExisting = [...interactionCountsExisting].sort((a, b) => b._count.type - a._count.type).slice(0, 5);
+  const channelsNew = fullChannelCounts(interactionCountsNew);
+  const channelsExisting = fullChannelCounts(interactionCountsExisting);
 
   const overdueTasks = tasks
     .filter(
@@ -269,20 +315,20 @@ export default async function DashboardPage({
             Ver historial
           </Link>
         </div>
-        <div className="mt-4 grid gap-6 md:grid-cols-2">
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
           <ChannelGroup
             title="Oportunidades nuevas"
             subtitle="Creadas en el período"
             total={totalNew}
-            rows={topNew}
-            color="bg-teal-500"
+            rows={channelsNew}
+            accent="teal"
           />
           <ChannelGroup
             title="Pipeline existente"
             subtitle="Creadas antes del período"
             total={totalExisting}
-            rows={topExisting}
-            color="bg-blue-500"
+            rows={channelsExisting}
+            accent="blue"
           />
         </div>
       </section>
@@ -418,46 +464,78 @@ export default async function DashboardPage({
   );
 }
 
+const ACCENT_STYLES = {
+  teal: {
+    header: "text-teal-700",
+    dot: "bg-teal-500",
+    iconActive: "bg-teal-50 text-teal-700 border-teal-100",
+  },
+  blue: {
+    header: "text-blue-700",
+    dot: "bg-blue-500",
+    iconActive: "bg-blue-50 text-blue-700 border-blue-100",
+  },
+} as const;
+
 function ChannelGroup({
   title,
   subtitle,
   total,
   rows,
-  color,
+  accent,
 }: {
   title: string;
   subtitle: string;
   total: number;
-  rows: { type: string; _count: { type: number } }[];
-  color: string;
+  rows: { type: InteractionType; count: number }[];
+  accent: keyof typeof ACCENT_STYLES;
 }) {
+  const styles = ACCENT_STYLES[accent];
+  const max = Math.max(1, ...rows.map((row) => row.count));
+
   return (
-    <div>
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="mt-0.5 text-xs text-slate-500">{subtitle} · {total} interacciones</p>
-      {total === 0 ? (
-        <p className="mt-3 text-xs text-slate-400">Sin actividad en el período.</p>
-      ) : (
-        <ol className="mt-3 space-y-3">
-          {rows.map((row) => {
-            const pct = Math.round((row._count.type / total) * 100);
-            return (
-              <li key={row.type} className="grid grid-cols-[1fr_auto] items-center gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-slate-700">{interactionTypeLabels[row.type as keyof typeof interactionTypeLabels]}</span>
-                    <span className="shrink-0 font-semibold">{row._count.type}</span>
-                  </div>
-                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-                <span className="w-9 text-right text-xs text-slate-400">{pct}%</span>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+    <div className="rounded-md border border-slate-100 bg-slate-50/60 p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${styles.dot}`} />
+          <p className="text-sm font-semibold">{title}</p>
+        </div>
+        <p className={`text-lg font-bold tabular-nums ${styles.header}`}>{total}</p>
+      </div>
+      <p className="mt-0.5 pl-4 text-xs text-slate-500">{subtitle}</p>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {rows.map((row) => {
+          const Icon = INTERACTION_ICONS[row.type];
+          const active = row.count > 0;
+          const barPct = active ? Math.round((row.count / max) * 100) : 0;
+          return (
+            <div
+              key={row.type}
+              className={`flex flex-col gap-1.5 rounded-md border bg-white p-2.5 ${
+                active ? "border-slate-200" : "border-slate-100 opacity-60"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-md border ${
+                    active ? styles.iconActive : "border-slate-100 bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+                <span className="text-base font-bold tabular-nums text-slate-900">{row.count}</span>
+              </div>
+              <p className="truncate text-[11px] leading-tight text-slate-500" title={interactionTypeLabels[row.type]}>
+                {interactionTypeLabels[row.type]}
+              </p>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                <div className={`h-full rounded-full ${styles.dot}`} style={{ width: `${barPct}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
