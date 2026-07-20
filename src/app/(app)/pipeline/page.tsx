@@ -70,6 +70,7 @@ export default async function PipelinePage({
       id: opportunity.id,
       name: opportunity.name,
       status: opportunity.status,
+      companyId: opportunity.companyId ?? null,
       companyName: opportunity.company?.name ?? null,
       serviceName: opportunity.service?.name ?? null,
       responsibleName: opportunity.responsible?.name ?? null,

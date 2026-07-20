@@ -16,9 +16,11 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { OpportunityStatus } from "@prisma/client";
-import { CalendarDays, GripVertical, UserRound } from "lucide-react";
+import { CalendarDays, GripVertical, Plus, UserRound, X } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useRef, useMemo, useState, useTransition } from "react";
+
+import { createQuickTask } from "@/server/actions/activity";
 
 import { followUpHealthLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,7 @@ export type PipelineOpportunity = {
   id: string;
   name: string;
   status: OpportunityStatus;
+  companyId: string | null;
   companyName: string | null;
   serviceName: string | null;
   responsibleName: string | null;
@@ -80,6 +83,99 @@ const dateFormatter = new Intl.DateTimeFormat("es-CL", {
   timeZone: "Etc/GMT+4",
 });
 
+function QuickTaskDialog({
+  opportunity,
+  onClose,
+}: {
+  opportunity: PipelineOpportunity;
+  onClose: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const title = (fd.get("title") as string).trim();
+    if (!title) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await createQuickTask({
+        title,
+        opportunityId: opportunity.id,
+        companyId: opportunity.companyId,
+        dueDate: (fd.get("dueDate") as string) || undefined,
+      });
+      if (result.ok) {
+        setDone(true);
+        setTimeout(onClose, 900);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-80 rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Nueva tarea</p>
+            <p className="mt-0.5 text-xs text-slate-500 truncate max-w-[220px]">
+              {opportunity.companyName ? `${opportunity.companyName} · ` : ""}{opportunity.name}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {done ? (
+          <p className="py-4 text-center text-sm font-medium text-emerald-600">✓ Tarea creada</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <input
+              ref={titleRef}
+              autoFocus
+              name="title"
+              required
+              minLength={3}
+              placeholder="Descripción de la tarea"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            />
+            <input
+              name="dueDate"
+              type="datetime-local"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            />
+            {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex-1 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-60"
+              >
+                {isPending ? "Guardando..." : "Crear tarea"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PipelineCard({
   opportunity,
   canEdit,
@@ -89,6 +185,7 @@ function PipelineCard({
   canEdit: boolean;
   overlay?: boolean;
 }) {
+  const [showQuickTask, setShowQuickTask] = useState(false);
   const {
     attributes,
     isDragging,
@@ -155,13 +252,28 @@ function PipelineCard({
             {opportunity.responsibleName ?? "Sin responsable"}
           </span>
         </span>
-        <span className="flex shrink-0 items-center gap-1">
-          <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-          {opportunity.estimatedCloseDate
-            ? dateFormatter.format(new Date(opportunity.estimatedCloseDate))
-            : "Sin fecha"}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="flex items-center gap-1">
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+            {opportunity.estimatedCloseDate
+              ? dateFormatter.format(new Date(opportunity.estimatedCloseDate))
+              : "Sin fecha"}
+          </span>
+          {canEdit && !overlay ? (
+            <button
+              type="button"
+              title="Nueva tarea rápida"
+              onClick={() => setShowQuickTask(true)}
+              className="rounded-md border border-slate-200 p-0.5 text-slate-400 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
       </div>
+      {showQuickTask ? (
+        <QuickTaskDialog opportunity={opportunity} onClose={() => setShowQuickTask(false)} />
+      ) : null}
     </article>
   );
 }

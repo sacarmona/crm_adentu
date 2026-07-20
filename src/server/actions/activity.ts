@@ -282,6 +282,44 @@ export async function createTask(formData: FormData) {
   redirect(`/tasks?created=${task.id}`);
 }
 
+export async function createQuickTask(data: {
+  title: string;
+  opportunityId: string;
+  companyId: string | null;
+  dueDate?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const user = await requireWriter("No tienes permisos para crear tareas.");
+    const task = await prisma.task.create({
+      data: {
+        title: data.title.trim(),
+        status: TaskStatus.PENDING,
+        opportunityId: data.opportunityId,
+        companyId: data.companyId ?? undefined,
+        dueDate: data.dueDate ? parseLocalDateTime(data.dueDate) : undefined,
+        createdById: user.id,
+        assignedToId: user.id,
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        action: AuditAction.CREATE,
+        entityType: "Task",
+        entityId: task.id,
+        actorId: user.id,
+        after: { title: task.title, status: task.status, source: "pipeline-quick" },
+      },
+    });
+    await syncTaskCalendarEvent(task.id);
+    revalidatePath("/pipeline");
+    revalidatePath("/tasks");
+    revalidatePath(`/opportunities/${data.opportunityId}`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Error al crear tarea." };
+  }
+}
+
 export async function changeTaskStatus(formData: FormData) {
   const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
   const data = taskStatusSchema.parse(parseForm(formData));
