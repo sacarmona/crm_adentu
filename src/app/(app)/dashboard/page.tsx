@@ -55,7 +55,7 @@ export default async function DashboardPage({
 
   const interactionSince = periodStart(period, now);
 
-  const [opportunities, tasks, recentInteractions, users, interactionCounts] = await Promise.all([
+  const [opportunities, tasks, recentInteractions, users, interactionCountsNew, interactionCountsExisting] = await Promise.all([
     prisma.opportunity.findMany({
       where: {
         deletedAt: null,
@@ -96,6 +96,20 @@ export default async function DashboardPage({
         deletedAt: null,
         date: { gte: interactionSince },
         ...(responsibleId ? { executedById: responsibleId } : {}),
+        opportunity: { createdAt: { gte: interactionSince } },
+      },
+      _count: { type: true },
+    }),
+    prisma.interaction.groupBy({
+      by: ["type"],
+      where: {
+        deletedAt: null,
+        date: { gte: interactionSince },
+        ...(responsibleId ? { executedById: responsibleId } : {}),
+        OR: [
+          { opportunity: { createdAt: { lt: interactionSince } } },
+          { opportunityId: null },
+        ],
       },
       _count: { type: true },
     }),
@@ -137,10 +151,10 @@ export default async function DashboardPage({
         {},
       ),
   ).sort((a, b) => b.value - a.value);
-  const totalInteractions = interactionCounts.reduce((sum, row) => sum + row._count.type, 0);
-  const topChannels = [...interactionCounts]
-    .sort((a, b) => b._count.type - a._count.type)
-    .slice(0, 5);
+  const totalNew = interactionCountsNew.reduce((sum, row) => sum + row._count.type, 0);
+  const totalExisting = interactionCountsExisting.reduce((sum, row) => sum + row._count.type, 0);
+  const topNew = [...interactionCountsNew].sort((a, b) => b._count.type - a._count.type).slice(0, 5);
+  const topExisting = [...interactionCountsExisting].sort((a, b) => b._count.type - a._count.type).slice(0, 5);
 
   const overdueTasks = tasks
     .filter(
@@ -250,42 +264,27 @@ export default async function DashboardPage({
 
       <section className="rounded-md border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">Actividad por canal</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Top 5 · {totalInteractions} interacciones en el período
-            </p>
-          </div>
+          <h2 className="font-semibold">Actividad por canal</h2>
           <Link className="text-xs font-medium hover:underline" href="/interactions">
             Ver historial
           </Link>
         </div>
-        {totalInteractions === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">Sin interacciones en el período seleccionado.</p>
-        ) : (
-          <ol className="mt-4 space-y-3">
-            {topChannels.map((row) => {
-              const pct = Math.round((row._count.type / totalInteractions) * 100);
-              return (
-                <li key={row.type} className="grid grid-cols-[1fr_auto] items-center gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="font-medium">{interactionTypeLabels[row.type]}</span>
-                      <span className="shrink-0 font-semibold">{row._count.type}</span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-teal-500"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="w-9 text-right text-xs text-slate-400">{pct}%</span>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+        <div className="mt-4 grid gap-6 md:grid-cols-2">
+          <ChannelGroup
+            title="Oportunidades nuevas"
+            subtitle="Creadas en el período"
+            total={totalNew}
+            rows={topNew}
+            color="bg-teal-500"
+          />
+          <ChannelGroup
+            title="Pipeline existente"
+            subtitle="Creadas antes del período"
+            total={totalExisting}
+            rows={topExisting}
+            color="bg-blue-500"
+          />
+        </div>
       </section>
 
       <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
@@ -415,6 +414,50 @@ export default async function DashboardPage({
           ) : null}
         </ol>
       </section>
+    </div>
+  );
+}
+
+function ChannelGroup({
+  title,
+  subtitle,
+  total,
+  rows,
+  color,
+}: {
+  title: string;
+  subtitle: string;
+  total: number;
+  rows: { type: string; _count: { type: number } }[];
+  color: string;
+}) {
+  return (
+    <div>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-0.5 text-xs text-slate-500">{subtitle} · {total} interacciones</p>
+      {total === 0 ? (
+        <p className="mt-3 text-xs text-slate-400">Sin actividad en el período.</p>
+      ) : (
+        <ol className="mt-3 space-y-3">
+          {rows.map((row) => {
+            const pct = Math.round((row._count.type / total) * 100);
+            return (
+              <li key={row.type} className="grid grid-cols-[1fr_auto] items-center gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-slate-700">{interactionTypeLabels[row.type as keyof typeof interactionTypeLabels]}</span>
+                    <span className="shrink-0 font-semibold">{row._count.type}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+                <span className="w-9 text-right text-xs text-slate-400">{pct}%</span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }
