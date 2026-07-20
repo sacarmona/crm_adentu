@@ -32,19 +32,30 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const PERIOD_DAYS: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
+
+function periodStart(key: string, now: Date): Date {
+  if (key === "mtd") return new Date(now.getFullYear(), now.getMonth(), 1);
+  const days = PERIOD_DAYS[key] ?? 30;
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ responsibleId?: string; scope?: string }>;
+  searchParams?: Promise<{ responsibleId?: string; scope?: string; period?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
   const responsibleId =
     params?.scope === "mine" ? session?.user.id : params?.responsibleId;
+  const period = params?.period ?? "30d";
   const now = new Date();
   const dormantBoundary = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-  const [opportunities, tasks, recentInteractions, users] = await Promise.all([
+  const interactionSince = periodStart(period, now);
+
+  const [opportunities, tasks, recentInteractions, users, interactionCounts] = await Promise.all([
     prisma.opportunity.findMany({
       where: {
         deletedAt: null,
@@ -78,6 +89,15 @@ export default async function DashboardPage({
       where: { deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.interaction.groupBy({
+      by: ["type"],
+      where: {
+        deletedAt: null,
+        date: { gte: interactionSince },
+        ...(responsibleId ? { executedById: responsibleId } : {}),
+      },
+      _count: { type: true },
     }),
   ]);
 
@@ -117,6 +137,11 @@ export default async function DashboardPage({
         {},
       ),
   ).sort((a, b) => b.value - a.value);
+  const totalInteractions = interactionCounts.reduce((sum, row) => sum + row._count.type, 0);
+  const topChannels = [...interactionCounts]
+    .sort((a, b) => b._count.type - a._count.type)
+    .slice(0, 5);
+
   const overdueTasks = tasks
     .filter(
       (task) =>
@@ -156,7 +181,7 @@ export default async function DashboardPage({
         </Button>
       </div>
 
-      <form className="grid gap-3 border-y border-slate-200 bg-white px-4 py-3 md:grid-cols-[240px_180px_auto_1fr]">
+      <form className="grid gap-3 border-y border-slate-200 bg-white px-4 py-3 md:grid-cols-[240px_180px_160px_auto_1fr]">
         <select
           className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
           defaultValue={params?.responsibleId ?? ""}
@@ -176,6 +201,16 @@ export default async function DashboardPage({
         >
           <option value="">Todo el equipo</option>
           <option value="mine">Mi cartera</option>
+        </select>
+        <select
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+          defaultValue={period}
+          name="period"
+        >
+          <option value="7d">Últimos 7 días</option>
+          <option value="mtd">Mes actual</option>
+          <option value="30d">Últimos 30 días</option>
+          <option value="90d">Últimos 90 días</option>
         </select>
         <Button type="submit" variant="outline">
           Aplicar
@@ -211,6 +246,46 @@ export default async function DashboardPage({
           label="Tareas vencidas"
           value={String(metrics.overdueTasks)}
         />
+      </section>
+
+      <section className="rounded-md border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Actividad por canal</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Top 5 · {totalInteractions} interacciones en el período
+            </p>
+          </div>
+          <Link className="text-xs font-medium hover:underline" href="/interactions">
+            Ver historial
+          </Link>
+        </div>
+        {totalInteractions === 0 ? (
+          <p className="mt-4 text-sm text-slate-500">Sin interacciones en el período seleccionado.</p>
+        ) : (
+          <ol className="mt-4 space-y-3">
+            {topChannels.map((row) => {
+              const pct = Math.round((row._count.type / totalInteractions) * 100);
+              return (
+                <li key={row.type} className="grid grid-cols-[1fr_auto] items-center gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="font-medium">{interactionTypeLabels[row.type]}</span>
+                      <span className="shrink-0 font-semibold">{row._count.type}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-teal-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-9 text-right text-xs text-slate-400">{pct}%</span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </section>
 
       <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
