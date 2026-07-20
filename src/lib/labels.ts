@@ -197,6 +197,6 @@ export const followUpHealthLabels: Record<
 > = {
   normal: "Normal",
   watch: "Seguimiento",
-  stalled: "Sin respuesta",
+  stalled: "Contactar Urgente",
   closed: "Cerrada",
 };
