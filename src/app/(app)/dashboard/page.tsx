@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { ChannelCard } from "@/components/dashboard/channel-card";
 import {
   OpportunityDistributionChart,
   PipelineStageChart,
@@ -79,11 +80,55 @@ const INTERACTION_ICONS: Record<InteractionType, LucideIcon> = {
   OTHER: MoreHorizontal,
 };
 
-function fullChannelCounts(
-  rows: { type: InteractionType; _count: { type: number } }[],
-): { type: InteractionType; count: number }[] {
-  const map = new Map(rows.map((row) => [row.type, row._count.type]));
-  return INTERACTION_ORDER.map((type) => ({ type, count: map.get(type) ?? 0 }));
+export type ChannelItem = { id: string | null; label: string };
+export type ChannelDetail = { type: InteractionType; count: number; items: ChannelItem[] };
+
+type PeriodInteraction = {
+  type: InteractionType;
+  company: { name: string } | null;
+  opportunity: {
+    id: string;
+    name: string;
+    createdAt: Date;
+    company: { name: string } | null;
+  } | null;
+};
+
+function buildChannelDetails(
+  interactions: PeriodInteraction[],
+  since: Date,
+  group: "new" | "existing",
+): { total: number; channels: ChannelDetail[] } {
+  const buckets = new Map<InteractionType, { count: number; opps: Map<string, string> }>();
+  for (const type of INTERACTION_ORDER) buckets.set(type, { count: 0, opps: new Map() });
+
+  for (const it of interactions) {
+    const isNew = it.opportunity ? it.opportunity.createdAt >= since : false;
+    if ((group === "new") !== isNew) continue;
+    const bucket = buckets.get(it.type);
+    if (!bucket) continue;
+    bucket.count += 1;
+    if (it.opportunity) {
+      const companyName = it.opportunity.company?.name;
+      const label = companyName ? `${companyName} - ${it.opportunity.name}` : it.opportunity.name;
+      bucket.opps.set(it.opportunity.id, label);
+    } else if (it.company) {
+      bucket.opps.set(`company:${it.company.name}`, `${it.company.name} · sin oportunidad`);
+    }
+  }
+
+  let total = 0;
+  const channels = INTERACTION_ORDER.map((type) => {
+    const bucket = buckets.get(type)!;
+    total += bucket.count;
+    const items: ChannelItem[] = [...bucket.opps.entries()].map(([key, label]) => ({
+      id: key.startsWith("company:") ? null : key,
+      label,
+    }));
+    return { type, count: bucket.count, items };
+  });
+
+  return { total, channels };
 }
 
 export default async function DashboardPage({
@@ -101,7 +146,7 @@ export default async function DashboardPage({
 
   const interactionSince = periodStart(period, now);
 
-  const [opportunities, tasks, recentInteractions, users, interactionCountsNew, interactionCountsExisting] = await Promise.all([
+  const [opportunities, tasks, recentInteractions, users, periodInteractions] = await Promise.all([
     prisma.opportunity.findMany({
       where: {
         deletedAt: null,
@@ -136,28 +181,24 @@ export default async function DashboardPage({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    prisma.interaction.groupBy({
-      by: ["type"],
+    prisma.interaction.findMany({
       where: {
         deletedAt: null,
         date: { gte: interactionSince },
         ...(responsibleId ? { executedById: responsibleId } : {}),
-        opportunity: { createdAt: { gte: interactionSince } },
       },
-      _count: { type: true },
-    }),
-    prisma.interaction.groupBy({
-      by: ["type"],
-      where: {
-        deletedAt: null,
-        date: { gte: interactionSince },
-        ...(responsibleId ? { executedById: responsibleId } : {}),
-        OR: [
-          { opportunity: { createdAt: { lt: interactionSince } } },
-          { opportunityId: null },
-        ],
+      select: {
+        type: true,
+        company: { select: { name: true } },
+        opportunity: {
+          select: {
+            id: true,
+            name: true,
+            createdAt: true,
+            company: { select: { name: true } },
+          },
+        },
       },
-      _count: { type: true },
     }),
   ]);
 
@@ -197,10 +238,16 @@ export default async function DashboardPage({
         {},
       ),
   ).sort((a, b) => b.value - a.value);
-  const totalNew = interactionCountsNew.reduce((sum, row) => sum + row._count.type, 0);
-  const totalExisting = interactionCountsExisting.reduce((sum, row) => sum + row._count.type, 0);
-  const channelsNew = fullChannelCounts(interactionCountsNew);
-  const channelsExisting = fullChannelCounts(interactionCountsExisting);
+  const { total: totalNew, channels: channelsNew } = buildChannelDetails(
+    periodInteractions,
+    interactionSince,
+    "new",
+  );
+  const { total: totalExisting, channels: channelsExisting } = buildChannelDetails(
+    periodInteractions,
+    interactionSince,
+    "existing",
+  );
 
   const overdueTasks = tasks
     .filter(
@@ -487,7 +534,7 @@ function ChannelGroup({
   title: string;
   subtitle: string;
   total: number;
-  rows: { type: InteractionType; count: number }[];
+  rows: ChannelDetail[];
   accent: keyof typeof ACCENT_STYLES;
 }) {
   const styles = ACCENT_STYLES[accent];
@@ -510,29 +557,17 @@ function ChannelGroup({
           const active = row.count > 0;
           const barPct = active ? Math.round((row.count / max) * 100) : 0;
           return (
-            <div
+            <ChannelCard
               key={row.type}
-              className={`flex flex-col gap-1.5 rounded-md border bg-white p-2.5 ${
-                active ? "border-slate-200" : "border-slate-100 opacity-60"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-1">
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-md border ${
-                    active ? styles.iconActive : "border-slate-100 bg-slate-50 text-slate-400"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                </span>
-                <span className="text-base font-bold tabular-nums text-slate-900">{row.count}</span>
-              </div>
-              <p className="truncate text-[11px] leading-tight text-slate-500" title={interactionTypeLabels[row.type]}>
-                {interactionTypeLabels[row.type]}
-              </p>
-              <div className="h-1 w-full overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-full rounded-full ${styles.dot}`} style={{ width: `${barPct}%` }} />
-              </div>
-            </div>
+              icon={<Icon className="h-3.5 w-3.5" aria-hidden="true" />}
+              label={interactionTypeLabels[row.type]}
+              count={row.count}
+              barPct={barPct}
+              active={active}
+              iconClass={styles.iconActive}
+              dotClass={styles.dot}
+              items={row.items}
+            />
           );
         })}
       </div>
