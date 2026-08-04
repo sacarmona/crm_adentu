@@ -418,6 +418,7 @@ export default async function WhatsAppPage({
                                 contacts={contacts}
                                 defaultContactEmail=""
                                 defaultContactName={message.contactName ?? ""}
+                                defaultOpportunityName={message.contactName ?? ""}
                                 opportunities={opportunities}
                                 services={services}
                                 showCompany={!message.matchedCompanyId}

@@ -19,6 +19,7 @@ export function EmailResolutionFields({
   showOpportunity,
   opportunities,
   services,
+  defaultOpportunityName = "",
   showContactEmailField = true,
 }: {
   showCompany: boolean;
@@ -31,6 +32,7 @@ export function EmailResolutionFields({
   showOpportunity: boolean;
   opportunities: ScopedOption[];
   services: Option[];
+  defaultOpportunityName?: string;
   showContactEmailField?: boolean;
 }) {
   const [companyId, setCompanyId] = useState("");
@@ -140,7 +142,11 @@ export function EmailResolutionFields({
             </select>
           </label>
           <div className="grid gap-3">
-            <TextField label="O crear nueva oportunidad" name="newOpportunityName" />
+            <TextField
+              defaultValue={defaultOpportunityName}
+              label="O crear nueva oportunidad"
+              name="newOpportunityName"
+            />
             <SelectField
               label="Servicio"
               name="newOpportunityServiceId"

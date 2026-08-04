@@ -250,6 +250,7 @@ export default async function EmailMessagePage({
               contacts={contacts}
               defaultContactEmail={message.fromAddress}
               defaultContactName={message.fromName ?? ""}
+              defaultOpportunityName={message.subject ?? ""}
               opportunities={opportunities}
               services={services}
               showCompany={!classification.matchedCompanyId}
