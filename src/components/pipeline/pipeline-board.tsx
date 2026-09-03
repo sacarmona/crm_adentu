@@ -206,7 +206,7 @@ function PipelineCard({
         opacity: isDragging ? 0.35 : 1,
       }}
       className={cn(
-        "rounded-md border border-slate-200 bg-white p-3 shadow-sm",
+        "rounded-md border border-slate-200 bg-white p-2.5 shadow-sm",
         overlay && "w-72 shadow-lg",
       )}
     >
@@ -230,22 +230,21 @@ function PipelineCard({
           >
             {opportunity.name}
           </Link>
-          <p className="mt-1 truncate text-xs text-slate-500">
+          <p className="truncate text-xs text-slate-500">
             {opportunity.companyName ?? "Sin empresa"}
           </p>
         </div>
         <FollowUpBadge followUp={opportunity.followUp} />
       </div>
-      <div className="mt-3 border-t border-slate-100 pt-3">
+      <div className="mt-1.5 flex items-baseline justify-between gap-2">
         <p className="text-sm font-semibold">
           {currencyFormatter.format(opportunity.totalAmount)}
         </p>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Ponderado {currencyFormatter.format(opportunity.weightedAmount)} ·{" "}
+        <span className="shrink-0 text-xs text-slate-500">
           {Math.round(opportunity.probability * 100)}%
-        </p>
+        </span>
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
+      <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-slate-500">
         <span className="flex min-w-0 items-center gap-1">
           <UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span className="truncate">
