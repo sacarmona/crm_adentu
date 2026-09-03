@@ -26,9 +26,18 @@ export function InlineDateForm({
         className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs disabled:opacity-60"
         disabled={isPending}
         name={name}
-        onChange={(event) => {
-          setValue(event.currentTarget.value);
-          event.currentTarget.form?.requestSubmit();
+        onChange={(event) => setValue(event.currentTarget.value)}
+        onBlur={(event) => {
+          // Guarda al perder foco solo si hay un valor valido y cambio respecto al guardado.
+          if (value && value !== trackedDefault) {
+            event.currentTarget.form?.requestSubmit();
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
         }}
         type="datetime-local"
         value={value}
