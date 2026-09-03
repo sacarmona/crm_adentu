@@ -416,12 +416,14 @@ export async function updateTaskAssignee(id: string, formData: FormData) {
 export async function updateTaskDueDate(id: string, formData: FormData) {
   const user = await requireWriter("No tienes permisos para modificar la actividad comercial.");
   const dueDate = parseLocalDateTime(formData.get("dueDate") as string | null);
-  if (!dueDate) throw new Error("La fecha limite no es valida.");
+  // El input datetime-local hace auto-submit en cada cambio y puede enviar valores
+  // vacíos o incompletos mientras se edita. Ignoramos esos casos en lugar de romper.
+  if (!dueDate) return;
 
   const before = await prisma.task.findFirst({
     where: { id, deletedAt: null },
   });
-  if (!before) throw new Error("La tarea ya no esta disponible.");
+  if (!before) return;
 
   await prisma.$transaction([
     prisma.task.update({ where: { id }, data: { dueDate } }),
