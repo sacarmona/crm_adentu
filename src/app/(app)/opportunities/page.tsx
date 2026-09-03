@@ -1,4 +1,4 @@
-import { OpportunityStatus, Prisma } from "@prisma/client";
+import { OpportunityClosurePhase, OpportunityStatus, Prisma } from "@prisma/client";
 import { FileDown } from "lucide-react";
 import Link from "next/link";
 
@@ -8,10 +8,15 @@ import { InlineSelectForm } from "@/components/crm/inline-select-form";
 import { MultiSelectFilter } from "@/components/crm/multi-select-filter";
 import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
-import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
-import { HIDE_FINALIZED } from "@/lib/opportunity-lifecycle";
+import {
+  followUpHealthLabels,
+  opportunityClosurePhaseLabels,
+  opportunityStatusLabels,
+} from "@/lib/labels";
+import { HIDE_FINALIZED, isClosedStatus } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
 import {
+  setOpportunityClosurePhase,
   updateOpportunityResponsible,
   updateOpportunityStatus,
 } from "@/server/actions/crm";
@@ -226,6 +231,7 @@ export default async function OpportunitiesPage({
               <th className="px-4 py-3">Empresa</th>
               <th className="px-4 py-3">Responsable</th>
               <th className="px-4 py-3">Estado</th>
+              <th className="px-4 py-3">Fase</th>
               <th className="px-4 py-3">Prob.</th>
               <th className="px-4 py-3">Monto total</th>
               <th className="px-4 py-3">Seguimiento</th>
@@ -277,6 +283,28 @@ export default async function OpportunitiesPage({
                       opportunityStatusLabels[opportunity.status]
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    {!isClosedStatus(opportunity.status) ? (
+                      <span className="text-xs text-slate-400">—</span>
+                    ) : canEdit ? (
+                      <InlineSelectForm
+                        action={setOpportunityClosurePhase.bind(null, opportunity.id)}
+                        defaultValue={opportunity.closurePhase ?? OpportunityClosurePhase.VIGENTE}
+                        includeBlankOption={false}
+                        name="closurePhase"
+                        options={Object.values(OpportunityClosurePhase).map((value) => ({
+                          value,
+                          label: opportunityClosurePhaseLabels[value],
+                        }))}
+                      />
+                    ) : (
+                      <span className="text-xs">
+                        {opportunity.closurePhase
+                          ? opportunityClosurePhaseLabels[opportunity.closurePhase]
+                          : "—"}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">{formatPercent(opportunity.probability.toString())}</td>
                   <td className="px-4 py-3">{formatCurrency(opportunity.totalAmount.toString())}</td>
                   <td className="px-4 py-3">
@@ -305,7 +333,7 @@ export default async function OpportunitiesPage({
               );
             })}
             {opportunities.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={9}>No hay oportunidades para los filtros seleccionados.</td></tr>
+              <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={10}>No hay oportunidades para los filtros seleccionados.</td></tr>
             ) : null}
           </tbody>
         </table>
