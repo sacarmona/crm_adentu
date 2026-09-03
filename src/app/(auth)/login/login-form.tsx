@@ -3,15 +3,27 @@
 import { Loader2 } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const LAST_EMAIL_KEY = "crm-adentu:last-email";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [email, setEmail] = useState("");
 
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(LAST_EMAIL_KEY);
+      if (saved) setEmail(saved);
+    } catch {
+      /* localStorage no disponible */
+    }
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -19,8 +31,9 @@ export function LoginForm() {
     setIsPending(true);
 
     const formData = new FormData(event.currentTarget);
+    const emailValue = String(formData.get("email") ?? "");
     const result = await signIn("credentials", {
-      email: formData.get("email"),
+      email: emailValue,
       password: formData.get("password"),
       redirect: false,
       callbackUrl,
@@ -31,6 +44,12 @@ export function LoginForm() {
     if (result?.error) {
       setError("Correo o contraseña incorrectos.");
       return;
+    }
+
+    try {
+      window.localStorage.setItem(LAST_EMAIL_KEY, emailValue);
+    } catch {
+      /* localStorage no disponible */
     }
 
     router.push(callbackUrl);
@@ -46,10 +65,12 @@ export function LoginForm() {
         <input
           autoComplete="email"
           className="mt-2 h-11 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 outline-none transition-colors focus:border-blue-400 focus:bg-white/15"
-          defaultValue="admin.demo@adentu.cl"
           id="email"
           name="email"
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="correo@adentu.cl"
           type="email"
+          value={email}
         />
       </div>
       <div>
@@ -59,9 +80,9 @@ export function LoginForm() {
         <input
           autoComplete="current-password"
           className="mt-2 h-11 w-full rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 outline-none transition-colors focus:border-blue-400 focus:bg-white/15"
-          defaultValue="AdentuDemo2026!"
           id="password"
           name="password"
+          placeholder="••••••••"
           type="password"
         />
       </div>
