@@ -10,6 +10,7 @@ import { followUpHealthLabels } from "@/lib/labels";
 import { HIDE_FINALIZED } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { FollowUpHealth, getFollowUpHealth } from "@/server/services/dashboard-metrics";
+import { finalizeStalledOpportunities } from "@/server/services/stalled-sweep";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function PipelinePage({
 }) {
   const session = await auth();
   const params = await searchParams;
+  await finalizeStalledOpportunities().catch(() => {});
   const hasFilters = Boolean(
     params && ("responsibleId" in params || "serviceId" in params),
   );

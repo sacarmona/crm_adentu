@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/email",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/finalize-stalled",
+      "schedule": "0 6 * * *"
     }
   ]
 }

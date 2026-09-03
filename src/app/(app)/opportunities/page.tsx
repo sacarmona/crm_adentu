@@ -15,6 +15,7 @@ import {
 } from "@/lib/labels";
 import { HIDE_FINALIZED, isClosedStatus } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
+import { finalizeStalledOpportunities } from "@/server/services/stalled-sweep";
 import {
   setOpportunityClosurePhase,
   updateOpportunityResponsible,
@@ -87,6 +88,9 @@ export default async function OpportunitiesPage({
 }) {
   const params = await searchParams;
   const session = await auth();
+  // Barrida diaria (idempotente y auto-limitada por su bandera interna): cierra las
+  // oportunidades estancadas +14 dias sin contacto como PERDIDA + FINALIZADA.
+  await finalizeStalledOpportunities().catch(() => {});
   const canEdit = session?.user.role !== "LECTURA";
   const q = params?.q?.trim();
   const statusValues = (
