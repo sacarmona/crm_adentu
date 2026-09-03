@@ -1,4 +1,4 @@
-import { OpportunityStatus, TaskStatus } from "@prisma/client";
+import { OpportunityClosurePhase, OpportunityStatus, TaskStatus } from "@prisma/client";
 
 const closedStatuses = new Set<OpportunityStatus>([
   OpportunityStatus.WON,
@@ -13,6 +13,7 @@ export const openPipelineStatuses = new Set<OpportunityStatus>([
 
 export type DashboardOpportunity = {
   status: OpportunityStatus;
+  closurePhase: OpportunityClosurePhase | null;
   totalAmount: number;
   weightedAmount: number;
   lastInteraction: Date | null;
@@ -40,7 +41,9 @@ export function calculateDashboardMetrics(input: {
     openPipelineStatuses.has(opportunity.status),
   );
   const wonOpportunities = input.opportunities.filter(
-    (opportunity) => opportunity.status === OpportunityStatus.WON,
+    (opportunity) =>
+      opportunity.status === OpportunityStatus.WON &&
+      opportunity.closurePhase !== OpportunityClosurePhase.FINALIZADA,
   );
   const pendingTasks = input.tasks.filter(
     (task) => task.status === TaskStatus.PENDING,

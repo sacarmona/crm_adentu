@@ -9,6 +9,7 @@ import { MultiSelectFilter } from "@/components/crm/multi-select-filter";
 import { Pagination } from "@/components/crm/pagination";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
+import { HIDE_FINALIZED } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
 import {
   updateOpportunityResponsible,
@@ -73,6 +74,7 @@ export default async function OpportunitiesPage({
     followUp?: string | string[];
     responsibleId?: string;
     hideClosed?: string;
+    showFinalized?: string;
     sort?: string;
     dir?: string;
     page?: string;
@@ -96,6 +98,7 @@ export default async function OpportunitiesPage({
   );
   const responsibleId = params?.responsibleId;
   const hideClosed = params?.hideClosed === "1";
+  const showFinalized = params?.showFinalized === "1";
   const sort = params?.sort === "lastInteraction" ? "lastInteraction" : undefined;
   const dir = params?.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(params?.page) || 1);
@@ -115,6 +118,7 @@ export default async function OpportunitiesPage({
   if (responsibleId === "none") conditions.push({ responsibleId: null });
   else if (responsibleId) conditions.push({ responsibleId });
   if (hideClosed) conditions.push({ status: { notIn: closedStatuses } });
+  if (!showFinalized) conditions.push(HIDE_FINALIZED);
   const where: Prisma.OpportunityWhereInput = { AND: conditions };
   const [opportunities, total, users] = await Promise.all([
     prisma.opportunity.findMany({
@@ -138,6 +142,7 @@ export default async function OpportunitiesPage({
     for (const value of followUpValues) qs.append("followUp", value);
     if (responsibleId) qs.set("responsibleId", responsibleId);
     if (hideClosed) qs.set("hideClosed", "1");
+    if (showFinalized) qs.set("showFinalized", "1");
     qs.set("sort", field);
     qs.set("dir", sort === field && dir === "desc" ? "asc" : "desc");
     return `/opportunities?${qs.toString()}`;
@@ -148,6 +153,7 @@ export default async function OpportunitiesPage({
   for (const value of followUpValues) listQuery.append("followUp", value);
   if (responsibleId) listQuery.set("responsibleId", responsibleId);
   if (hideClosed) listQuery.set("hideClosed", "1");
+  if (showFinalized) listQuery.set("showFinalized", "1");
   if (sort) {
     listQuery.set("sort", sort);
     listQuery.set("dir", dir);
@@ -206,6 +212,10 @@ export default async function OpportunitiesPage({
         <label className="flex items-center gap-2 text-sm text-slate-600 md:col-span-full">
           <input defaultChecked={hideClosed} name="hideClosed" type="checkbox" value="1" />
           Ocultar oportunidades cerradas
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-600 md:col-span-full">
+          <input defaultChecked={showFinalized} name="showFinalized" type="checkbox" value="1" />
+          Ver oportunidades finalizadas
         </label>
       </form>
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">

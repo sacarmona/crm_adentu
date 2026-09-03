@@ -16,6 +16,7 @@ import {
   ImportRowStatus,
   InteractionType,
   LeadSource,
+  OpportunityClosurePhase,
   OpportunityStatus,
   TaskStatus,
   UserRole,
@@ -52,6 +53,11 @@ export const opportunityStatusLabels: Record<OpportunityStatus, string> = {
   WON: "Cerrada - Ganada",
   STALLED: "Estancada",
   LOST: "Cerrada - Perdida",
+};
+
+export const opportunityClosurePhaseLabels: Record<OpportunityClosurePhase, string> = {
+  VIGENTE: "Vigente",
+  FINALIZADA: "Finalizada",
 };
 
 export const leadSourceLabels: Record<LeadSource, string> = {

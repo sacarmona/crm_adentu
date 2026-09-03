@@ -206,6 +206,7 @@ export default async function DashboardPage({
     now,
     opportunities: opportunities.map((opportunity) => ({
       status: opportunity.status,
+      closurePhase: opportunity.closurePhase,
       totalAmount: Number(opportunity.totalAmount),
       weightedAmount: Number(opportunity.weightedAmount),
       lastInteraction: opportunity.lastInteraction,

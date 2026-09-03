@@ -3,6 +3,7 @@ import { LockKeyhole, Search } from "lucide-react";
 
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { opportunityStatusLabels } from "@/lib/labels";
+import { HIDE_FINALIZED } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { getFollowUpHealth } from "@/server/services/dashboard-metrics";
 import { pipelineStages, summarizePipeline } from "@/server/services/pipeline";
@@ -89,6 +90,7 @@ export default async function SharedPipelinePage({
         deletedAt: null,
         ...(responsibleId ? { responsibleId } : {}),
         ...(selectedStatus ? { status: selectedStatus } : {}),
+        ...HIDE_FINALIZED,
       },
       include: {
         company: true,

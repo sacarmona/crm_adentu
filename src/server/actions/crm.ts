@@ -1,11 +1,18 @@
 "use server";
 
-import { AuditAction, CompanyStatus, ContactStatus, OpportunityStatus } from "@prisma/client";
+import {
+  AuditAction,
+  CompanyStatus,
+  ContactStatus,
+  OpportunityClosurePhase,
+  OpportunityStatus,
+} from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { normalizeName, nullableDate } from "@/lib/normalize";
+import { isClosedStatus, nextClosurePhase } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
 import {
   companySchema,
@@ -208,11 +215,12 @@ export async function updateOpportunityStatus(id: string, formData: FormData) {
   });
   const weightedAmount =
     Math.round((Number(before.totalAmount) * probability + Number.EPSILON) * 100) / 100;
+  const closurePhase = nextClosurePhase(status, before.closurePhase);
 
   await prisma.$transaction([
     prisma.opportunity.update({
       where: { id },
-      data: { status, probability, probabilityBeforeClose, weightedAmount },
+      data: { status, probability, probabilityBeforeClose, weightedAmount, closurePhase },
     }),
     prisma.auditLog.create({
       data: {
@@ -221,8 +229,41 @@ export async function updateOpportunityStatus(id: string, formData: FormData) {
         entityId: id,
         actorId: user.id,
         before: { name: before.name, status: before.status },
-        after: { name: before.name, status },
+        after: { name: before.name, status, closurePhase },
         metadata: { source: "opportunities-list" },
+      },
+    }),
+  ]);
+
+  revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${id}`);
+  revalidatePath("/pipeline");
+}
+
+export async function setOpportunityClosurePhase(id: string, formData: FormData) {
+  const user = await requireWriter("No tienes permisos para modificar el pipeline.");
+  const phase = z
+    .nativeEnum(OpportunityClosurePhase)
+    .parse(formData.get("closurePhase"));
+  const before = await prisma.opportunity.findUnique({
+    where: { id },
+    select: { id: true, name: true, status: true, closurePhase: true },
+  });
+  if (!before) throw new Error("La oportunidad ya no esta disponible.");
+  if (!isClosedStatus(before.status)) {
+    throw new Error("Solo las oportunidades cerradas (ganadas o perdidas) pueden finalizarse.");
+  }
+
+  await prisma.$transaction([
+    prisma.opportunity.update({ where: { id }, data: { closurePhase: phase } }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "Opportunity",
+        entityId: id,
+        actorId: user.id,
+        before: { closurePhase: before.closurePhase },
+        after: { closurePhase: phase },
       },
     }),
   ]);
@@ -368,6 +409,7 @@ export async function createOpportunity(formData: FormData) {
         monthlyAmount: amounts.monthlyAmount,
         totalAmount: amounts.totalAmount,
         weightedAmount: amounts.weightedAmount,
+        closurePhase: nextClosurePhase(data.status, null),
         completeness: calculateOpportunityCompleteness(data),
         lastInteraction: now,
       },
@@ -452,6 +494,7 @@ export async function updateOpportunity(id: string, formData: FormData) {
       monthlyAmount: amounts.monthlyAmount,
       totalAmount: amounts.totalAmount,
       weightedAmount: amounts.weightedAmount,
+      closurePhase: nextClosurePhase(data.status, before?.closurePhase ?? null),
       completeness: calculateOpportunityCompleteness(data),
     },
   });
@@ -507,6 +550,7 @@ export async function changeOpportunityStage(input: {
       id: true,
       name: true,
       status: true,
+      closurePhase: true,
       probability: true,
       probabilityBeforeClose: true,
       totalAmount: true,
@@ -530,11 +574,12 @@ export async function changeOpportunityStage(input: {
   });
   const weightedAmount =
     Math.round((Number(before.totalAmount) * probability + Number.EPSILON) * 100) / 100;
+  const closurePhase = nextClosurePhase(data.status, before.closurePhase);
 
   await prisma.$transaction([
     prisma.opportunity.update({
       where: { id: before.id },
-      data: { status: data.status, probability, probabilityBeforeClose, weightedAmount },
+      data: { status: data.status, probability, probabilityBeforeClose, weightedAmount, closurePhase },
     }),
     prisma.auditLog.create({
       data: {
@@ -543,7 +588,7 @@ export async function changeOpportunityStage(input: {
         entityId: before.id,
         actorId: user.id,
         before: { name: before.name, status: before.status },
-        after: { name: before.name, status: data.status },
+        after: { name: before.name, status: data.status, closurePhase },
         metadata: { source: "pipeline" },
       },
     }),

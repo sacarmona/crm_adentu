@@ -1,4 +1,4 @@
-import { OpportunityStatus, TaskStatus } from "@prisma/client";
+import { OpportunityClosurePhase, OpportunityStatus, TaskStatus } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,6 +16,7 @@ describe("dashboard metrics", () => {
       opportunities: [
         {
           status: OpportunityStatus.EXPLORATION,
+          closurePhase: null,
           totalAmount: 1_000,
           weightedAmount: 300,
           lastInteraction: now,
@@ -23,6 +24,7 @@ describe("dashboard metrics", () => {
         },
         {
           status: OpportunityStatus.WON,
+          closurePhase: OpportunityClosurePhase.VIGENTE,
           totalAmount: 2_000,
           weightedAmount: 2_000,
           lastInteraction: now,
@@ -30,6 +32,7 @@ describe("dashboard metrics", () => {
         },
         {
           status: OpportunityStatus.LOST,
+          closurePhase: OpportunityClosurePhase.FINALIZADA,
           totalAmount: 5_000,
           weightedAmount: 0,
           lastInteraction: now,
@@ -47,12 +50,40 @@ describe("dashboard metrics", () => {
     });
   });
 
+  it("excludes finalized won opportunities from won amount", () => {
+    const metrics = calculateDashboardMetrics({
+      now,
+      opportunities: [
+        {
+          status: OpportunityStatus.WON,
+          closurePhase: OpportunityClosurePhase.VIGENTE,
+          totalAmount: 2_000,
+          weightedAmount: 2_000,
+          lastInteraction: now,
+          createdAt: now,
+        },
+        {
+          status: OpportunityStatus.WON,
+          closurePhase: OpportunityClosurePhase.FINALIZADA,
+          totalAmount: 8_000,
+          weightedAmount: 8_000,
+          lastInteraction: now,
+          createdAt: now,
+        },
+      ],
+      tasks: [],
+    });
+
+    expect(metrics.wonAmount).toBe(2_000);
+  });
+
   it("detects overdue, upcoming and dormant work", () => {
     const metrics = calculateDashboardMetrics({
       now,
       opportunities: [
         {
           status: OpportunityStatus.NEGOTIATION,
+          closurePhase: null,
           totalAmount: 1,
           weightedAmount: 1,
           lastInteraction: new Date("2026-06-01T12:00:00Z"),

@@ -75,6 +75,11 @@ enum OpportunityStatus {
   LOST
 }
 
+enum OpportunityClosurePhase {
+  VIGENTE
+  FINALIZADA
+}
+
 enum Certainty {
   HIGH
   MEDIUM
@@ -725,6 +730,7 @@ model Opportunity {
   companyId          String?
   serviceId          String?
   status             OpportunityStatus @default(EXPLORATION)
+  closurePhase       OpportunityClosurePhase?
   certainty          Certainty?
   probability        Decimal           @default(0) @db.Decimal(5, 4)
   probabilityBeforeClose Decimal?      @db.Decimal(5, 4)
@@ -763,6 +769,7 @@ model Opportunity {
   commercialDocuments CommercialDocument[]
 
   @@index([status])
+  @@index([closurePhase])
   @@index([companyId])
   @@index([primaryContactId])
   @@index([serviceId])

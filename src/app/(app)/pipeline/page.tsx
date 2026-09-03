@@ -7,6 +7,7 @@ import { MultiSelectFilter } from "@/components/crm/multi-select-filter";
 import { PipelineBoard } from "@/components/pipeline/pipeline-board";
 import { Button } from "@/components/ui/button";
 import { followUpHealthLabels } from "@/lib/labels";
+import { HIDE_FINALIZED } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { FollowUpHealth, getFollowUpHealth } from "@/server/services/dashboard-metrics";
 
@@ -19,6 +20,7 @@ export default async function PipelinePage({
     responsibleId?: string;
     serviceId?: string;
     followUp?: string | string[];
+    showFinalized?: string;
   }>;
 }) {
   const session = await auth();
@@ -30,6 +32,7 @@ export default async function PipelinePage({
     ? params?.responsibleId || undefined
     : session?.user.id;
   const serviceId = params?.serviceId || undefined;
+  const showFinalized = params?.showFinalized === "1";
   const followUpValues = (
     params?.followUp
       ? Array.isArray(params.followUp)
@@ -49,6 +52,7 @@ export default async function PipelinePage({
         deletedAt: null,
         ...(responsibleId ? { responsibleId } : {}),
         ...(serviceId ? { serviceId } : {}),
+        ...(showFinalized ? {} : HIDE_FINALIZED),
       },
       include: { company: true, responsible: true, service: true },
       orderBy: [{ estimatedCloseDate: "asc" }, { updatedAt: "desc" }],
@@ -144,9 +148,10 @@ export default async function PipelinePage({
           <Filter className="h-4 w-4" aria-hidden="true" />
           Filtrar
         </Button>
-        <p className="self-center text-right text-xs text-slate-500">
-          {boardOpportunities.length} oportunidades visibles
-        </p>
+        <label className="flex items-center justify-end gap-2 self-center text-xs text-slate-600">
+          <input defaultChecked={showFinalized} name="showFinalized" type="checkbox" value="1" />
+          Ver finalizadas · {boardOpportunities.length} visibles
+        </label>
       </form>
 
       <PipelineBoard

@@ -12,14 +12,16 @@ import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@/lib
 import {
   aiInsightTypeLabels,
   interactionTypeLabels,
+  opportunityClosurePhaseLabels,
   opportunityStatusLabels,
   commercialDocumentStatusLabels,
   commercialDocumentTypeLabels,
   currencyLabels,
   taskStatusLabels,
 } from "@/lib/labels";
+import { isClosedStatus } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
-import { deleteOpportunity } from "@/server/actions/crm";
+import { deleteOpportunity, setOpportunityClosurePhase } from "@/server/actions/crm";
 import { createCommercialDocument, deleteCommercialDocument, updateCommercialDocument, uploadAndAnalyzeCommercialDocument } from "@/server/actions/commercial-documents";
 import { analyzeOpportunity } from "@/server/actions/intelligence";
 
@@ -88,6 +90,17 @@ export default async function OpportunityDetailPage({
             <p className="text-sm font-medium text-slate-500">Oportunidad</p>
             <h1 className="mt-1 text-2xl font-semibold">{opportunity.name}</h1>
             <p className="mt-2 text-sm text-slate-600">{opportunity.company?.name ?? "Sin empresa"} · {opportunity.service?.name ?? "Sin servicio"} · {opportunityStatusLabels[opportunity.status]}</p>
+            {opportunity.closurePhase ? (
+              <span
+                className={`mt-2 inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${
+                  opportunity.closurePhase === "FINALIZADA"
+                    ? "bg-slate-100 text-slate-600"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {opportunityClosurePhaseLabels[opportunity.closurePhase]}
+              </span>
+            ) : null}
           </div>
           <div className="flex gap-2">
             <CompletenessIndicator score={opportunity.completeness} showLabel />
@@ -96,6 +109,22 @@ export default async function OpportunityDetailPage({
                 <Button asChild variant="outline"><Link href={`/interactions/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId ?? ""}&contactId=${opportunity.primaryContactId ?? ""}`}>Interaccion</Link></Button>
                 <Button asChild variant="outline"><Link href={`/tasks/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId ?? ""}&contactId=${opportunity.primaryContactId ?? ""}`}>Tarea</Link></Button>
               </>
+            ) : null}
+            {canEdit && isClosedStatus(opportunity.status) ? (
+              <form
+                action={setOpportunityClosurePhase.bind(null, opportunity.id)}
+              >
+                <input
+                  name="closurePhase"
+                  type="hidden"
+                  value={opportunity.closurePhase === "FINALIZADA" ? "VIGENTE" : "FINALIZADA"}
+                />
+                <SubmitButton pendingLabel="Guardando" variant="outline">
+                  {opportunity.closurePhase === "FINALIZADA"
+                    ? "Reabrir como vigente"
+                    : "Marcar como finalizada"}
+                </SubmitButton>
+              </form>
             ) : null}
             {canEdit ? (
               <Button asChild variant="outline"><Link href={`/opportunities/${opportunity.id}/edit`}>Editar</Link></Button>

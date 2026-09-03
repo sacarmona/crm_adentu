@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       where: { deletedAt: null },
       select: {
         status: true,
+        closurePhase: true,
         totalAmount: true,
         weightedAmount: true,
         lastInteraction: true,
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     now,
     opportunities: opportunities.map((opportunity) => ({
       status: opportunity.status,
+      closurePhase: opportunity.closurePhase,
       totalAmount: Number(opportunity.totalAmount),
       weightedAmount: Number(opportunity.weightedAmount),
       lastInteraction: opportunity.lastInteraction,

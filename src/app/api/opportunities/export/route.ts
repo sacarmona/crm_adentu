@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { followUpHealthLabels, opportunityStatusLabels } from "@/lib/labels";
+import { HIDE_FINALIZED } from "@/lib/opportunity-lifecycle";
 import { prisma } from "@/lib/prisma";
 import {
   FOLLOW_UP_NORMAL_DAYS,
@@ -78,6 +79,7 @@ function buildWhere(searchParams: URLSearchParams) {
     );
   const responsibleId = searchParams.get("responsibleId");
   const hideClosed = searchParams.get("hideClosed") === "1";
+  const showFinalized = searchParams.get("showFinalized") === "1";
   const conditions: Prisma.OpportunityWhereInput[] = [{ deletedAt: null }];
 
   if (q) {
@@ -95,10 +97,11 @@ function buildWhere(searchParams: URLSearchParams) {
   if (responsibleId === "none") conditions.push({ responsibleId: null });
   else if (responsibleId) conditions.push({ responsibleId });
   if (hideClosed) conditions.push({ status: { notIn: closedStatuses } });
+  if (!showFinalized) conditions.push(HIDE_FINALIZED);
 
   return {
     where: { AND: conditions } satisfies Prisma.OpportunityWhereInput,
-    filters: { q, statusValues, followUpValues, responsibleId, hideClosed },
+    filters: { q, statusValues, followUpValues, responsibleId, hideClosed, showFinalized },
   };
 }
 
