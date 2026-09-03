@@ -347,6 +347,7 @@ export default async function OpportunitiesPage({
             followUp: followUpValues,
             responsibleId,
             hideClosed: hideClosed ? "1" : undefined,
+            showFinalized: showFinalized ? "1" : undefined,
             sort,
             dir: sort ? dir : undefined,
           }}
