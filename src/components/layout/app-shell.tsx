@@ -21,7 +21,7 @@ export function AppShell({
   return (
     <div className="min-h-screen text-slate-900" style={{ background: "var(--background)" }}>
       <aside
-        className="fixed inset-y-0 left-0 hidden w-72 flex-col lg:flex"
+        className="fixed inset-y-0 left-0 hidden w-60 flex-col lg:flex"
         style={{ background: "var(--sidebar-bg)" }}
       >
         {/* Logo */}
@@ -69,7 +69,7 @@ export function AppShell({
         <SidebarNav pendingCounts={pendingCounts} role={user?.role} />
       </aside>
 
-      <div className="lg:pl-72">
+      <div className="lg:pl-60">
         {/* Topbar */}
         <header
           className="sticky top-0 z-10 flex h-16 items-center justify-between px-5"

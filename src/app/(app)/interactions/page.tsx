@@ -117,19 +117,19 @@ export default async function InteractionsPage({
         </button>
       </form>
       <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[1100px] table-fixed text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              {showActionsColumn ? <th className="px-3 py-2">Acciones</th> : null}
-              <th className="px-3 py-2">Fecha</th>
-              <th className="px-4 py-2">Tipo</th>
+              {showActionsColumn ? <th className="w-24 px-3 py-2">Acciones</th> : null}
+              <th className="w-28 px-3 py-2">Fecha</th>
+              <th className="w-28 px-4 py-2">Tipo</th>
               <th className="px-4 py-2">Empresa</th>
               <th className="px-4 py-2">Contacto</th>
               <th className="px-4 py-2">Oportunidad</th>
-              <th className="px-4 py-2">Servicio</th>
-              <th className="px-4 py-2">Ejecuto</th>
+              <th className="w-28 px-4 py-2">Servicio</th>
+              <th className="w-28 px-4 py-2">Ejecuto</th>
               <th className="px-4 py-2">Contenido</th>
-              <th className="px-4 py-2">Proxima accion</th>
+              <th className="w-40 px-4 py-2">Proxima accion</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -168,14 +168,15 @@ export default async function InteractionsPage({
                     <div>{formatTime(interaction.date)}</div>
                   </div>
                 </td>
-                <td className="px-4 py-2 whitespace-nowrap font-medium">
+                <td className="px-4 py-2 truncate font-medium">
                   {interactionTypeLabels[interaction.type]}
                 </td>
-                <td className="px-4 py-2 whitespace-nowrap">
+                <td className="px-4 py-2 truncate">
                   {interaction.company ? (
                     <Link
                       className="hover:underline"
                       href={`/companies/${interaction.company.id}`}
+                      title={interaction.company.name}
                     >
                       {interaction.company.name}
                     </Link>
@@ -183,11 +184,12 @@ export default async function InteractionsPage({
                     "-"
                   )}
                 </td>
-                <td className="px-4 py-2 whitespace-nowrap">
+                <td className="px-4 py-2 truncate">
                   {interaction.contact ? (
                     <Link
                       className="hover:underline"
                       href={`/contacts/${interaction.contact.id}`}
+                      title={interaction.contact.name}
                     >
                       {interaction.contact.name}
                     </Link>
@@ -195,11 +197,12 @@ export default async function InteractionsPage({
                     "-"
                   )}
                 </td>
-                <td className="px-4 py-2 whitespace-nowrap">
+                <td className="px-4 py-2 truncate">
                   {interaction.opportunity ? (
                     <Link
                       className="hover:underline"
                       href={`/opportunities/${interaction.opportunity.id}`}
+                      title={interaction.opportunity.name}
                     >
                       {interaction.opportunity.name}
                     </Link>
@@ -207,24 +210,23 @@ export default async function InteractionsPage({
                     "-"
                   )}
                 </td>
-                <td className="px-4 py-2 whitespace-nowrap text-xs text-slate-500">
+                <td className="px-4 py-2 truncate text-xs text-slate-500">
                   {interaction.service?.name ?? "-"}
                 </td>
-                <td className="px-4 py-2 whitespace-nowrap text-xs text-slate-500">
+                <td className="px-4 py-2 truncate text-xs text-slate-500">
                   {interaction.executedBy?.name ?? "-"}
                 </td>
                 <td className="px-4 py-2">
-                  <p className="max-w-xs truncate text-slate-700" title={interaction.content}>
+                  <p className="truncate text-slate-700" title={interaction.content}>
                     {interaction.content}
                   </p>
                 </td>
-                <td className="px-4 py-2 whitespace-nowrap text-xs">
+                <td className="px-4 py-2 text-xs">
                   {interaction.nextAction ? (
                     <>
-                      <span className="font-medium text-slate-700">
+                      <span className="line-clamp-2 font-medium text-slate-700">
                         {interaction.nextAction}
                       </span>
-                      <br />
                       <span className="text-slate-500">
                         {formatDateTime(interaction.nextActionDate)}
                       </span>
