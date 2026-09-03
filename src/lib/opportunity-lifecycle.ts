@@ -20,7 +20,14 @@ export function nextClosurePhase(
   return current ?? OpportunityClosurePhase.VIGENTE;
 }
 
-/** Filtro Prisma: excluye oportunidades finalizadas (deja abiertas y cerradas-vigentes). */
+/**
+ * Filtro Prisma: excluye oportunidades finalizadas (deja abiertas y cerradas-vigentes).
+ * Se usa un OR explícito porque en SQL `closurePhase <> 'FINALIZADA'` NO incluye las
+ * filas con NULL (oportunidades abiertas), que sí deben verse.
+ */
 export const HIDE_FINALIZED: Prisma.OpportunityWhereInput = {
-  NOT: { closurePhase: OpportunityClosurePhase.FINALIZADA },
+  OR: [
+    { closurePhase: null },
+    { closurePhase: { not: OpportunityClosurePhase.FINALIZADA } },
+  ],
 };
