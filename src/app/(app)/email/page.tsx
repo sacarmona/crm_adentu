@@ -360,16 +360,16 @@ export default async function EmailPage({
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-[1000px] table-fixed text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Direccion</th>
-                <th className="px-4 py-3">Remitente</th>
+                <th className="w-36 px-4 py-3">Fecha</th>
+                <th className="w-24 px-4 py-3">Direccion</th>
+                <th className="w-52 px-4 py-3">Remitente</th>
                 <th className="px-4 py-3">Asunto</th>
-                <th className="px-4 py-3">Buzon</th>
+                <th className="w-44 px-4 py-3">Buzon</th>
                 <th className="px-4 py-3">Clasificacion</th>
-                {canEdit ? <th className="px-4 py-3">Acciones</th> : null}
+                {canEdit ? <th className="w-40 px-4 py-3">Acciones</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -392,27 +392,27 @@ export default async function EmailPage({
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-medium">
+                    <p className="truncate font-medium">
                       {message.fromName ?? message.fromAddress}
                     </p>
                     {message.fromName ? (
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 truncate text-xs text-slate-500">
                         {message.fromAddress}
                       </p>
                     ) : null}
                   </td>
-                  <td className="max-w-md px-4 py-3">
-                    <p className="font-medium">{message.subject ?? "Sin asunto"}</p>
+                  <td className="px-4 py-3">
+                    <p className="truncate font-medium">{message.subject ?? "Sin asunto"}</p>
                     {message.snippet ? (
                       <p className="mt-1 line-clamp-2 text-xs text-slate-500">
                         {message.snippet}
                       </p>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">
+                  <td className="truncate px-4 py-3 text-xs text-slate-500">
                     {message.connection.emailAddress}
                   </td>
-                  <td className="max-w-sm px-4 py-3">
+                  <td className="px-4 py-3">
                     {message.classification ? (
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
