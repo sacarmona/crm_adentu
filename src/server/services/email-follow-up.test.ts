@@ -17,6 +17,7 @@ describe("email follow-up helpers", () => {
     });
 
     expect(followUp.title).toBe("Follow up correo enviado: Inspeccion minera");
-    expect(followUp.dueDate.toISOString()).toBe("2026-07-16T10:00:00.000Z");
+    // 5 dias habiles desde el martes 14-jul: 15,16,17,20 y 21 (salta el fin de semana)
+    expect(followUp.dueDate.toISOString()).toBe("2026-07-21T10:00:00.000Z");
   });
 });

@@ -1,4 +1,4 @@
-const OUTBOUND_FOLLOW_UP_BUSINESS_DAYS = 2;
+const OUTBOUND_FOLLOW_UP_BUSINESS_DAYS = 5;
 
 function isWeekend(date: Date) {
   const day = date.getUTCDay();
