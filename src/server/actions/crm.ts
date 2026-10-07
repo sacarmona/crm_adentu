@@ -273,6 +273,38 @@ export async function setOpportunityClosurePhase(id: string, formData: FormData)
   revalidatePath("/pipeline");
 }
 
+export async function updateOpportunityCloseDate(id: string, formData: FormData) {
+  const user = await requireWriter("No tienes permisos para modificar el pipeline.");
+  const raw = ((formData.get("closeDate") as string | null) ?? "").trim() || null;
+  const estimatedCloseDate = nullableDate(raw);
+  // Valor no vacio pero invalido: ignorar en lugar de romper. Vacio = "Sin fecha".
+  if (raw && (!estimatedCloseDate || Number.isNaN(estimatedCloseDate.getTime()))) return;
+
+  const before = await prisma.opportunity.findFirst({
+    where: { id, deletedAt: null },
+    select: { estimatedCloseDate: true },
+  });
+  if (!before) return;
+
+  await prisma.$transaction([
+    prisma.opportunity.update({ where: { id }, data: { estimatedCloseDate } }),
+    prisma.auditLog.create({
+      data: {
+        action: AuditAction.UPDATE,
+        entityType: "Opportunity",
+        entityId: id,
+        actorId: user.id,
+        before: { estimatedCloseDate: before.estimatedCloseDate },
+        after: { estimatedCloseDate },
+      },
+    }),
+  ]);
+
+  revalidatePath("/pipeline");
+  revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${id}`);
+}
+
 export async function updateOpportunityResponsible(id: string, formData: FormData) {
   const user = await requireWriter(
     "No tienes permisos para modificar el responsable de la oportunidad.",

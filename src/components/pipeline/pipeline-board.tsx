@@ -24,7 +24,7 @@ import { createQuickTask } from "@/server/actions/activity";
 
 import { followUpHealthLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
-import { changeOpportunityStage } from "@/server/actions/crm";
+import { changeOpportunityStage, updateOpportunityCloseDate } from "@/server/actions/crm";
 import type { FollowUpHealth } from "@/server/services/dashboard-metrics";
 import {
   pipelineStageLabels,
@@ -82,6 +82,47 @@ const dateFormatter = new Intl.DateTimeFormat("es-CL", {
   month: "short",
   timeZone: "Etc/GMT+4",
 });
+
+function CloseDateEditor({
+  opportunityId,
+  value,
+}: {
+  opportunityId: string;
+  value: string | null;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const initial = value ? value.slice(0, 10) : "";
+  const [date, setDate] = useState(initial);
+  const [tracked, setTracked] = useState(initial);
+
+  if (initial !== tracked) {
+    setTracked(initial);
+    setDate(initial);
+  }
+
+  function save() {
+    if (date === tracked) return;
+    const fd = new FormData();
+    fd.set("closeDate", date);
+    setTracked(date);
+    startTransition(() => updateOpportunityCloseDate(opportunityId, fd));
+  }
+
+  return (
+    <input
+      aria-label="Fecha de cierre estimada"
+      className="h-6 w-[120px] rounded-md border border-slate-200 px-1 text-xs text-slate-600 disabled:opacity-60"
+      disabled={isPending}
+      onBlur={save}
+      onChange={(event) => setDate(event.currentTarget.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+      }}
+      type="date"
+      value={date}
+    />
+  );
+}
 
 function QuickTaskDialog({
   opportunity,
@@ -252,12 +293,19 @@ function PipelineCard({
           </span>
         </span>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-            {opportunity.estimatedCloseDate
-              ? dateFormatter.format(new Date(opportunity.estimatedCloseDate))
-              : "Sin fecha"}
-          </span>
+          {canEdit && !overlay ? (
+            <CloseDateEditor
+              opportunityId={opportunity.id}
+              value={opportunity.estimatedCloseDate}
+            />
+          ) : (
+            <span className="flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+              {opportunity.estimatedCloseDate
+                ? dateFormatter.format(new Date(opportunity.estimatedCloseDate))
+                : "Sin fecha"}
+            </span>
+          )}
           {canEdit && !overlay ? (
             <button
               type="button"
