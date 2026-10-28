@@ -310,7 +310,12 @@ export default async function OpportunitiesPage({
                     )}
                   </td>
                   <td className="px-4 py-3">{formatPercent(opportunity.probability.toString())}</td>
-                  <td className="px-4 py-3">{formatCurrency(opportunity.totalAmount.toString())}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{formatCurrency(opportunity.totalAmount.toString())}</div>
+                    <div className="text-xs text-slate-500">
+                      {formatCurrency(opportunity.monthlyAmount.toString())}/mes × {opportunity.months}
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-md px-2 py-1 text-xs font-semibold ${
