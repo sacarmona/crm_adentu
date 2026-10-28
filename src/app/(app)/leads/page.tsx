@@ -2,8 +2,8 @@ import { LeadStatus, Prisma, UserRole } from "@prisma/client";
 import Link from "next/link";
 
 import { auth } from "@/auth";
-import { EntityHeader } from "@/components/crm/entity-header";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
+import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import { contactMediumLabels, leadStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
@@ -59,12 +59,26 @@ export default async function LeadsPage({
 
   return (
     <div className="space-y-5">
-      <EntityHeader
-        actionHref={canEdit ? "/leads/new" : undefined}
-        actionLabel={canEdit ? "Nuevo lead" : undefined}
-        description="Registro de leads previo a convertirlos en oportunidades. Mantiene el historial de contactos."
-        title="Leads"
-      />
+      <section className="rounded-md border border-slate-200 bg-white p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">Leads</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Registro de leads previo a convertirlos en oportunidades. Mantiene el historial de contactos.
+            </p>
+          </div>
+          {canEdit ? (
+            <div className="flex gap-2">
+              <Button asChild variant="outline">
+                <Link href="/leads/import">Importar</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/leads/new">Nuevo lead</Link>
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[1fr_180px_180px_auto]">
         <input

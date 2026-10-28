@@ -8,6 +8,14 @@ import { normalizeName, nullableDate } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import { leadContactLogSchema, leadSchema } from "@/schemas/crm";
 import { requireAdmin, requireWriter } from "@/server/authz";
+import {
+  type LeadImportPreview,
+  type LeadImportRow,
+  MAX_LEAD_IMPORT_BYTES,
+  MAX_LEAD_IMPORT_ROWS,
+  parseLeadsCsv,
+  parseLeadsXlsx,
+} from "@/server/services/lead-import";
 
 function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
@@ -204,6 +212,89 @@ export async function convertLeadToOpportunity(leadId: string) {
   revalidatePath("/leads");
   revalidatePath("/opportunities");
   redirect(`/opportunities/${opportunity.id}`);
+}
+
+export async function parseLeadImport(formData: FormData): Promise<LeadImportPreview> {
+  await requireWriter("No tienes permisos para importar leads.");
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { rows: [], total: 0, validCount: 0, errorCount: 0, error: "Selecciona un archivo." };
+  }
+  if (file.size > MAX_LEAD_IMPORT_BYTES) {
+    return { rows: [], total: 0, validCount: 0, errorCount: 0, error: "El archivo supera los 5 MB." };
+  }
+
+  const name = file.name.toLowerCase();
+  try {
+    let rows: LeadImportRow[];
+    if (name.endsWith(".csv")) {
+      rows = parseLeadsCsv(await file.text());
+    } else if (name.endsWith(".xlsx")) {
+      rows = await parseLeadsXlsx(Buffer.from(await file.arrayBuffer()));
+    } else {
+      return {
+        rows: [],
+        total: 0,
+        validCount: 0,
+        errorCount: 0,
+        error: "Formato no soportado. Usa .csv o .xlsx.",
+      };
+    }
+
+    const validCount = rows.filter((row) => row.valid).length;
+    return {
+      rows,
+      total: rows.length,
+      validCount,
+      errorCount: rows.length - validCount,
+    };
+  } catch {
+    return {
+      rows: [],
+      total: 0,
+      validCount: 0,
+      errorCount: 0,
+      error: "No se pudo leer el archivo. Verifica el formato.",
+    };
+  }
+}
+
+export async function commitLeadImport(
+  rows: LeadImportRow[],
+): Promise<{ created: number }> {
+  const user = await requireWriter("No tienes permisos para importar leads.");
+  const valid = rows.filter((row) => row.valid && row.contactName).slice(0, MAX_LEAD_IMPORT_ROWS);
+  if (valid.length === 0) return { created: 0 };
+
+  await prisma.$transaction(
+    valid.map((row) => {
+      const contactedAt = nullableDate(row.lastContactAt) ?? new Date();
+      return prisma.lead.create({
+        data: {
+          contactName: row.contactName,
+          companyName: row.companyName,
+          email: row.email,
+          phone: row.phone,
+          medium: row.medium,
+          status: LeadStatus.NUEVO,
+          lastContactAt: contactedAt,
+          notes: row.notes,
+          createdById: user.id,
+          contactLogs: {
+            create: {
+              medium: row.medium,
+              contactedAt,
+              notes: row.notes,
+              createdById: user.id,
+            },
+          },
+        },
+      });
+    }),
+  );
+
+  revalidatePath("/leads");
+  return { created: valid.length };
 }
 
 export async function deleteLead(id: string) {
