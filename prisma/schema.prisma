@@ -91,6 +91,7 @@ enum ContactMedium {
 
 enum LeadStatus {
   NUEVO
+  SIN_RESPUESTA
   CONTACTADO
   CALIFICADO
   CONVERTIDO

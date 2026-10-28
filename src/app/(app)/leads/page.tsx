@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 const statusStyles: Record<LeadStatus, string> = {
   NUEVO: "bg-sky-50 text-sky-700",
+  SIN_RESPUESTA: "bg-orange-50 text-orange-700",
   CONTACTADO: "bg-amber-50 text-amber-700",
   CALIFICADO: "bg-violet-50 text-violet-700",
   CONVERTIDO: "bg-emerald-50 text-emerald-700",

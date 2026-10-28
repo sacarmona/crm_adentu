@@ -73,6 +73,7 @@ export const contactMediumLabels: Record<ContactMedium, string> = {
 
 export const leadStatusLabels: Record<LeadStatus, string> = {
   NUEVO: "Nuevo",
+  SIN_RESPUESTA: "Sin respuesta",
   CONTACTADO: "Contactado",
   CALIFICADO: "Calificado",
   CONVERTIDO: "Convertido",
