@@ -24,7 +24,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
-export type PendingCountKey = "email" | "whatsapp" | "webLeads" | "tasks" | "intelligence";
+export type PendingCountKey = "email" | "whatsapp" | "webLeads" | "leads" | "tasks" | "intelligence";
 
 type NavItem = {
   label: string;
@@ -48,7 +48,7 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Comercial",
     items: [
-      { label: "Leads", href: "/leads", icon: UserPlus },
+      { label: "Leads", href: "/leads", icon: UserPlus, countKey: "leads" },
       { label: "Empresas", href: "/companies", icon: Building2 },
       { label: "Contactos", href: "/contacts", icon: Contact },
       { label: "Oportunidades", href: "/opportunities", icon: Handshake },

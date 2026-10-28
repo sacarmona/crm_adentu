@@ -1,4 +1,4 @@
-import { InteractionType, TaskStatus } from "@prisma/client";
+import { ContactMedium, InteractionType, LeadStatus, TaskStatus } from "@prisma/client";
 import {
   AlertTriangle,
   ArrowRight,
@@ -29,7 +29,7 @@ import {
 } from "@/components/dashboard/dashboard-charts";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { interactionTypeLabels } from "@/lib/labels";
+import { contactMediumLabels, interactionTypeLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   calculateDashboardMetrics,
@@ -146,7 +146,15 @@ export default async function DashboardPage({
 
   const interactionSince = periodStart(period, now);
 
-  const [opportunities, tasks, recentInteractions, users, periodInteractions] = await Promise.all([
+  const [
+    opportunities,
+    tasks,
+    recentInteractions,
+    users,
+    periodInteractions,
+    leadsByMedium,
+    leadsConverted,
+  ] = await Promise.all([
     prisma.opportunity.findMany({
       where: {
         deletedAt: null,
@@ -200,6 +208,23 @@ export default async function DashboardPage({
         },
       },
     }),
+    prisma.lead.groupBy({
+      by: ["medium"],
+      where: {
+        deletedAt: null,
+        createdAt: { gte: interactionSince },
+        ...(responsibleId ? { responsibleId } : {}),
+      },
+      _count: { medium: true },
+    }),
+    prisma.lead.count({
+      where: {
+        deletedAt: null,
+        status: LeadStatus.CONVERTIDO,
+        convertedAt: { gte: interactionSince },
+        ...(responsibleId ? { responsibleId } : {}),
+      },
+    }),
   ]);
 
   const metrics = calculateDashboardMetrics({
@@ -249,6 +274,11 @@ export default async function DashboardPage({
     interactionSince,
     "existing",
   );
+
+  const leadsNewTotal = leadsByMedium.reduce((sum, row) => sum + row._count.medium, 0);
+  const leadsMediumBreakdown = [...leadsByMedium]
+    .sort((a, b) => b._count.medium - a._count.medium)
+    .map((row) => ({ medium: row.medium, count: row._count.medium }));
 
   const overdueTasks = tasks
     .filter(
@@ -378,6 +408,47 @@ export default async function DashboardPage({
             rows={channelsExisting}
             accent="blue"
           />
+        </div>
+      </section>
+
+      <section className="rounded-md border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-teal-700" aria-hidden="true" />
+            <h2 className="font-semibold">Leads nuevos</h2>
+          </div>
+          <Link className="text-xs font-medium hover:underline" href="/leads">
+            Ver leads
+          </Link>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-[180px_1fr]">
+          <div className="flex flex-col justify-center rounded-md border border-slate-100 bg-slate-50/60 p-4">
+            <p className="text-3xl font-bold tabular-nums text-teal-700">{leadsNewTotal}</p>
+            <p className="mt-1 text-xs text-slate-500">Leads creados en el período</p>
+            <p className="mt-2 text-sm text-slate-600">
+              {leadsConverted} convertido{leadsConverted !== 1 ? "s" : ""} a oportunidad
+            </p>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Por medio de contacto</p>
+            {leadsNewTotal === 0 ? (
+              <p className="text-sm text-slate-400">Sin leads nuevos en el período.</p>
+            ) : (
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {leadsMediumBreakdown.map((row) => (
+                  <li
+                    key={row.medium}
+                    className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    <span className="text-slate-600">
+                      {contactMediumLabels[row.medium as ContactMedium]}
+                    </span>
+                    <span className="font-semibold tabular-nums">{row.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </section>
 
