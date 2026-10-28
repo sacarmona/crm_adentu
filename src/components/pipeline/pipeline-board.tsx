@@ -41,6 +41,8 @@ export type PipelineOpportunity = {
   serviceName: string | null;
   responsibleName: string | null;
   probability: number;
+  monthlyAmount: number;
+  months: number;
   totalAmount: number;
   weightedAmount: number;
   followUp: { level: FollowUpHealth; days: number };
@@ -279,7 +281,10 @@ function PipelineCard({
       </div>
       <div className="mt-1.5 flex items-baseline justify-between gap-2">
         <p className="text-sm font-semibold">
-          {currencyFormatter.format(opportunity.totalAmount)}
+          {currencyFormatter.format(opportunity.monthlyAmount)}
+          <span className="ml-1 text-xs font-normal text-slate-500">
+            /mes · {opportunity.months} {opportunity.months === 1 ? "mes" : "meses"}
+          </span>
         </p>
         <span className="shrink-0 text-xs text-slate-500">
           {Math.round(opportunity.probability * 100)}%

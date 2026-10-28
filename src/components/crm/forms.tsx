@@ -4,7 +4,6 @@ import {
   CompanyStatus,
   Contact,
   ContactStatus,
-  Currency,
   LeadSource,
   Opportunity,
   OpportunityStatus,
@@ -14,12 +13,12 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
+import { OpportunityAmountFields } from "@/components/crm/opportunity-amount-fields";
 import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import {
   certaintyLabels,
   companyStatusLabels,
   contactStatusLabels,
-  currencyLabels,
   leadSourceLabels,
   opportunityStatusLabels,
 } from "@/lib/labels";
@@ -187,15 +186,13 @@ export function OpportunityForm({
       <SelectField defaultValue={opportunity?.serviceId} label="Servicio" name="serviceId" options={serviceOptions(services)} />
       <SelectField defaultValue={opportunity?.certainty} label="Certeza" name="certainty" options={enumOptions(Certainty, certaintyLabels)} />
       <TextField defaultValue={opportunity?.probability?.toString() ?? "0"} label="Probabilidad (0 a 1)" name="probability" type="number" />
-      <SelectField defaultValue={opportunity?.currency} label="Moneda" name="currency" options={enumOptions(Currency, currencyLabels)} required />
-      <TextField defaultValue={opportunity?.price?.toString() ?? ""} label="Monto mensual" name="price" required type="number" />
-      <TextField defaultValue={opportunity?.months ?? ""} label="Meses (periodo)" name="months" required type="number" />
-      <TextField defaultValue={opportunity?.exchangeRate?.toString() ?? "1"} label="Tipo de cambio" name="exchangeRate" type="number" />
-      <input name="quantity" type="hidden" defaultValue={opportunity?.quantity?.toString() ?? "1"} />
-      <p className="text-xs text-slate-500 md:col-span-2">
-        El <strong>monto total</strong> se calcula automáticamente como Monto mensual × Meses
-        {opportunity?.currency && opportunity.currency !== "CLP" ? " (convertido por el tipo de cambio)" : ""}.
-      </p>
+      <OpportunityAmountFields
+        defaultCurrency={opportunity?.currency}
+        defaultExchangeRate={opportunity?.exchangeRate?.toString() ?? "1"}
+        defaultMonths={opportunity?.months ?? null}
+        defaultPrice={opportunity?.price?.toString() ?? ""}
+        defaultQuantity={opportunity?.quantity?.toString() ?? "1"}
+      />
       <TextField defaultValue={opportunity?.businessUnit} label="Unidad" name="businessUnit" />
       <SelectField defaultValue={opportunity?.responsibleId} label="Responsable" name="responsibleId" options={userOptions(users)} />
       <TextField defaultValue={dateValue(opportunity?.estimatedCloseDate)} label="Cierre estimado" name="estimatedCloseDate" type="date" />

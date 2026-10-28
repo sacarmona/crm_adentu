@@ -81,6 +81,8 @@ export default async function PipelinePage({
       serviceName: opportunity.service?.name ?? null,
       responsibleName: opportunity.responsible?.name ?? null,
       probability: Number(opportunity.probability),
+      monthlyAmount: Number(opportunity.monthlyAmount),
+      months: opportunity.months,
       totalAmount: Number(opportunity.totalAmount),
       weightedAmount: Number(opportunity.weightedAmount),
       followUp: getFollowUpHealth(opportunity),
