@@ -23,10 +23,19 @@ export default async function LeadImportPage() {
       </Button>
 
       <section className="rounded-md border border-slate-200 bg-white p-5">
-        <h1 className="text-2xl font-semibold">Importar leads</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Sube una planilla CSV o Excel. Revisa la vista previa y confirma para incorporar los leads.
-        </p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">Importar leads</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Sube una planilla CSV o Excel. Revisa la vista previa y confirma para incorporar los leads.
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <a href="/api/leads/template" download>
+              Descargar plantilla
+            </a>
+          </Button>
+        </div>
       </section>
 
       <LeadImporter />
