@@ -18,6 +18,7 @@ import {
   Settings,
   Share2,
   Target,
+  UserPlus,
   Video,
 } from "lucide-react";
 import Link from "next/link";
@@ -47,6 +48,7 @@ const navigationGroups: NavGroup[] = [
   {
     label: "Comercial",
     items: [
+      { label: "Leads", href: "/leads", icon: UserPlus },
       { label: "Empresas", href: "/companies", icon: Building2 },
       { label: "Contactos", href: "/contacts", icon: Contact },
       { label: "Oportunidades", href: "/opportunities", icon: Handshake },

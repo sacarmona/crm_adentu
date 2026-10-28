@@ -16,6 +16,8 @@ import {
   ImportRowStatus,
   InteractionType,
   LeadSource,
+  ContactMedium,
+  LeadStatus,
   OpportunityClosurePhase,
   OpportunityStatus,
   TaskStatus,
@@ -58,6 +60,23 @@ export const opportunityStatusLabels: Record<OpportunityStatus, string> = {
 export const opportunityClosurePhaseLabels: Record<OpportunityClosurePhase, string> = {
   VIGENTE: "Vigente",
   FINALIZADA: "Finalizada",
+};
+
+export const contactMediumLabels: Record<ContactMedium, string> = {
+  TELEFONO: "Telefono",
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+  LINKEDIN: "LinkedIn",
+  PRESENCIAL: "Presencial",
+  OTRO: "Otro",
+};
+
+export const leadStatusLabels: Record<LeadStatus, string> = {
+  NUEVO: "Nuevo",
+  CONTACTADO: "Contactado",
+  CALIFICADO: "Calificado",
+  CONVERTIDO: "Convertido",
+  DESCARTADO: "Descartado",
 };
 
 export const leadSourceLabels: Record<LeadSource, string> = {

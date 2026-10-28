@@ -80,6 +80,23 @@ enum OpportunityClosurePhase {
   FINALIZADA
 }
 
+enum ContactMedium {
+  TELEFONO
+  WHATSAPP
+  EMAIL
+  LINKEDIN
+  PRESENCIAL
+  OTRO
+}
+
+enum LeadStatus {
+  NUEVO
+  CONTACTADO
+  CALIFICADO
+  CONVERTIDO
+  DESCARTADO
+}
+
 enum Certainty {
   HIGH
   MEDIUM
@@ -777,6 +794,46 @@ model Opportunity {
   @@index([estimatedCloseDate])
   @@index([nextActionDate])
   @@index([lastInteraction])
+}
+
+model Lead {
+  id                     String        @id @default(uuid())
+  contactName            String
+  companyName            String?
+  email                  String?
+  phone                  String?
+  medium                 ContactMedium @default(TELEFONO)
+  status                 LeadStatus    @default(NUEVO)
+  notes                  String?
+  lastContactAt          DateTime?
+  responsibleId          String?
+  createdById            String?
+  convertedOpportunityId String?
+  convertedAt            DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  deletedAt              DateTime?
+
+  contactLogs LeadContactLog[]
+
+  @@index([status])
+  @@index([responsibleId])
+  @@index([deletedAt])
+  @@index([lastContactAt])
+}
+
+model LeadContactLog {
+  id          String        @id @default(uuid())
+  leadId      String
+  medium      ContactMedium
+  contactedAt DateTime      @default(now())
+  notes       String?
+  createdById String?
+  createdAt   DateTime      @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
 }
 
 model Interaction {

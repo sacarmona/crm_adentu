@@ -1,10 +1,12 @@
 import {
   Certainty,
   CompanyStatus,
+  ContactMedium,
   ContactStatus,
   Currency,
   InteractionType,
   LeadSource,
+  LeadStatus,
   OpportunityStatus,
   PlaybookItemType,
   TaskStatus,
@@ -145,6 +147,24 @@ export const linkedInCaptureSchema = z
     (data) => data.companyId || data.contactId || data.opportunityId,
     "La captura debe asociarse a una empresa, contacto u oportunidad.",
   );
+
+export const leadSchema = z.object({
+  contactName: z.string().trim().min(2, "El nombre de contacto es obligatorio."),
+  companyName: optionalText,
+  email: optionalEmail,
+  phone: optionalText,
+  medium: z.nativeEnum(ContactMedium),
+  status: z.nativeEnum(LeadStatus),
+  lastContactAt: optionalText,
+  responsibleId: optionalText,
+  notes: optionalText,
+});
+
+export const leadContactLogSchema = z.object({
+  medium: z.nativeEnum(ContactMedium),
+  contactedAt: optionalText,
+  notes: optionalText,
+});
 
 export const taskSchema = z.object({
   title: z.string().trim().min(3, "El titulo es obligatorio."),
