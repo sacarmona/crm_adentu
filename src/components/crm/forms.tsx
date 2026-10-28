@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
 import { OpportunityAmountFields } from "@/components/crm/opportunity-amount-fields";
+import { OpportunityRelationsFields } from "@/components/crm/opportunity-relations-fields";
 import { SearchableSelectField } from "@/components/crm/searchable-select-field";
 import {
   certaintyLabels,
@@ -25,7 +26,7 @@ import {
 
 type UserOption = Pick<User, "id" | "name">;
 type CompanyOption = Pick<Company, "id" | "name">;
-type ContactOption = Pick<Contact, "id" | "name">;
+type ContactOption = Pick<Contact, "id" | "name" | "companyId">;
 type ServiceOption = Pick<Service, "id" | "name" | "isActive">;
 
 function enumOptions<T extends Record<string, string>>(
@@ -44,10 +45,6 @@ function userOptions(users: UserOption[]) {
 
 function companyOptions(companies: CompanyOption[]) {
   return companies.map((company) => ({ value: company.id, label: company.name }));
-}
-
-function contactOptions(contacts: ContactOption[]) {
-  return contacts.map((contact) => ({ value: contact.id, label: contact.name }));
 }
 
 function serviceOptions(services: ServiceOption[]) {
@@ -174,15 +171,12 @@ export function OpportunityForm({
         options={enumOptions(OpportunityStatus, opportunityStatusLabels)}
         required
       />
-      <SearchableSelectField
-        defaultValue={opportunity?.companyId}
-        label="Empresa"
-        name="companyId"
-        options={companyOptions(companies)}
-        placeholder="Sin empresa"
-        searchPlaceholder="Buscar empresa..."
+      <OpportunityRelationsFields
+        companies={companies}
+        contacts={contacts}
+        defaultCompanyId={opportunity?.companyId}
+        defaultContactId={opportunity?.primaryContactId}
       />
-      <SelectField defaultValue={opportunity?.primaryContactId} label="Contacto principal" name="primaryContactId" options={contactOptions(contacts)} />
       <SelectField defaultValue={opportunity?.serviceId} label="Servicio" name="serviceId" options={serviceOptions(services)} />
       <SelectField defaultValue={opportunity?.certainty} label="Certeza" name="certainty" options={enumOptions(Certainty, certaintyLabels)} />
       <TextField defaultValue={opportunity?.probability?.toString() ?? "0"} label="Probabilidad (0 a 1)" name="probability" type="number" />
