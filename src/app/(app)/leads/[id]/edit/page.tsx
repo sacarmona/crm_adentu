@@ -18,12 +18,17 @@ export default async function EditLeadPage({
   if (session?.user.role === UserRole.LECTURA) redirect("/leads");
   const { id } = await params;
 
-  const [lead, users] = await Promise.all([
+  const [lead, users, services] = await Promise.all([
     prisma.lead.findFirst({ where: { id, deletedAt: null } }),
     prisma.user.findMany({
       where: { deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.service.findMany({
+      where: { deletedAt: null, isActive: true },
+      select: { id: true, name: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
   ]);
   if (!lead) notFound();
@@ -31,7 +36,7 @@ export default async function EditLeadPage({
   return (
     <div className="space-y-5">
       <EntityHeader description="Actualiza los datos del lead." title={`Editar lead: ${lead.contactName}`} />
-      <LeadForm action={updateLead.bind(null, lead.id)} lead={lead} users={users} />
+      <LeadForm action={updateLead.bind(null, lead.id)} lead={lead} services={services} users={users} />
     </div>
   );
 }

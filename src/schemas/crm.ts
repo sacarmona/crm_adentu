@@ -155,8 +155,11 @@ export const leadSchema = z.object({
   phone: optionalText,
   medium: z.nativeEnum(ContactMedium),
   status: z.nativeEnum(LeadStatus),
+  serviceId: optionalText,
   lastContactAt: optionalText,
   responsibleId: optionalText,
+  nextAction: optionalText,
+  nextActionDate: optionalText,
   notes: optionalText,
 });
 

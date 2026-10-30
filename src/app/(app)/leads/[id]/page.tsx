@@ -40,12 +40,20 @@ export default async function LeadDetailPage({
     where: { id, deletedAt: null },
     include: {
       contactLogs: { orderBy: { contactedAt: "desc" } },
+      tasks: {
+        where: { deletedAt: null },
+        orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+        include: { assignedTo: { select: { name: true } } },
+      },
     },
   });
   if (!lead) notFound();
 
   const responsible = lead.responsibleId
     ? await prisma.user.findUnique({ where: { id: lead.responsibleId }, select: { name: true } })
+    : null;
+  const service = lead.serviceId
+    ? await prisma.service.findUnique({ where: { id: lead.serviceId }, select: { name: true } })
     : null;
   const isConverted = lead.status === LeadStatus.CONVERTIDO || Boolean(lead.convertedOpportunityId);
 
@@ -73,9 +81,16 @@ export default async function LeadDetailPage({
                 {leadStatusLabels[lead.status]}
               </span>
               <span>Medio: {contactMediumLabels[lead.medium]}</span>
+              {service ? <span>Servicio: {service.name}</span> : null}
               <span>Ultimo contacto: {lead.lastContactAt ? formatDate(lead.lastContactAt) : "-"}</span>
               {responsible ? <span>Responsable: {responsible.name}</span> : null}
             </div>
+            {lead.nextAction ? (
+              <p className="mt-2 rounded-md border-l-2 border-sky-300 bg-sky-50 px-3 py-2 text-sm text-slate-700">
+                <span className="font-medium">Proxima accion:</span> {lead.nextAction}
+                {lead.nextActionDate ? ` · ${formatDate(lead.nextActionDate)}` : ""}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             {canEdit ? (
@@ -176,6 +191,43 @@ export default async function LeadDetailPage({
           </ol>
         </div>
       </section>
+
+      {lead.tasks.length > 0 ? (
+        <section className="rounded-md border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Tareas del lead ({lead.tasks.length})</h2>
+            <Link className="text-xs font-medium hover:underline" href="/tasks">
+              Ver tareas
+            </Link>
+          </div>
+          <ul className="mt-4 divide-y divide-slate-100">
+            {lead.tasks.map((task) => (
+              <li key={task.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span className="min-w-0">
+                  <span className="font-medium">{task.title}</span>
+                  <span className="ml-2 text-xs text-slate-500">
+                    {task.assignedTo?.name ?? "Sin responsable"}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2 text-xs">
+                  <span className="text-slate-500">
+                    {task.dueDate ? formatDate(task.dueDate) : "Sin fecha"}
+                  </span>
+                  <span
+                    className={`rounded-md px-2 py-0.5 font-semibold ${
+                      task.status === "PENDING"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {task.status === "PENDING" ? "Pendiente" : "Ejecutada"}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

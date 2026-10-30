@@ -805,7 +805,10 @@ model Lead {
   phone                  String?
   medium                 ContactMedium @default(TELEFONO)
   status                 LeadStatus    @default(NUEVO)
+  serviceId              String?
   notes                  String?
+  nextAction             String?
+  nextActionDate         DateTime?
   lastContactAt          DateTime?
   responsibleId          String?
   createdById            String?
@@ -816,9 +819,11 @@ model Lead {
   deletedAt              DateTime?
 
   contactLogs LeadContactLog[]
+  tasks       Task[]
 
   @@index([status])
   @@index([responsibleId])
+  @@index([serviceId])
   @@index([deletedAt])
   @@index([lastContactAt])
 }
@@ -887,6 +892,7 @@ model Task {
   contactId     String?
   opportunityId String?
   interactionId String?
+  leadId        String?
   serviceId     String?
   assignedToId  String?
   createdById   String?
@@ -910,6 +916,7 @@ model Task {
   contact                Contact?                 @relation(fields: [contactId], references: [id])
   opportunity            Opportunity?             @relation(fields: [opportunityId], references: [id])
   interaction            Interaction?             @relation(fields: [interactionId], references: [id])
+  lead                   Lead?                    @relation(fields: [leadId], references: [id])
   service                Service?                 @relation(fields: [serviceId], references: [id])
   assignedTo             User?                    @relation("TaskAssignee", fields: [assignedToId], references: [id])
   createdBy              User?                    @relation("TaskCreator", fields: [createdById], references: [id])
@@ -921,6 +928,7 @@ model Task {
   @@index([assignedToId])
   @@index([companyId])
   @@index([opportunityId])
+  @@index([leadId])
   @@index([googleTaskOwnerId])
 }
 

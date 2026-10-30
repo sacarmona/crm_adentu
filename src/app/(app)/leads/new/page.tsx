@@ -13,11 +13,18 @@ export default async function NewLeadPage() {
   const session = await auth();
   if (session?.user.role === UserRole.LECTURA) redirect("/leads");
 
-  const users = await prisma.user.findMany({
-    where: { deletedAt: null },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  const [users, services] = await Promise.all([
+    prisma.user.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.service.findMany({
+      where: { deletedAt: null, isActive: true },
+      select: { id: true, name: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -25,7 +32,7 @@ export default async function NewLeadPage() {
         description="Registra un lead con su medio de contacto y la fecha del ultimo contacto. Luego podras convertirlo en oportunidad."
         title="Nuevo lead"
       />
-      <LeadForm action={createLead} users={users} />
+      <LeadForm action={createLead} services={services} users={users} />
     </div>
   );
 }

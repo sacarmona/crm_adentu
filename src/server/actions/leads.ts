@@ -1,6 +1,6 @@
 "use server";
 
-import { AuditAction, LeadStatus, OpportunityStatus } from "@prisma/client";
+import { AuditAction, LeadStatus, OpportunityStatus, TaskStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -8,6 +8,7 @@ import { normalizeName, nullableDate } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 import { leadContactLogSchema, leadSchema } from "@/schemas/crm";
 import { requireAdmin, requireWriter } from "@/server/authz";
+import { syncTaskCalendarEvent } from "@/server/services/task-calendar-sync";
 import {
   type LeadImportPreview,
   type LeadImportRow,
@@ -19,6 +20,55 @@ import {
 
 function parseForm(formData: FormData) {
   return Object.fromEntries(formData.entries());
+}
+
+/**
+ * Crea o actualiza la tarea de "proxima accion" vinculada al lead.
+ * Si hay una tarea pendiente del lead, la actualiza; si no, crea una.
+ * Devuelve el id de la tarea afectada (para sincronizar con Calendar).
+ */
+async function syncLeadNextActionTask(input: {
+  leadId: string;
+  nextAction: string | null;
+  nextActionDate: string | null;
+  serviceId: string | null;
+  assignedToId: string | null;
+  createdById: string;
+}): Promise<string | null> {
+  if (!input.nextAction) return null;
+  const dueDate = nullableDate(input.nextActionDate);
+
+  const existing = await prisma.task.findFirst({
+    where: { leadId: input.leadId, deletedAt: null, status: TaskStatus.PENDING },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.task.update({
+      where: { id: existing.id },
+      data: {
+        title: input.nextAction,
+        dueDate,
+        serviceId: input.serviceId,
+        assignedToId: input.assignedToId ?? input.createdById,
+      },
+    });
+    return existing.id;
+  }
+
+  const task = await prisma.task.create({
+    data: {
+      title: input.nextAction,
+      status: TaskStatus.PENDING,
+      dueDate,
+      leadId: input.leadId,
+      serviceId: input.serviceId,
+      assignedToId: input.assignedToId ?? input.createdById,
+      createdById: input.createdById,
+    },
+  });
+  return task.id;
 }
 
 export async function createLead(formData: FormData) {
@@ -34,7 +84,10 @@ export async function createLead(formData: FormData) {
       phone: data.phone,
       medium: data.medium,
       status: data.status,
+      serviceId: data.serviceId,
       notes: data.notes,
+      nextAction: data.nextAction,
+      nextActionDate: nullableDate(data.nextActionDate),
       lastContactAt: contactedAt,
       responsibleId: data.responsibleId,
       createdById: user.id,
@@ -49,6 +102,15 @@ export async function createLead(formData: FormData) {
     },
   });
 
+  const taskId = await syncLeadNextActionTask({
+    leadId: lead.id,
+    nextAction: data.nextAction,
+    nextActionDate: data.nextActionDate,
+    serviceId: data.serviceId,
+    assignedToId: data.responsibleId,
+    createdById: user.id,
+  });
+
   await prisma.auditLog.create({
     data: {
       action: AuditAction.CREATE,
@@ -59,7 +121,10 @@ export async function createLead(formData: FormData) {
     },
   });
 
+  if (taskId) await syncTaskCalendarEvent(taskId);
+
   revalidatePath("/leads");
+  revalidatePath("/tasks");
   redirect(`/leads/${lead.id}`);
 }
 
@@ -78,10 +143,22 @@ export async function updateLead(id: string, formData: FormData) {
       phone: data.phone,
       medium: data.medium,
       status: data.status,
+      serviceId: data.serviceId,
       notes: data.notes,
+      nextAction: data.nextAction,
+      nextActionDate: nullableDate(data.nextActionDate),
       lastContactAt: nullableDate(data.lastContactAt) ?? before.lastContactAt,
       responsibleId: data.responsibleId,
     },
+  });
+
+  const taskId = await syncLeadNextActionTask({
+    leadId: id,
+    nextAction: data.nextAction,
+    nextActionDate: data.nextActionDate,
+    serviceId: data.serviceId,
+    assignedToId: data.responsibleId,
+    createdById: user.id,
   });
 
   await prisma.auditLog.create({
@@ -94,8 +171,11 @@ export async function updateLead(id: string, formData: FormData) {
     },
   });
 
+  if (taskId) await syncTaskCalendarEvent(taskId);
+
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
+  revalidatePath("/tasks");
   redirect(`/leads/${id}`);
 }
 

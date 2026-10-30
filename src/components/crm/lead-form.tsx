@@ -1,10 +1,11 @@
-import { ContactMedium, Lead, LeadStatus, User } from "@prisma/client";
+import { ContactMedium, Lead, LeadStatus, Service, User } from "@prisma/client";
 
 import { SelectField, TextArea, TextField } from "@/components/crm/form-controls";
 import { Button } from "@/components/ui/button";
 import { contactMediumLabels, leadStatusLabels } from "@/lib/labels";
 
 type UserOption = Pick<User, "id" | "name">;
+type ServiceOption = Pick<Service, "id" | "name">;
 
 function dateValue(value?: Date | null) {
   if (!value) return "";
@@ -15,10 +16,12 @@ export function LeadForm({
   action,
   lead,
   users,
+  services,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   lead?: Lead | null;
   users: UserOption[];
+  services: ServiceOption[];
 }) {
   return (
     <form
@@ -49,6 +52,13 @@ export function LeadForm({
         }))}
         required
       />
+      <SelectField
+        defaultValue={lead?.serviceId}
+        label="Servicio"
+        name="serviceId"
+        options={services.map((service) => ({ value: service.id, label: service.name }))}
+        placeholder="Sin servicio"
+      />
       <TextField
         defaultValue={dateValue(lead?.lastContactAt)}
         label="Fecha del ultimo contacto"
@@ -61,6 +71,17 @@ export function LeadForm({
         name="responsibleId"
         options={users.map((user) => ({ value: user.id, label: user.name }))}
         placeholder="Sin responsable"
+      />
+      <TextField
+        defaultValue={lead?.nextAction}
+        label="Proxima accion (crea una tarea)"
+        name="nextAction"
+      />
+      <TextField
+        defaultValue={dateValue(lead?.nextActionDate)}
+        label="Fecha proxima accion"
+        name="nextActionDate"
+        type="date"
       />
       <TextArea defaultValue={lead?.notes} label="Notas" name="notes" />
       <div className="md:col-span-2">
