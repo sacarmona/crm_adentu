@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "crypto";
+
 import { AuditAction, LeadStatus, OpportunityStatus, TaskStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -278,6 +280,11 @@ export async function convertLeadToOpportunity(leadId: string) {
         convertedAt: new Date(),
       },
     }),
+    // Re-vincula las tareas pendientes del lead a la nueva oportunidad (conserva leadId para trazabilidad).
+    prisma.task.updateMany({
+      where: { leadId, deletedAt: null, status: TaskStatus.PENDING },
+      data: { opportunityId: opportunity.id, companyId, contactId: contact.id },
+    }),
     prisma.auditLog.create({
       data: {
         action: AuditAction.UPDATE,
@@ -291,6 +298,7 @@ export async function convertLeadToOpportunity(leadId: string) {
 
   revalidatePath("/leads");
   revalidatePath("/opportunities");
+  revalidatePath("/tasks");
   redirect(`/opportunities/${opportunity.id}`);
 }
 
@@ -346,32 +354,40 @@ export async function commitLeadImport(
   const valid = rows.filter((row) => row.valid && row.contactName).slice(0, MAX_LEAD_IMPORT_ROWS);
   if (valid.length === 0) return { created: 0 };
 
-  await prisma.$transaction(
-    valid.map((row) => {
-      const contactedAt = nullableDate(row.lastContactAt) ?? new Date();
-      return prisma.lead.create({
-        data: {
-          contactName: row.contactName,
-          companyName: row.companyName,
-          email: row.email,
-          phone: row.phone,
-          medium: row.medium,
-          status: LeadStatus.NUEVO,
-          lastContactAt: contactedAt,
-          notes: row.notes,
-          createdById: user.id,
-          contactLogs: {
-            create: {
-              medium: row.medium,
-              contactedAt,
-              notes: row.notes,
-              createdById: user.id,
-            },
-          },
-        },
-      });
+  const now = new Date();
+  const prepared = valid.map((row) => ({
+    id: randomUUID(),
+    row,
+    contactedAt: nullableDate(row.lastContactAt) ?? now,
+  }));
+
+  // Dos inserciones masivas (en vez de crear fila por fila) para no exceder el
+  // timeout de transaccion al importar muchos leads.
+  await prisma.$transaction([
+    prisma.lead.createMany({
+      data: prepared.map(({ id, row, contactedAt }) => ({
+        id,
+        contactName: row.contactName,
+        companyName: row.companyName,
+        email: row.email,
+        phone: row.phone,
+        medium: row.medium,
+        status: LeadStatus.NUEVO,
+        lastContactAt: contactedAt,
+        notes: row.notes,
+        createdById: user.id,
+      })),
     }),
-  );
+    prisma.leadContactLog.createMany({
+      data: prepared.map(({ id, row, contactedAt }) => ({
+        leadId: id,
+        medium: row.medium,
+        contactedAt,
+        notes: row.notes,
+        createdById: user.id,
+      })),
+    }),
+  ]);
 
   revalidatePath("/leads");
   return { created: valid.length };
