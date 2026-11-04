@@ -44,7 +44,7 @@ export default async function LeadsPage({
   if (statusValue) conditions.push({ status: statusValue });
   if (responsibleId) conditions.push({ responsibleId });
 
-  const [leads, users] = await Promise.all([
+  const [leads, users, services] = await Promise.all([
     prisma.lead.findMany({
       where: { AND: conditions },
       orderBy: [{ lastContactAt: "desc" }, { createdAt: "desc" }],
@@ -55,8 +55,10 @@ export default async function LeadsPage({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    prisma.service.findMany({ select: { id: true, name: true } }),
   ]);
   const userNames = new Map(users.map((user) => [user.id, user.name]));
+  const serviceNames = new Map(services.map((service) => [service.id, service.name]));
 
   return (
     <div className="space-y-5">
@@ -123,6 +125,7 @@ export default async function LeadsPage({
             <tr>
               <th className="px-4 py-3">Contacto</th>
               <th className="px-4 py-3">Empresa</th>
+              <th className="px-4 py-3">Servicio</th>
               <th className="w-28 px-4 py-3">Medio</th>
               <th className="w-32 px-4 py-3">Ultimo contacto</th>
               <th className="w-40 px-4 py-3">Estado</th>
@@ -138,6 +141,9 @@ export default async function LeadsPage({
                   </Link>
                 </td>
                 <td className="truncate px-4 py-3">{lead.companyName ?? "-"}</td>
+                <td className="truncate px-4 py-3 text-xs text-slate-600">
+                  {lead.serviceId ? serviceNames.get(lead.serviceId) ?? "-" : "-"}
+                </td>
                 <td className="px-4 py-3 text-xs text-slate-600">
                   {contactMediumLabels[lead.medium]}
                 </td>
@@ -169,7 +175,7 @@ export default async function LeadsPage({
             ))}
             {leads.length === 0 ? (
               <tr>
-                <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
+                <td className="px-4 py-8 text-center text-slate-500" colSpan={7}>
                   No hay leads para los filtros seleccionados.
                 </td>
               </tr>
