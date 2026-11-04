@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import { contactMediumLabels, leadStatusLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { updateLeadStatus } from "@/server/actions/leads";
+import { updateLeadService, updateLeadStatus } from "@/server/actions/leads";
 
 export const dynamic = "force-dynamic";
 
@@ -144,8 +144,20 @@ export default async function LeadsPage({
                   ) : null}
                 </td>
                 <td className="truncate px-4 py-3">{lead.companyName ?? "-"}</td>
-                <td className="truncate px-4 py-3 text-xs text-slate-600">
-                  {lead.serviceId ? serviceNames.get(lead.serviceId) ?? "-" : "-"}
+                <td className="px-4 py-3">
+                  {canEdit ? (
+                    <InlineSelectForm
+                      action={updateLeadService.bind(null, lead.id)}
+                      defaultValue={lead.serviceId ?? ""}
+                      name="serviceId"
+                      options={services.map((service) => ({ value: service.id, label: service.name }))}
+                      placeholder="Sin servicio"
+                    />
+                  ) : (
+                    <span className="text-xs text-slate-600">
+                      {lead.serviceId ? serviceNames.get(lead.serviceId) ?? "-" : "-"}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-xs text-slate-600">
                   {contactMediumLabels[lead.medium]}

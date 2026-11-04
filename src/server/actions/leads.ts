@@ -235,6 +235,27 @@ export async function updateLeadStatus(id: string, formData: FormData) {
   revalidatePath(`/leads/${id}`);
 }
 
+export async function updateLeadService(id: string, formData: FormData) {
+  const user = await requireWriter("No tienes permisos para modificar leads.");
+  const serviceId = ((formData.get("serviceId") as string | null) ?? "").trim() || null;
+  await prisma.lead.update({ where: { id }, data: { serviceId } });
+  await prisma.task.updateMany({
+    where: { leadId: id, deletedAt: null, status: TaskStatus.PENDING },
+    data: { serviceId },
+  });
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.UPDATE,
+      entityType: "Lead",
+      entityId: id,
+      actorId: user.id,
+      after: { serviceId },
+    },
+  });
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${id}`);
+}
+
 export async function convertLeadToOpportunity(leadId: string) {
   const user = await requireWriter("No tienes permisos para convertir leads.");
   const lead = await prisma.lead.findFirst({ where: { id: leadId, deletedAt: null } });
