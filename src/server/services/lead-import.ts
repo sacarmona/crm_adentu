@@ -8,6 +8,7 @@ export type LeadImportRow = {
   rowNumber: number;
   contactName: string;
   companyName: string | null;
+  roleArea: string | null;
   email: string | null;
   phone: string | null;
   medium: ContactMedium;
@@ -40,6 +41,10 @@ const headerAliases: Record<string, keyof LeadImportRow> = {
   nombrecontacto: "contactName",
   empresa: "companyName",
   company: "companyName",
+  cargo: "roleArea",
+  cargoarea: "roleArea",
+  area: "roleArea",
+  rol: "roleArea",
   medio: "medium",
   mediocontacto: "medium",
   canal: "medium",
@@ -127,6 +132,7 @@ function buildRow(
     rowNumber,
     contactName: contactName ?? "",
     companyName: text(record.companyName),
+    roleArea: text(record.roleArea),
     email: text(record.email),
     phone: text(record.phone),
     medium: resolveMedium(record.medium),

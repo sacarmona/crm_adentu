@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const HEADERS = ["Contacto", "Empresa", "Medio", "Email", "Telefono", "Ultimo contacto", "Notas"];
+const HEADERS = ["Contacto", "Empresa", "Cargo", "Medio", "Email", "Telefono", "Ultimo contacto", "Notas"];
 
 const EXAMPLE_ROWS = [
-  ["Juan Perez", "Minera Ejemplo", "WhatsApp", "juan@ejemplo.cl", "+56 9 1234 5678", "2026-10-28", "Interesado en inspeccion con dron"],
-  ["Maria Soto", "Energia Solar SpA", "Telefono", "maria@solar.cl", "+56 2 2345 6789", "27-10-2026", "Solicita cotizacion termografia"],
+  ["Juan Perez", "Minera Ejemplo", "Jefe de Mantenimiento", "WhatsApp", "juan@ejemplo.cl", "+56 9 1234 5678", "2026-10-28", "Interesado en inspeccion con dron"],
+  ["Maria Soto", "Energia Solar SpA", "Gerente de Operaciones", "Telefono", "maria@solar.cl", "+56 2 2345 6789", "27-10-2026", "Solicita cotizacion termografia"],
 ];
 
 function csvField(value: string) {

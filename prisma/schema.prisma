@@ -801,6 +801,7 @@ model Lead {
   id                     String        @id @default(uuid())
   contactName            String
   companyName            String?
+  roleArea               String?
   email                  String?
   phone                  String?
   medium                 ContactMedium @default(TELEFONO)

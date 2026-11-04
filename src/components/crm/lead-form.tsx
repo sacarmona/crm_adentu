@@ -30,6 +30,7 @@ export function LeadForm({
     >
       <TextField defaultValue={lead?.contactName} label="Nombre de contacto" name="contactName" required />
       <TextField defaultValue={lead?.companyName} label="Empresa" name="companyName" />
+      <TextField defaultValue={lead?.roleArea} label="Cargo / Area" name="roleArea" />
       <TextField defaultValue={lead?.email} label="Email" name="email" type="email" />
       <TextField defaultValue={lead?.phone} label="Telefono" name="phone" />
       <SelectField

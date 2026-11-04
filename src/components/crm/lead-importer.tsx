@@ -53,8 +53,8 @@ export function LeadImporter() {
           />
         </label>
         <p className="mt-2 text-xs text-slate-500">
-          Columnas: <strong>Contacto</strong> (obligatorio), Empresa, Medio, Email, Telefono, Ultimo
-          contacto, Notas. Hasta 5 MB y 1.000 filas.
+          Columnas: <strong>Contacto</strong> (obligatorio), Empresa, Cargo, Medio, Email, Telefono,
+          Ultimo contacto, Notas. Hasta 5 MB y 1.000 filas.
         </p>
         <Button className="mt-4" disabled={isParsing} type="submit">
           {isParsing ? "Leyendo..." : "Leer archivo"}

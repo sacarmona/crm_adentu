@@ -135,10 +135,13 @@ export default async function LeadsPage({
           <tbody className="divide-y divide-slate-100">
             {leads.map((lead) => (
               <tr key={lead.id}>
-                <td className="truncate px-4 py-3 font-medium">
-                  <Link className="hover:underline" href={`/leads/${lead.id}`}>
+                <td className="truncate px-4 py-3">
+                  <Link className="font-medium hover:underline" href={`/leads/${lead.id}`}>
                     {lead.contactName}
                   </Link>
+                  {lead.roleArea ? (
+                    <p className="truncate text-xs text-slate-500">{lead.roleArea}</p>
+                  ) : null}
                 </td>
                 <td className="truncate px-4 py-3">{lead.companyName ?? "-"}</td>
                 <td className="truncate px-4 py-3 text-xs text-slate-600">

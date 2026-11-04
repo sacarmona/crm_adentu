@@ -71,6 +71,9 @@ export default async function LeadDetailPage({
           <div>
             <p className="text-sm font-medium text-slate-500">Lead</p>
             <h1 className="mt-1 text-2xl font-semibold">{lead.contactName}</h1>
+            {lead.roleArea ? (
+              <p className="text-sm text-slate-500">{lead.roleArea}</p>
+            ) : null}
             <p className="mt-2 text-sm text-slate-600">
               {lead.companyName ?? "Sin empresa"}
               {lead.email ? ` · ${lead.email}` : ""}

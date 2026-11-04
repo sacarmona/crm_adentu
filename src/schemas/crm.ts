@@ -151,6 +151,7 @@ export const linkedInCaptureSchema = z
 export const leadSchema = z.object({
   contactName: z.string().trim().min(2, "El nombre de contacto es obligatorio."),
   companyName: optionalText,
+  roleArea: optionalText,
   email: optionalEmail,
   phone: optionalText,
   medium: z.nativeEnum(ContactMedium),

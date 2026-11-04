@@ -82,6 +82,7 @@ export async function createLead(formData: FormData) {
     data: {
       contactName: data.contactName,
       companyName: data.companyName,
+      roleArea: data.roleArea,
       email: data.email,
       phone: data.phone,
       medium: data.medium,
@@ -141,6 +142,7 @@ export async function updateLead(id: string, formData: FormData) {
     data: {
       contactName: data.contactName,
       companyName: data.companyName,
+      roleArea: data.roleArea,
       email: data.email,
       phone: data.phone,
       medium: data.medium,
@@ -255,6 +257,7 @@ export async function convertLeadToOpportunity(leadId: string) {
   const contact = await prisma.contact.create({
     data: {
       name: lead.contactName,
+      roleArea: lead.roleArea,
       email: lead.email,
       phone: lead.phone,
       companyId,
@@ -369,6 +372,7 @@ export async function commitLeadImport(
         id,
         contactName: row.contactName,
         companyName: row.companyName,
+        roleArea: row.roleArea,
         email: row.email,
         phone: row.phone,
         medium: row.medium,
