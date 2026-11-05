@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { InlineSelectForm } from "@/components/crm/inline-select-form";
+import { LeadStatusSelect } from "@/components/crm/lead-status-select";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import { contactMediumLabels, leadStatusLabels } from "@/lib/labels";
@@ -171,15 +172,9 @@ export default async function LeadsPage({
                 </td>
                 <td className="px-4 py-3">
                   {canEdit ? (
-                    <InlineSelectForm
+                    <LeadStatusSelect
                       action={updateLeadStatus.bind(null, lead.id)}
                       defaultValue={lead.status}
-                      includeBlankOption={false}
-                      name="status"
-                      options={Object.values(LeadStatus).map((value) => ({
-                        value,
-                        label: leadStatusLabels[value],
-                      }))}
                     />
                   ) : (
                     <span className={`rounded-md px-2 py-1 text-xs font-semibold ${statusStyles[lead.status]}`}>
