@@ -28,7 +28,12 @@ const statusStyles: Record<LeadStatus, string> = {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; status?: string; responsibleId?: string }>;
+  searchParams?: Promise<{
+    q?: string;
+    status?: string;
+    responsibleId?: string;
+    showDiscarded?: string;
+  }>;
 }) {
   const session = await auth();
   const params = await searchParams;
@@ -36,8 +41,12 @@ export default async function LeadsPage({
   const q = params?.q?.trim();
   const statusValue = params?.status as LeadStatus | undefined;
   const responsibleId = params?.responsibleId;
+  // Los descartados se ocultan por defecto. Filtrar por estado "Descartado" tambien los muestra.
+  const showDiscarded =
+    params?.showDiscarded === "1" || statusValue === LeadStatus.DESCARTADO;
 
   const conditions: Prisma.LeadWhereInput[] = [{ deletedAt: null }];
+  if (!showDiscarded) conditions.push({ status: { not: LeadStatus.DESCARTADO } });
   if (q) {
     conditions.push({
       OR: [
@@ -122,6 +131,10 @@ export default async function LeadsPage({
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">
           Filtrar
         </button>
+        <label className="flex items-center gap-2 text-sm text-slate-600 md:col-span-full">
+          <input defaultChecked={showDiscarded} name="showDiscarded" type="checkbox" value="1" />
+          Mostrar Descartados
+        </label>
       </form>
 
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
