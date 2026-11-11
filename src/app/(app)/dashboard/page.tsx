@@ -29,8 +29,17 @@ import {
 } from "@/components/dashboard/dashboard-charts";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { LeadKpiPanel } from "@/components/dashboard/lead-kpi-panel";
 import { contactMediumLabels, interactionTypeLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import {
+  WEEKLY_LEAD_GOAL,
+  addDays,
+  expectedToDate,
+  statusReadings,
+  weekStart,
+  weeklyResults,
+} from "@/server/services/lead-kpi";
 import {
   calculateDashboardMetrics,
   daysSince,
@@ -145,6 +154,11 @@ export default async function DashboardPage({
   const dormantBoundary = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
   const interactionSince = periodStart(period, now);
+  // Leads para el KPI semanal (8 semanas) y la lectura de estados (periodo): una sola consulta.
+  const KPI_WEEKS = 8;
+  const kpiSince = new Date(
+    Math.min(addDays(weekStart(now), -7 * (KPI_WEEKS - 1)).getTime(), interactionSince.getTime()),
+  );
 
   const [
     opportunities,
@@ -154,6 +168,7 @@ export default async function DashboardPage({
     periodInteractions,
     leadsByMedium,
     leadsConverted,
+    kpiLeads,
   ] = await Promise.all([
     prisma.opportunity.findMany({
       where: {
@@ -225,7 +240,33 @@ export default async function DashboardPage({
         ...(responsibleId ? { responsibleId } : {}),
       },
     }),
+    prisma.lead.findMany({
+      where: {
+        deletedAt: null,
+        createdAt: { gte: kpiSince },
+        ...(responsibleId ? { responsibleId } : {}),
+      },
+      select: {
+        createdAt: true,
+        contactName: true,
+        companyName: true,
+        serviceId: true,
+        status: true,
+      },
+    }),
   ]);
+
+  const kpiWeeks = weeklyResults(kpiLeads, now, KPI_WEEKS);
+  const kpiExpected = expectedToDate(now);
+  const periodLeadStatuses = statusReadings(
+    kpiLeads.filter((lead) => lead.createdAt >= interactionSince).map((lead) => lead.status),
+  );
+  const periodLabels: Record<string, string> = {
+    "7d": "últimos 7 días",
+    mtd: "mes actual",
+    "30d": "últimos 30 días",
+    "90d": "últimos 90 días",
+  };
 
   const metrics = calculateDashboardMetrics({
     now,
@@ -410,6 +451,17 @@ export default async function DashboardPage({
           />
         </div>
       </section>
+
+      <LeadKpiPanel
+        expected={kpiExpected}
+        goal={WEEKLY_LEAD_GOAL}
+        periodConvertidos={periodLeadStatuses.convertidos}
+        periodLabel={periodLabels[period] ?? periodLabels["30d"]}
+        periodNuevos={periodLeadStatuses.nuevos}
+        periodTotal={periodLeadStatuses.total}
+        readings={periodLeadStatuses.readings}
+        weeks={kpiWeeks}
+      />
 
       <section className="rounded-md border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between gap-3">
