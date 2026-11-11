@@ -33,6 +33,9 @@ export default async function LeadsPage({
     status?: string;
     responsibleId?: string;
     showDiscarded?: string;
+    dateField?: string;
+    from?: string;
+    to?: string;
   }>;
 }) {
   const session = await auth();
@@ -45,8 +48,23 @@ export default async function LeadsPage({
   const showDiscarded =
     params?.showDiscarded === "1" || statusValue === LeadStatus.DESCARTADO;
 
+  // Filtro por fecha: rango Desde/Hasta sobre "Ultimo contacto" (por defecto) o "Creacion".
+  // Los limites usan -04:00, la misma convencion horaria del resto del CRM.
+  const dateField = params?.dateField === "createdAt" ? "createdAt" : "lastContactAt";
+  const isIsoDay = (value?: string) => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+  const from = isIsoDay(params?.from) ? params?.from : undefined;
+  const to = isIsoDay(params?.to) ? params?.to : undefined;
+  const fromDate = from ? new Date(`${from}T00:00:00-04:00`) : null;
+  const toDate = to ? new Date(`${to}T23:59:59.999-04:00`) : null;
+
   const conditions: Prisma.LeadWhereInput[] = [{ deletedAt: null }];
   if (!showDiscarded) conditions.push({ status: { not: LeadStatus.DESCARTADO } });
+  if (fromDate && !Number.isNaN(fromDate.getTime())) {
+    conditions.push({ [dateField]: { gte: fromDate } });
+  }
+  if (toDate && !Number.isNaN(toDate.getTime())) {
+    conditions.push({ [dateField]: { lte: toDate } });
+  }
   if (q) {
     conditions.push({
       OR: [
@@ -131,10 +149,49 @@ export default async function LeadsPage({
         <button className="h-10 rounded-md bg-slate-950 px-4 text-sm font-medium text-white">
           Filtrar
         </button>
-        <label className="flex items-center gap-2 text-sm text-slate-600 md:col-span-full">
-          <input defaultChecked={showDiscarded} name="showDiscarded" type="checkbox" value="1" />
-          Mostrar Descartados
-        </label>
+        <div className="flex flex-wrap items-end gap-3 md:col-span-full">
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500">Fecha de</span>
+            <select
+              className="mt-1 h-10 w-44 rounded-md border border-slate-300 bg-white px-3 text-sm"
+              defaultValue={dateField}
+              name="dateField"
+            >
+              <option value="lastContactAt">Ultimo contacto</option>
+              <option value="createdAt">Creacion del lead</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500">Desde</span>
+            <input
+              className="mt-1 h-10 rounded-md border border-slate-300 px-3 text-sm"
+              defaultValue={from ?? ""}
+              name="from"
+              type="date"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500">Hasta</span>
+            <input
+              className="mt-1 h-10 rounded-md border border-slate-300 px-3 text-sm"
+              defaultValue={to ?? ""}
+              name="to"
+              type="date"
+            />
+          </label>
+          {from || to ? (
+            <Link
+              className="h-10 self-end rounded-md border border-slate-300 px-3 text-sm font-medium leading-10 text-slate-600 hover:bg-slate-50"
+              href="/leads"
+            >
+              Limpiar filtros
+            </Link>
+          ) : null}
+          <label className="flex h-10 items-center gap-2 text-sm text-slate-600 md:ml-auto">
+            <input defaultChecked={showDiscarded} name="showDiscarded" type="checkbox" value="1" />
+            Mostrar Descartados
+          </label>
+        </div>
       </form>
 
       <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
