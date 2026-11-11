@@ -3,13 +3,13 @@ import { LeadStatus } from "@prisma/client";
 import { normalizeName } from "../../lib/normalize";
 
 /** Meta de leads nuevos únicos por semana (captación). */
-export const WEEKLY_LEAD_GOAL = 20;
+export const WEEKLY_LEAD_GOAL = 40;
 
 /**
  * Meta de leads nuevos únicos CON RESPUESTA por semana (contactado, calificado o convertido).
  * Se mide sobre los leads creados en la semana, igual que la captación.
  */
-export const WEEKLY_RESPONDED_GOAL = 10;
+export const WEEKLY_RESPONDED_GOAL = 20;
 
 /**
  * Semaforo de ambos KPI semanales (captados y con respuesta): cumplimiento = leads / esperado a la fecha.

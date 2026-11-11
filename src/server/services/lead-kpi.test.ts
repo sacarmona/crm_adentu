@@ -9,6 +9,7 @@ import {
   leadKey,
   statusLight,
   statusReadings,
+  WEEKLY_LEAD_GOAL,
   WEEKLY_RESPONDED_GOAL,
   weekStart,
   weeklyResults,
@@ -42,10 +43,11 @@ describe("completedWeekdays / expectedToDate", () => {
   });
 
   it("prorratea la meta de 20 por dias habiles", () => {
-    expect(expectedToDate(at("2026-11-09T10:00:00"))).toBe(0);
-    expect(expectedToDate(at("2026-11-10T10:00:00"))).toBe(4);
-    expect(expectedToDate(at("2026-11-12T10:00:00"))).toBe(12);
-    expect(expectedToDate(at("2026-11-14T10:00:00"))).toBe(20);
+    // Meta explicita (20): el prorrateo no debe depender del valor configurado en WEEKLY_LEAD_GOAL.
+    expect(expectedToDate(at("2026-11-09T10:00:00"), 20)).toBe(0);
+    expect(expectedToDate(at("2026-11-10T10:00:00"), 20)).toBe(4);
+    expect(expectedToDate(at("2026-11-12T10:00:00"), 20)).toBe(12);
+    expect(expectedToDate(at("2026-11-14T10:00:00"), 20)).toBe(20);
   });
 });
 
@@ -83,13 +85,27 @@ describe("leadKey / countUniqueLeads", () => {
   });
 });
 
-describe("meta de leads con respuesta (10 por semana)", () => {
-  it("prorratea la meta de 10 por dias habiles", () => {
-    expect(expectedToDate(at("2026-11-09T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(0); // lunes
-    expect(expectedToDate(at("2026-11-10T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(2); // martes
-    expect(expectedToDate(at("2026-11-11T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(4); // miercoles
-    expect(expectedToDate(at("2026-11-13T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(8); // viernes
-    expect(expectedToDate(at("2026-11-14T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(10); // sabado
+describe("metas semanales configuradas", () => {
+  it("captados 40 y con respuesta 20 (mitad de la captacion)", () => {
+    expect(WEEKLY_LEAD_GOAL).toBe(40);
+    expect(WEEKLY_RESPONDED_GOAL).toBe(20);
+    expect(WEEKLY_RESPONDED_GOAL).toBeLessThanOrEqual(WEEKLY_LEAD_GOAL);
+  });
+
+  it("el esperado de la semana en curso usa la meta que corresponde", () => {
+    const wednesday = at("2026-11-11T10:00:00");
+    expect(expectedToDate(wednesday)).toBe(Math.round((WEEKLY_LEAD_GOAL * 2) / 5)); // 16
+    expect(expectedToDate(wednesday, WEEKLY_RESPONDED_GOAL)).toBe(Math.round((WEEKLY_RESPONDED_GOAL * 2) / 5)); // 8
+  });
+});
+
+describe("semaforo de leads con respuesta (meta de ejemplo: 10 por semana)", () => {
+  it("prorratea la meta por dias habiles", () => {
+    expect(expectedToDate(at("2026-11-09T10:00:00"), 10)).toBe(0); // lunes
+    expect(expectedToDate(at("2026-11-10T10:00:00"), 10)).toBe(2); // martes
+    expect(expectedToDate(at("2026-11-11T10:00:00"), 10)).toBe(4); // miercoles
+    expect(expectedToDate(at("2026-11-13T10:00:00"), 10)).toBe(8); // viernes
+    expect(expectedToDate(at("2026-11-14T10:00:00"), 10)).toBe(10); // sabado
   });
 
   it("semaforo en la semana en curso (miercoles, esperado 4)", () => {
@@ -100,9 +116,9 @@ describe("meta de leads con respuesta (10 por semana)", () => {
   });
 
   it("semanas cerradas contra la meta completa de 10", () => {
-    expect(kpiLight(10, WEEKLY_RESPONDED_GOAL)).toBe("green");
-    expect(kpiLight(7, WEEKLY_RESPONDED_GOAL)).toBe("yellow"); // 70% exacto
-    expect(kpiLight(6, WEEKLY_RESPONDED_GOAL)).toBe("red"); // 60%
+    expect(kpiLight(10, 10)).toBe("green");
+    expect(kpiLight(7, 10)).toBe("yellow"); // 70% exacto
+    expect(kpiLight(6, 10)).toBe("red"); // 60%
   });
 });
 
