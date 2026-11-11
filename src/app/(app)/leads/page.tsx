@@ -238,7 +238,10 @@ export default async function LeadsPage({
                   {contactMediumLabels[lead.medium]}
                 </td>
                 <td className="px-4 py-3 text-xs text-slate-500">
-                  {lead.lastContactAt ? formatDate(lead.lastContactAt) : "-"}
+                  <div>{lead.lastContactAt ? formatDate(lead.lastContactAt) : "-"}</div>
+                  <div className="text-[11px] text-slate-400" title="Fecha en que se creó el lead">
+                    Creado {formatDate(lead.createdAt)}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   {canEdit ? (
