@@ -102,10 +102,10 @@ describe("kpiLight", () => {
 
 describe("weeklyResults", () => {
   const leads = [
-    { contactName: "A", companyName: "Enel", serviceId: "s1", createdAt: at("2026-11-09T09:00:00") },
-    { contactName: "B", companyName: "Enel", serviceId: "s1", createdAt: at("2026-11-10T09:00:00") },
-    { contactName: "C", companyName: "Colbun", serviceId: "s1", createdAt: at("2026-11-11T09:00:00") },
-    { contactName: "D", companyName: "Enel", serviceId: "s1", createdAt: at("2026-11-03T09:00:00") },
+    { contactName: "A", companyName: "Enel", serviceId: "s1", createdAt: at("2026-11-09T09:00:00"), status: LeadStatus.SIN_RESPUESTA },
+    { contactName: "B", companyName: "Enel", serviceId: "s1", createdAt: at("2026-11-10T09:00:00"), status: LeadStatus.CONTACTADO },
+    { contactName: "C", companyName: "Colbun", serviceId: "s1", createdAt: at("2026-11-11T09:00:00"), status: LeadStatus.SIN_RESPUESTA },
+    { contactName: "D", companyName: "Enel", serviceId: "s1", createdAt: at("2026-11-03T09:00:00"), status: LeadStatus.CALIFICADO },
   ];
 
   it("agrupa por semana y deduplica dentro de cada una", () => {
@@ -117,8 +117,40 @@ describe("weeklyResults", () => {
     expect(result[1]).toMatchObject({ gross: 3, unique: 2 });
   });
 
+  it("cuenta aparte los captados con respuesta (contactado, calificado o convertido)", () => {
+    const result = weeklyResults(leads, at("2026-11-12T10:00:00"), 2);
+    // 03-nov: el unico lead esta calificado -> 1 con respuesta
+    expect(result[0].responded).toBe(1);
+    // 09-nov: Enel+s1 tiene un lead sin respuesta y otro contactado (cuenta 1); Colbun+s1 sin respuesta (0)
+    expect(result[1].responded).toBe(1);
+  });
+
+  it("nuevo, sin respuesta y descartado no cuentan como con respuesta", () => {
+    const nonResponded = [LeadStatus.NUEVO, LeadStatus.SIN_RESPUESTA, LeadStatus.DESCARTADO].map((status, i) => ({
+      contactName: `P${i}`,
+      companyName: `Empresa ${i}`,
+      serviceId: "s1",
+      createdAt: at("2026-11-10T09:00:00"),
+      status,
+    }));
+    const result = weeklyResults(nonResponded, at("2026-11-12T10:00:00"), 1);
+    expect(result[0]).toMatchObject({ unique: 3, responded: 0 });
+  });
+
+  it("convertido cuenta como con respuesta y nunca supera a los captados", () => {
+    const mixed = [
+      { contactName: "A", companyName: "Enel", serviceId: "s1", createdAt: at("2026-11-10T09:00:00"), status: LeadStatus.CONVERTIDO },
+      { contactName: "B", companyName: "Colbun", serviceId: "s1", createdAt: at("2026-11-10T10:00:00"), status: LeadStatus.CONTACTADO },
+    ];
+    const result = weeklyResults(mixed, at("2026-11-12T10:00:00"), 1)[0];
+    expect(result.responded).toBe(2);
+    expect(result.responded).toBeLessThanOrEqual(result.unique);
+  });
+
   it("el limite superior de la semana es exclusivo (el lunes siguiente cuenta en la otra)", () => {
-    const edge = [{ contactName: "X", companyName: "Z", serviceId: null, createdAt: at("2026-11-16T00:00:00") }];
+    const edge = [
+      { contactName: "X", companyName: "Z", serviceId: null, createdAt: at("2026-11-16T00:00:00"), status: LeadStatus.NUEVO },
+    ];
     const result = weeklyResults(edge, at("2026-11-12T10:00:00"), 1);
     expect(result[0].gross).toBe(0);
   });

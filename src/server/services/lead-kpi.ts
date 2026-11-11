@@ -79,17 +79,33 @@ export function expectedToDate(now: Date, goal = WEEKLY_LEAD_GOAL): number {
   return Math.round((goal * completedWeekdays(now)) / 5);
 }
 
+/**
+ * Estados que cuentan como "con respuesta": el lead ya tuvo contacto efectivo con el cliente.
+ * Quedan fuera Nuevo (sin gestionar), Sin respuesta (se intento y no contestaron) y Descartado.
+ */
+export const RESPONDED_STATUSES: readonly LeadStatus[] = [
+  LeadStatus.CONTACTADO,
+  LeadStatus.CALIFICADO,
+  LeadStatus.CONVERTIDO,
+];
+
+export function isResponded(status: LeadStatus): boolean {
+  return RESPONDED_STATUSES.includes(status);
+}
+
 export type WeekResult = {
   start: Date;
   /** Leads nuevos sin deduplicar (contactos). */
   gross: number;
-  /** Leads nuevos unicos empresa + servicio (el KPI). */
+  /** Leads nuevos unicos empresa + servicio: la CAPTACION (el KPI con semaforo). */
   unique: number;
+  /** De los captados, los unicos empresa + servicio que ya tuvieron respuesta del cliente. */
+  responded: number;
 };
 
 /** Resultados de las ultimas `weeks` semanas (la primera es la mas antigua y la ultima la semana en curso). */
 export function weeklyResults(
-  leads: readonly (KpiLead & { createdAt: Date })[],
+  leads: readonly (KpiLead & { createdAt: Date; status: LeadStatus })[],
   now: Date,
   weeks: number,
 ): WeekResult[] {
@@ -99,7 +115,12 @@ export function weeklyResults(
     const start = addDays(current, -7 * i);
     const end = addDays(start, 7);
     const inWeek = leads.filter((lead) => lead.createdAt >= start && lead.createdAt < end);
-    results.push({ start, gross: inWeek.length, unique: countUniqueLeads(inWeek) });
+    results.push({
+      start,
+      gross: inWeek.length,
+      unique: countUniqueLeads(inWeek),
+      responded: countUniqueLeads(inWeek.filter((lead) => isResponded(lead.status))),
+    });
   }
   return results;
 }

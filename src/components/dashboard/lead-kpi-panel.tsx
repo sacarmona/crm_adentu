@@ -46,6 +46,7 @@ export function LeadKpiPanel({
   const styles = LIGHT_STYLES[light];
   const duplicates = current.gross - current.unique;
   const progressPct = Math.min(100, Math.round((current.unique / goal) * 100));
+  const respondedPct = current.unique === 0 ? 0 : Math.round((current.responded / current.unique) * 100);
   const scaleMax = Math.max(goal, ...weeks.map((week) => week.unique), 1);
   // Semanas anteriores a la primera con leads: aun no se registraban, no se juzgan como "bajo la meta".
   const firstActive = weeks.findIndex((week) => week.gross > 0);
@@ -76,7 +77,8 @@ export function LeadKpiPanel({
               {styles.label}
             </span>
           </div>
-          <p className="mt-3 text-4xl font-bold tabular-nums text-slate-900">
+          <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-400">Captados (únicos)</p>
+          <p className="text-4xl font-bold tabular-nums text-slate-900">
             {current.unique}
             <span className="text-lg font-medium text-slate-400"> / {goal}</span>
           </p>
@@ -93,6 +95,23 @@ export function LeadKpiPanel({
               <dd className="font-semibold tabular-nums">{progressPct}%</dd>
             </div>
           </dl>
+
+          <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-xs font-medium text-slate-500">Con respuesta</p>
+              <p className="text-lg font-bold tabular-nums text-slate-900">
+                {current.responded}
+                <span className="ml-1.5 text-xs font-medium text-slate-400">{respondedPct}% de los captados</span>
+              </p>
+            </div>
+            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-slate-700" style={{ width: `${respondedPct}%` }} />
+            </div>
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              Contactados, calificados o convertidos. Sin semáforo: es la calidad de lo captado.
+            </p>
+          </div>
+
           <p className="mt-3 text-xs text-slate-500">
             {current.gross} lead{current.gross !== 1 ? "s" : ""} ingresado{current.gross !== 1 ? "s" : ""}
             {duplicates > 0
@@ -104,7 +123,17 @@ export function LeadKpiPanel({
 
         {/* Tendencia */}
         <div>
-          <p className="text-xs font-medium text-slate-500">Últimas {weeks.length} semanas (leads únicos)</p>
+          <p className="text-xs font-medium text-slate-500">
+            Últimas {weeks.length} semanas · captados <span className="text-slate-400">· con respuesta</span>
+          </p>
+          <p className="mt-0.5 flex items-center gap-3 text-[10px] text-slate-400">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-3 rounded-sm bg-slate-400/40" /> captados
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-3 rounded-sm bg-slate-500" /> con respuesta
+            </span>
+          </p>
           <div className="relative mt-3 flex h-32 items-end gap-2 border-b border-slate-200">
             <div
               className="pointer-events-none absolute inset-x-0 border-t border-dashed border-slate-400"
@@ -118,16 +147,28 @@ export function LeadKpiPanel({
               const barLight: Light = beforeStart ? "neutral" : isCurrent ? light : kpiLight(week.unique, goal);
               return (
                 <div key={week.start.toISOString()} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
-                  <span className="text-[11px] font-semibold tabular-nums text-slate-600">{week.unique}</span>
+                  <span className="text-[11px] font-semibold tabular-nums text-slate-600">
+                    {week.unique}
+                    {!beforeStart && week.unique > 0 ? (
+                      <span className="font-normal text-slate-400"> · {week.responded}</span>
+                    ) : null}
+                  </span>
                   <div
-                    className={`w-full rounded-t ${LIGHT_STYLES[barLight].bar} ${isCurrent ? "opacity-80" : ""}`}
+                    className="relative w-full overflow-hidden rounded-t"
                     style={{ height: `${Math.max(2, (week.unique / scaleMax) * 100 * 0.78)}%` }}
                     title={
                       beforeStart
                         ? `Semana del ${shortDate(week.start)}: sin leads registrados (aún no se usaba el módulo)`
-                        : `Semana del ${shortDate(week.start)}: ${week.unique} únicos (${week.gross} ingresados)`
+                        : `Semana del ${shortDate(week.start)}: ${week.unique} captados (${week.gross} ingresados) · ${week.responded} con respuesta`
                     }
-                  />
+                  >
+                    {/* Barra clara = captados; sólida = los que ya tuvieron respuesta */}
+                    <div className={`absolute inset-0 ${LIGHT_STYLES[barLight].bar} ${isCurrent ? "opacity-40" : "opacity-35"}`} />
+                    <div
+                      className={`absolute inset-x-0 bottom-0 ${LIGHT_STYLES[barLight].bar}`}
+                      style={{ height: `${week.unique === 0 ? 0 : (week.responded / week.unique) * 100}%` }}
+                    />
+                  </div>
                 </div>
               );
             })}
