@@ -34,6 +34,7 @@ import { contactMediumLabels, interactionTypeLabels } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import {
   WEEKLY_LEAD_GOAL,
+  WEEKLY_RESPONDED_GOAL,
   addDays,
   expectedToDate,
   statusReadings,
@@ -258,6 +259,7 @@ export default async function DashboardPage({
 
   const kpiWeeks = weeklyResults(kpiLeads, now, KPI_WEEKS);
   const kpiExpected = expectedToDate(now);
+  const kpiRespondedExpected = expectedToDate(now, WEEKLY_RESPONDED_GOAL);
   const periodLeadStatuses = statusReadings(
     kpiLeads.filter((lead) => lead.createdAt >= interactionSince).map((lead) => lead.status),
   );
@@ -460,6 +462,8 @@ export default async function DashboardPage({
         periodNuevos={periodLeadStatuses.nuevos}
         periodTotal={periodLeadStatuses.total}
         readings={periodLeadStatuses.readings}
+        respondedExpected={kpiRespondedExpected}
+        respondedGoal={WEEKLY_RESPONDED_GOAL}
         weeks={kpiWeeks}
       />
 

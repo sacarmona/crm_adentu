@@ -9,6 +9,7 @@ import {
   leadKey,
   statusLight,
   statusReadings,
+  WEEKLY_RESPONDED_GOAL,
   weekStart,
   weeklyResults,
 } from "./lead-kpi";
@@ -79,6 +80,29 @@ describe("leadKey / countUniqueLeads", () => {
 
   it("sin empresa cada contacto cuenta por si solo", () => {
     expect(countUniqueLeads([lead("Ana", null, "s1"), lead("Luis", null, "s1"), lead("ana", null, "s2")])).toBe(2);
+  });
+});
+
+describe("meta de leads con respuesta (10 por semana)", () => {
+  it("prorratea la meta de 10 por dias habiles", () => {
+    expect(expectedToDate(at("2026-11-09T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(0); // lunes
+    expect(expectedToDate(at("2026-11-10T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(2); // martes
+    expect(expectedToDate(at("2026-11-11T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(4); // miercoles
+    expect(expectedToDate(at("2026-11-13T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(8); // viernes
+    expect(expectedToDate(at("2026-11-14T10:00:00"), WEEKLY_RESPONDED_GOAL)).toBe(10); // sabado
+  });
+
+  it("semaforo en la semana en curso (miercoles, esperado 4)", () => {
+    expect(kpiLight(5, 4)).toBe("green");
+    expect(kpiLight(4, 4)).toBe("green");
+    expect(kpiLight(3, 4)).toBe("yellow"); // 75%
+    expect(kpiLight(2, 4)).toBe("red"); // 50%
+  });
+
+  it("semanas cerradas contra la meta completa de 10", () => {
+    expect(kpiLight(10, WEEKLY_RESPONDED_GOAL)).toBe("green");
+    expect(kpiLight(7, WEEKLY_RESPONDED_GOAL)).toBe("yellow"); // 70% exacto
+    expect(kpiLight(6, WEEKLY_RESPONDED_GOAL)).toBe("red"); // 60%
   });
 });
 

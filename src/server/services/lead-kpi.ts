@@ -2,10 +2,19 @@ import { LeadStatus } from "@prisma/client";
 
 import { normalizeName } from "../../lib/normalize";
 
-/** Meta de leads nuevos únicos por semana. */
+/** Meta de leads nuevos únicos por semana (captación). */
 export const WEEKLY_LEAD_GOAL = 20;
 
-/** Semaforo del KPI semanal: cumplimiento = leads / esperado a la fecha. */
+/**
+ * Meta de leads nuevos únicos CON RESPUESTA por semana (contactado, calificado o convertido).
+ * Se mide sobre los leads creados en la semana, igual que la captación.
+ */
+export const WEEKLY_RESPONDED_GOAL = 10;
+
+/**
+ * Semaforo de ambos KPI semanales (captados y con respuesta): cumplimiento = leads / esperado a la fecha.
+ * Verde >= 100%, amarillo >= 70%, rojo por debajo. Las semanas cerradas se juzgan contra la meta completa.
+ */
 export const KPI_GREEN_AT = 1; // >= 100% del esperado
 export const KPI_YELLOW_AT = 0.7; // >= 70% del esperado
 

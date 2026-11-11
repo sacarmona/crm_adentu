@@ -22,10 +22,15 @@ const LIGHT_STYLES: Record<Light, { dot: string; bar: string; chip: string; labe
 
 const shortDate = (date: Date) => formatDate(date).slice(0, 5);
 
+// Las barras ocupan el 78% del alto para dejar lugar a la etiqueta; las lineas de meta usan la misma escala.
+const BAR_SCALE = 0.78;
+
 export function LeadKpiPanel({
   goal,
+  respondedGoal,
   weeks,
   expected,
+  respondedExpected,
   periodLabel,
   periodTotal,
   periodNuevos,
@@ -33,8 +38,10 @@ export function LeadKpiPanel({
   readings,
 }: {
   goal: number;
+  respondedGoal: number;
   weeks: WeekResult[];
   expected: number;
+  respondedExpected: number;
   periodLabel: string;
   periodTotal: number;
   periodNuevos: number;
@@ -44,8 +51,11 @@ export function LeadKpiPanel({
   const current = weeks[weeks.length - 1];
   const light = kpiLight(current.unique, expected);
   const styles = LIGHT_STYLES[light];
+  const respondedLight = kpiLight(current.responded, respondedExpected);
+  const respondedStyles = LIGHT_STYLES[respondedLight];
   const duplicates = current.gross - current.unique;
   const progressPct = Math.min(100, Math.round((current.unique / goal) * 100));
+  const respondedProgressPct = Math.min(100, Math.round((current.responded / respondedGoal) * 100));
   const respondedPct = current.unique === 0 ? 0 : Math.round((current.responded / current.unique) * 100);
   const scaleMax = Math.max(goal, ...weeks.map((week) => week.unique), 1);
   // Semanas anteriores a la primera con leads: aun no se registraban, no se juzgan como "bajo la meta".
@@ -57,7 +67,8 @@ export function LeadKpiPanel({
         <div>
           <h2 className="font-semibold">Meta semanal de leads</h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Leads nuevos <strong>únicos</strong> (empresa + servicio) · meta {goal} por semana
+            Leads nuevos <strong>únicos</strong> (empresa + servicio) · meta {goal} captados y {respondedGoal} con
+            respuesta por semana
           </p>
         </div>
         <Link className="text-xs font-medium hover:underline" href="/leads">
@@ -96,20 +107,37 @@ export function LeadKpiPanel({
             </div>
           </dl>
 
-          <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-xs font-medium text-slate-500">Con respuesta</p>
-              <p className="text-lg font-bold tabular-nums text-slate-900">
-                {current.responded}
-                <span className="ml-1.5 text-xs font-medium text-slate-400">{respondedPct}% de los captados</span>
-              </p>
+          <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Con respuesta (únicos)</p>
+              <span
+                className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${respondedStyles.chip}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${respondedStyles.dot}`} />
+                {respondedStyles.label}
+              </span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-slate-700" style={{ width: `${respondedPct}%` }} />
-            </div>
-            <p className="mt-1.5 text-[11px] text-slate-400">
-              Contactados, calificados o convertidos. Sin semáforo: es la calidad de lo captado.
+            <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">
+              {current.responded}
+              <span className="text-base font-medium text-slate-400"> / {respondedGoal}</span>
             </p>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+              <div
+                className={`h-full rounded-full ${respondedStyles.bar}`}
+                style={{ width: `${respondedProgressPct}%` }}
+              />
+            </div>
+            <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+              <div>
+                <dt className="text-slate-400">Esperado a hoy</dt>
+                <dd className="font-semibold tabular-nums">{respondedExpected}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">De los captados</dt>
+                <dd className="font-semibold tabular-nums">{respondedPct}%</dd>
+              </div>
+            </dl>
+            <p className="mt-1.5 text-[11px] text-slate-400">Contactados, calificados o convertidos.</p>
           </div>
 
           <p className="mt-3 text-xs text-slate-500">
@@ -128,23 +156,34 @@ export function LeadKpiPanel({
           </p>
           <p className="mt-0.5 flex items-center gap-3 text-[10px] text-slate-400">
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-3 rounded-sm bg-slate-400/40" /> captados
+              <span className="inline-block h-2 w-3 rounded-sm bg-slate-400/40" /> captados (color = su semáforo)
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-3 rounded-sm bg-slate-500" /> con respuesta
+              <span className="inline-block h-2 w-3 rounded-sm bg-slate-500" /> con respuesta (color = su semáforo)
             </span>
           </p>
           <div className="relative mt-3 flex h-32 items-end gap-2 border-b border-slate-200">
             <div
               className="pointer-events-none absolute inset-x-0 border-t border-dashed border-slate-400"
-              style={{ bottom: `${(goal / scaleMax) * 100}%` }}
+              style={{ bottom: `${(goal / scaleMax) * BAR_SCALE * 100}%` }}
             >
               <span className="absolute -top-4 right-0 text-[10px] text-slate-400">meta {goal}</span>
+            </div>
+            <div
+              className="pointer-events-none absolute inset-x-0 border-t border-dashed border-slate-500"
+              style={{ bottom: `${(respondedGoal / scaleMax) * BAR_SCALE * 100}%` }}
+            >
+              <span className="absolute -top-4 right-0 text-[10px] text-slate-500">resp. {respondedGoal}</span>
             </div>
             {weeks.map((week, index) => {
               const isCurrent = index === weeks.length - 1;
               const beforeStart = !isCurrent && (firstActive === -1 || index < firstActive);
               const barLight: Light = beforeStart ? "neutral" : isCurrent ? light : kpiLight(week.unique, goal);
+              const fillLight: Light = beforeStart
+                ? "neutral"
+                : isCurrent
+                  ? respondedLight
+                  : kpiLight(week.responded, respondedGoal);
               return (
                 <div key={week.start.toISOString()} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
                   <span className="text-[11px] font-semibold tabular-nums text-slate-600">
@@ -155,17 +194,17 @@ export function LeadKpiPanel({
                   </span>
                   <div
                     className="relative w-full overflow-hidden rounded-t"
-                    style={{ height: `${Math.max(2, (week.unique / scaleMax) * 100 * 0.78)}%` }}
+                    style={{ height: `${Math.max(2, (week.unique / scaleMax) * 100 * BAR_SCALE)}%` }}
                     title={
                       beforeStart
                         ? `Semana del ${shortDate(week.start)}: sin leads registrados (aún no se usaba el módulo)`
                         : `Semana del ${shortDate(week.start)}: ${week.unique} captados (${week.gross} ingresados) · ${week.responded} con respuesta`
                     }
                   >
-                    {/* Barra clara = captados; sólida = los que ya tuvieron respuesta */}
+                    {/* Barra clara = captados (semáforo de captación); sólida = con respuesta (su propio semáforo) */}
                     <div className={`absolute inset-0 ${LIGHT_STYLES[barLight].bar} ${isCurrent ? "opacity-40" : "opacity-35"}`} />
                     <div
-                      className={`absolute inset-x-0 bottom-0 ${LIGHT_STYLES[barLight].bar}`}
+                      className={`absolute inset-x-0 bottom-0 ${LIGHT_STYLES[fillLight].bar}`}
                       style={{ height: `${week.unique === 0 ? 0 : (week.responded / week.unique) * 100}%` }}
                     />
                   </div>
@@ -184,12 +223,14 @@ export function LeadKpiPanel({
       </div>
 
       <p className="mt-3 text-[11px] leading-5 text-slate-400">
-        Semáforo de la semana en curso: <span className="font-medium text-emerald-600">verde</span> ≥{" "}
+        Semáforo (captados y con respuesta, cada uno contra su meta): <span className="font-medium text-emerald-600">verde</span> ≥{" "}
         {Math.round(KPI_GREEN_AT * 100)}% de lo esperado a la fecha ·{" "}
         <span className="font-medium text-amber-600">amarillo</span> {Math.round(KPI_YELLOW_AT * 100)}–
         {Math.round(KPI_GREEN_AT * 100) - 1}% · <span className="font-medium text-rose-600">rojo</span> &lt;{" "}
-        {Math.round(KPI_YELLOW_AT * 100)}%. Esperado = {goal} × días hábiles terminados ÷ 5 (el lunes aún no se
-        espera nada). Las semanas cerradas se juzgan contra la meta completa.
+        {Math.round(KPI_YELLOW_AT * 100)}%. Esperado = meta × días hábiles terminados ÷ 5 (captados {goal}, con
+        respuesta {respondedGoal}); el lunes aún no se espera nada. Las semanas cerradas se juzgan contra la meta
+        completa. Los leads se cuentan en la semana en que se crearon: un lead que responde después sube el
+        «con respuesta» de su semana de origen.
       </p>
 
       {/* Lectura de estados */}
