@@ -84,8 +84,12 @@ export async function POST(request: NextRequest) {
   });
 
   if (existing) {
+    // Un reenvio de la propuesta en borrador no debe retroceder el estado que ya avanzo en el CRM
+    // (p. ej. Enviada); solo los estados finales del CPQ (aprobada, rechazada, anulada) se aplican.
+    const { status: incomingStatus, ...rest } = fields;
+    const updateData = incomingStatus === CommercialDocumentStatus.DRAFT ? rest : fields;
     await prisma.$transaction([
-      prisma.commercialDocument.update({ where: { id: existing.id }, data: fields }),
+      prisma.commercialDocument.update({ where: { id: existing.id }, data: updateData }),
       prisma.auditLog.create({
         data: {
           action: AuditAction.UPDATE,

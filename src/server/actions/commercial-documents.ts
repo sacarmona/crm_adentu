@@ -113,6 +113,7 @@ export async function updateCommercialDocument(id: string, formData: FormData) {
   const data = schema.omit({ opportunityId: true }).parse(Object.fromEntries(formData.entries()));
   const before = await prisma.commercialDocument.findFirst({ where: { id, deletedAt: null } });
   if (!before) throw new Error("El documento ya no esta disponible.");
+  if (before.exchangeRateSource === "CPQ") throw new Error("Este documento se gestiona en el CPQ: editalo alli para mantener la trazabilidad.");
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     await tx.commercialDocument.update({ where: { id }, data: { ...data, ...amounts(data.amount, data.exchangeRate), documentDate: nullableDate(data.documentDate), validUntil: nullableDate(data.validUntil), sentAt: data.status === "SENT" && !before.sentAt ? now : undefined, acceptedAt: data.status === "ACCEPTED" ? now : null } });
@@ -130,6 +131,7 @@ export async function updateCommercialDocumentStatus(id: string, formData: FormD
   const status = z.nativeEnum(CommercialDocumentStatus).parse(formData.get("status"));
   const before = await prisma.commercialDocument.findFirst({ where: { id, deletedAt: null } });
   if (!before) throw new Error("El documento ya no esta disponible.");
+  if (before.exchangeRateSource === "CPQ") throw new Error("Este documento se gestiona en el CPQ: editalo alli para mantener la trazabilidad.");
   const now = new Date();
   await prisma.$transaction([
     prisma.commercialDocument.update({ where: { id }, data: { status, sentAt: status === "SENT" && !before.sentAt ? now : undefined, acceptedAt: status === "ACCEPTED" ? now : null } }),
