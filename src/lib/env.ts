@@ -41,6 +41,8 @@ const envSchema = z.object({
   WEB_LEAD_SECRET: z.string().min(16).optional(),
   JARVIS_API_TOKEN: z.string().min(16).optional(),
   PROJECTS_API_TOKEN: z.string().min(16).optional(),
+  CPQ_API_TOKEN: z.string().min(16).optional(),
+  CPQ_BASE_URL: z.string().url().optional(),
   TAVILY_API_KEY: z.string().optional(),
   EMAIL_AUTO_CLASSIFY: z.preprocess(
     (value) => {
@@ -85,6 +87,8 @@ export const env = envSchema.parse({
   WEB_LEAD_SECRET: process.env.WEB_LEAD_SECRET,
   JARVIS_API_TOKEN: process.env.JARVIS_API_TOKEN,
   PROJECTS_API_TOKEN: process.env.PROJECTS_API_TOKEN,
+  CPQ_API_TOKEN: process.env.CPQ_API_TOKEN,
+  CPQ_BASE_URL: process.env.CPQ_BASE_URL,
   TAVILY_API_KEY: process.env.TAVILY_API_KEY,
   EMAIL_AUTO_CLASSIFY: process.env.EMAIL_AUTO_CLASSIFY,
   EMAIL_AUTO_CLASSIFY_LIMIT: process.env.EMAIL_AUTO_CLASSIFY_LIMIT,

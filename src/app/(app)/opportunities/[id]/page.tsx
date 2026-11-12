@@ -8,6 +8,7 @@ import { CompletenessIndicator } from "@/components/crm/completeness-indicator";
 import { PlaybookGuide } from "@/components/playbooks/playbook-guide";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { env } from "@/lib/env";
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@/lib/format";
 import {
   aiInsightTypeLabels,
@@ -108,6 +109,17 @@ export default async function OpportunityDetailPage({
               <>
                 <Button asChild variant="outline"><Link href={`/interactions/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId ?? ""}&contactId=${opportunity.primaryContactId ?? ""}`}>Interaccion</Link></Button>
                 <Button asChild variant="outline"><Link href={`/tasks/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId ?? ""}&contactId=${opportunity.primaryContactId ?? ""}`}>Tarea</Link></Button>
+                {env.CPQ_BASE_URL ? (
+                  <Button asChild variant="outline">
+                    <a
+                      href={`${env.CPQ_BASE_URL.replace(/\/$/, "")}/cotizaciones/nueva?opportunityId=${encodeURIComponent(opportunity.id)}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Crear cotización en CPQ
+                    </a>
+                  </Button>
+                ) : null}
               </>
             ) : null}
             {canEdit && isClosedStatus(opportunity.status) ? (
