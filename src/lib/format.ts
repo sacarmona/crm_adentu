@@ -42,13 +42,22 @@ export function formatTime(value?: Date | string | null) {
 }
 
 export function formatCurrency(value: number | string, currency = "CLP") {
-  const amount = Number(value);
+  const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
 
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: currency === "CLP" ? 0 : 2,
-  }).format(Number.isFinite(amount) ? amount : 0);
+  // La UF no es un codigo ISO 4217: Intl lanza RangeError si se le pasa "UF".
+  if (currency === "UF") {
+    return `${new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} UF`;
+  }
+
+  try {
+    return new Intl.NumberFormat("es-CL", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: currency === "CLP" ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 }).format(amount)} ${currency}`;
+  }
 }
 
 export function formatPercent(value: number | string) {
